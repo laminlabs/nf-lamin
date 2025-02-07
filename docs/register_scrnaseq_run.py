@@ -37,6 +37,13 @@ def register_pipeline_metadata(output_dir: str, run: ln.Run) -> None:
     run.reference = nextflow_id
     run.reference_type = "nextflow_id"
 
+    # completed at
+    completion_match = re.search(r'<span id="workflow_complete">([^<]+)</span>', content)
+    if completion_match:
+        from datetime import datetime
+        timestamp_str = completion_match.group(1).strip()
+        run.finished_at = datetime.strptime(timestamp_str, "%d-%b-%Y %H:%M:%S")
+
     # execution report and software versions
     for file_pattern, description, run_attr in [
         ("execution_report*", "execution report", "report"),
@@ -61,7 +68,7 @@ def register_pipeline_metadata(output_dir: str, run: ln.Run) -> None:
 
 args = parse_arguments()
 scrnaseq_transform = ln.Transform(
-    name="scrna-seq",
+    key="scrna-seq",
     version="2.7.1",
     type="pipeline",
     reference="https://github.com/nf-core/scrnaseq",
