@@ -17,10 +17,10 @@ def register_pipeline_io(input_dir: str, output_dir: str, run: ln.Run) -> None:
     input_artifacts = ln.Artifact.from_dir(input_dir, run=False)
     ln.save(input_artifacts)
     run.input_artifacts.set(input_artifacts)
-    ln.Artifact(f"{output_dir}/multiqc", description="multiqc report", run=run).save()
+    ln.Artifact(f"{output_dir}/multiqc", key="multiqc report", run=run).save()
     ln.Artifact(
         f"{output_dir}/star/mtx_conversions/combined_filtered_matrix.h5ad",
-        description="filtered count matrix",
+        key="filtered count matrix",
         run=run,
     ).save()
 
@@ -52,7 +52,7 @@ def register_pipeline_metadata(output_dir: str, run: ln.Run) -> None:
     ]:
         artifact = ln.Artifact(
             next(Path(f"{output_dir}/pipeline_info").glob(file_pattern)),
-            description=f"nextflow run {description} of {nextflow_id}",
+            key=f"nextflow run {description} of {nextflow_id}",
             visibility=0,
             run=False,
         ).save()
