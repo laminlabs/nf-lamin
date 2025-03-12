@@ -20,7 +20,7 @@ def register_pipeline_io(input_dir: str, output_dir: str, run: ln.Run) -> None:
     ln.Artifact(f"{output_dir}/multiqc", key="multiqc report", run=run).save()
     ln.Artifact(
         f"{output_dir}/star/mtx_conversions/combined_filtered_matrix.h5ad",
-        key="filtered count matrix",
+        key="filtered_count_matrix.h5ad",
         run=run,
     ).save()
 
