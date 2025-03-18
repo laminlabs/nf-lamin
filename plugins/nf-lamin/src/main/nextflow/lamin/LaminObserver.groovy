@@ -69,7 +69,7 @@ ln.Run(
 
         def description = session.config.navigate("manifest.description") as String
 
-        logInfo "Fetch or create Transform object\n" +
+        logInfo "Fetch or create Transform object:\n" +
             "  trafo = ln.Transform(\n" +
             "    key=\"${key}\",\n" +
             "    version=\"${wfMetadata.revision}\",\n" +
@@ -79,7 +79,7 @@ ln.Run(
             "    description=\"${wfMetadata.manifest.getDescription()}\"\n" +
             "  )\n"
 
-        logInfo "Create Run object\n" +
+        logInfo "Create Run object:\n" +
             "  run = ln.Run(\n" +
             "    transform=trafo,\n" +
             "    name=\"${wfMetadata.runName}\",\n" +
@@ -120,7 +120,7 @@ ln.Run(
     @Override
     void onFilePublish(Path destination, Path source) {
         logInfo "onFilePublish triggered!"
-        logInfo "Create Artifact object\n" +
+        logInfo "Create Artifact object:\n" +
             "  artifact = ln.Artifact(\n" +
             "    run=run,\n" +
             "    data=\"${destination.toUriString()}\",\n" +
