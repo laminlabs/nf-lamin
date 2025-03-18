@@ -39,25 +39,25 @@ class LaminObserver implements TraceObserver {
     @Override
     void onFlowCreate(Session session) {
         logInfo "onFlowCreate runName='${session.runName}', manifest=${session.config.manifest}"
-        logInfo "  session.binding: ${session.binding}"
-        def configKeys = session.config.collect{k, v -> k}
-        for (key in configKeys) {
-            logInfo "  session.config.$key: ${session.config[key]}"
-        }
-        logInfo "  session.cacheable: ${session.cacheable}"
-        logInfo "  session.resumeMode: ${session.resumeMode}"
-        logInfo "  session.outputDir: ${session.outputDir}"
-        logInfo "  session.workDir: ${session.workDir}"
-        logInfo "  session.bucketDir: ${session.bucketDir}"
-        logInfo "  session.baseDir: ${session.baseDir}"
-        logInfo "  session.scriptName: ${session.scriptName}"
-        logInfo "  session.script: ${session.script}"
-        logInfo "  session.runName: ${session.runName}"
-        logInfo "  session.stubRun: ${session.stubRun}"
-        logInfo "  session.preview: ${session.preview}"
-        logInfo "  session.profile: ${session.profile}"
-        logInfo "  session.commandLine: ${session.commandLine}"
-        logInfo "  session.commitId: ${session.commitId}"
+        // logInfo "  session.binding: ${session.binding}"
+        // def configKeys = session.config.collect{k, v -> k}
+        // for (key in configKeys) {
+        //     logInfo "  session.config.$key: ${session.config[key]}"
+        // }
+        // logInfo "  session.cacheable: ${session.cacheable}"
+        // logInfo "  session.resumeMode: ${session.resumeMode}"
+        // logInfo "  session.outputDir: ${session.outputDir}"
+        // logInfo "  session.workDir: ${session.workDir}"
+        // logInfo "  session.bucketDir: ${session.bucketDir}"
+        // logInfo "  session.baseDir: ${session.baseDir}"
+        // logInfo "  session.scriptName: ${session.scriptName}"
+        // logInfo "  session.script: ${session.script}"
+        // logInfo "  session.runName: ${session.runName}"
+        // logInfo "  session.stubRun: ${session.stubRun}"
+        // logInfo "  session.preview: ${session.preview}"
+        // logInfo "  session.profile: ${session.profile}"
+        // logInfo "  session.commandLine: ${session.commandLine}"
+        // logInfo "  session.commitId: ${session.commitId}"
     }
 
     @Override
