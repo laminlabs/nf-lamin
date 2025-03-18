@@ -1,3 +1,11 @@
-# nextflow-lamin
+# nf-lamin plugin 
 
-This repository contains examples on how to use Lamin together with Nextflow to track workflow execution and data lineage.
+A Nextflow plugin that integrates LaminDB data provenance into Nextflow workflows.
+
+## Installation
+
+Coming soon!
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for more information about contributing to this repository.
