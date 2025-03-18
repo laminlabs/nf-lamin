@@ -4,32 +4,37 @@ import groovy.transform.PackageScope
 
 
 /**
- * This class allows model an specific configuration, extracting values from a map and converting
+ * Handle the configuration of the Lamin plugin
  *
- * In this plugin, the user can configure how the messages are prefixed with a String, i.e.
- * due a nextflow.config
+ * The configuration is extracted from the nextflow.config file under the lamin tag, e.g.
  *
  * lamin {
- *     prefix = '>>'
+ *   instance_id = "laminlabs/lamindata"
+ *   access_token = System.getenv("LAMIN_API_KEY")
  * }
  *
- * when the plugin reverse a String it will append '>>' at the beginning instead the default 'Mr.'
- *
- * We anotate this class as @PackageScope to restrict the access of their methods only to class in the
- * same package
- *
- * @author : jorge <jorge.aguilera@seqera.io>
+ * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  *
  */
 @PackageScope
 class LaminConfig {
 
-    final private String prefix
+    final private String instance_id
+    final private String access_token
 
     LaminConfig(Map map){
         def config = map ?: Collections.emptyMap()
-        prefix = config.prefix ?: 'Mr.'
+
+        // check if all values are available
+        // NOTE: disable this check for now 
+        // assert config.instance_id, "config 'lamin.instance_id' is required"
+        // assert config.access_token, "config 'lamin.access_token' is required"
+
+        // store values
+        instance_id = config.instance_id
+        access_token = config.access_token
     }
 
-    String getPrefix() { prefix }
+    String getInstanceId() { instance_id }
+    String getAccessToken() { access_token }
 }

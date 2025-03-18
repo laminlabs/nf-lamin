@@ -20,6 +20,7 @@ import groovy.transform.CompileStatic
 import nextflow.Session
 import nextflow.trace.TraceObserver
 import nextflow.trace.TraceObserverFactory
+
 /**
  * Implements the validation observer factory
  *
