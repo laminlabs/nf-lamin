@@ -11,7 +11,7 @@ make assemble
 #   -latest -resume \
 #   -plugins nf-lamin \
 #   -r 2.7.1 \
-#   -profile docker,test \
+#   -profile docker \
 #   --input https://github.com/nf-core/test-datasets/raw/scrnaseq/samplesheet-2-0.csv \
 #   --fasta https://github.com/nf-core/test-datasets/raw/scrnaseq/reference/GRCm38.p6.genome.chr19.fa \
 #   --gtf https://github.com/nf-core/test-datasets/raw/scrnaseq/reference/gencode.vM19.annotation.chr19.gtf \
