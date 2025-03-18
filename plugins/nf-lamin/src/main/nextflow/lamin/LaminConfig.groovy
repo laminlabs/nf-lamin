@@ -18,6 +18,9 @@ import groovy.transform.PackageScope
  */
 @PackageScope
 class LaminConfig {
+    // NOTE: There is a much more elegant interface since Nextflow >= 25.02.0:
+    // https://www.nextflow.io/docs/latest/developer/plugins.html#configuration
+    // However, since this would require a newer version of Nextflow, we will stick to the current implementation.
 
     final private String instance_id
     final private String access_token
