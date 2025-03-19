@@ -67,6 +67,9 @@ install:
 	rm -rf ${HOME}/.nextflow/plugins/nf-lamin-${version}
 	cp -r build/plugins/nf-lamin-${version} ${HOME}/.nextflow/plugins/nf-lamin-${version}
 
+uninstall:
+	rm -rf ${HOME}/.nextflow/plugins/nf-lamin-${version}
+
 #
 # Upload JAR artifacts to Maven Central
 #
