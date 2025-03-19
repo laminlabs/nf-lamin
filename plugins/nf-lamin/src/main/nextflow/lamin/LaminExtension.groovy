@@ -50,7 +50,7 @@ class LaminExtension extends PluginExtensionPoint {
      * nextflow.config
      * ---------------
      * lamin {
-     *   instance_id = "laminlabs/lamindata"
+     *   instance = "laminlabs/lamindata"
      *   access_token = System.getenv("LAMIN_API_KEY")
      * }
      */
