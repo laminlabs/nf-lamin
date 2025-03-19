@@ -1,11 +1,12 @@
 
 config ?= compileClasspath
+version ?= $(shell grep 'Plugin-Version' plugins/nf-lamin/src/resources/META-INF/MANIFEST.MF | awk '{ print $$2 }')
 
-ifdef module 
+ifdef module
 mm = :${module}:
-else 
-mm = 
-endif 
+else
+mm =
+endif
 
 clean:
 	rm -rf .nextflow*
@@ -36,7 +37,7 @@ deps-all:
 # Refresh SNAPSHOTs dependencies
 #
 refresh:
-	./gradlew --refresh-dependencies 
+	./gradlew --refresh-dependencies
 
 #
 # Run all tests or selected ones
@@ -57,6 +58,14 @@ assemble:
 #
 buildPlugins:
 	./gradlew copyPluginZip
+
+#
+# Build plugins and copy to the local Nextflow plugins directory
+#
+install:
+	./gradlew copyPluginZip
+	rm -rf ${HOME}/.nextflow/plugins/nf-lamin-${version}
+	cp -r build/plugins/nf-lamin-${version} ${HOME}/.nextflow/plugins/nf-lamin-${version}
 
 #
 # Upload JAR artifacts to Maven Central

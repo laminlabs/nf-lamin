@@ -3,34 +3,34 @@
 See the [Nextflow documentation](https://nextflow.io/docs/latest/plugins.html) for more information about developing plugins.
 
 ## Plugin structure
-                    
+
 - `settings.gradle`
-    
-    Gradle project settings. 
+
+    Gradle project settings.
 
 - `plugins/nf-lamin`
-    
+
     The plugin implementation base directory.
 
-- `plugins/nf-lamin/build.gradle` 
-    
+- `plugins/nf-lamin/build.gradle`
+
     Plugin Gradle build file. Project dependencies should be added here.
 
-- `plugins/nf-lamin/src/resources/META-INF/MANIFEST.MF` 
-    
+- `plugins/nf-lamin/src/resources/META-INF/MANIFEST.MF`
+
     Manifest file defining the plugin attributes e.g. name, version, etc. The attribute `Plugin-Class` declares the plugin main class. This class should extend the base class `nextflow.plugin.BasePlugin` e.g. `lamin.LaminPlugin`.
 
 - `plugins/nf-lamin/src/resources/META-INF/extensions.idx`
-    
+
     This file declares one or more extension classes provided by the plugin. Each line should contain the fully qualified name of a Java class that implements the `org.pf4j.ExtensionPoint` interface (or a sub-interface).
 
-- `plugins/nf-lamin/src/main` 
+- `plugins/nf-lamin/src/main`
 
     The plugin implementation sources.
 
-- `plugins/nf-lamin/src/test` 
+- `plugins/nf-lamin/src/test`
 
-    The plugin unit tests. 
+    The plugin unit tests.
 
 ## Plugin classes
 
@@ -42,7 +42,7 @@ See the [Nextflow documentation](https://nextflow.io/docs/latest/plugins.html) f
 
 - `LaminPlugin`: the plugin entry point
 
-## Unit testing 
+## Unit testing
 
 To run your unit tests, run the following command in the project root directory (ie. where the file `settings.gradle` is located):
 
@@ -60,12 +60,12 @@ To build and test the plugin during development, configure a local Nextflow buil
     ```bash
     git clone -b v24.10.5 https://github.com/nextflow-io/nextflow ../nextflow
     ```
-  
+
 2. Configure the plugin build to use the local Nextflow code:
     ```bash
     echo "includeBuild('../nextflow')" >> settings.gradle
     ```
-  
+
    (Make sure to not add it more than once!)
 
 3. Compile the plugin alongside the Nextflow code:
@@ -89,6 +89,14 @@ The plugin can be tested without using a local Nextflow build using the followin
 1. Build the plugin: `make buildPlugins`
 2. Copy `build/plugins/<your-plugin>` to `$HOME/.nextflow/plugins`
 3. Create a pipeline that uses your plugin and run it: `nextflow run ./my-pipeline-script.nf`
+
+Some notes on doing this:
+
+- The main reason for doing this is that Nextflow won't install other plugins while in dev mode, so you can't test any workflows with plugins
+- The version of Nextflow in the `plugins/nf-lamin/src/resources/META-INF/MANIFEST.MF` file must be <= the version of Nextflow you want to use
+- There is also a `nextflowVersion` config in the `plugins/nf-lamin/build.gradle` file that may need to be set
+- You may also need to checkout the version of Nextflow you want to use in the sibling `../nextflow` (or wherever you put it) directory before building
+- The `make install` command can be used to build and copy the plugin in one step
 
 ## Package, upload, and publish
 
