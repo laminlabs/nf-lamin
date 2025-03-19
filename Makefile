@@ -64,7 +64,7 @@ buildPlugins:
 #
 install:
 	./gradlew copyPluginZip
-	rm -rf ${HOME}/.nextflow/plugins/nf-schema-${version}
+	rm -rf ${HOME}/.nextflow/plugins/nf-lamin-${version}
 	cp -r build/plugins/nf-lamin-${version} ${HOME}/.nextflow/plugins/nf-lamin-${version}
 
 #
