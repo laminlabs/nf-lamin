@@ -52,51 +52,17 @@ To run your unit tests, run the following command in the project root directory 
 
 ## Testing and debugging
 
-To build and test the plugin during development, configure a local Nextflow build with the following steps.
+To build and test the plugin during development, use the following commands:
 
-**Initial setup:**
+1. Rebuild the plugin using the `make install` command. Take note of the version number of the plugin.
 
-1. Clone the Nextflow repository in your computer into a sibling directory:
+2. Run Nextflow with the plugin by adding the option `-plugins nf-lamin@0.0.1` to load the plugin:
     ```bash
-    git clone -b v24.10.5 https://github.com/nextflow-io/nextflow ../nextflow
+    nextflow run nf-core/hello -plugins nf-lamin@0.0.1
     ```
 
-2. Configure the plugin build to use the local Nextflow code:
-    ```bash
-    echo "includeBuild('../nextflow')" >> settings.gradle
-    ```
+    Note: replace the version number with the actual version of the plugin.
 
-   (Make sure to not add it more than once!)
-
-3. Compile the plugin alongside the Nextflow code:
-    ```bash
-    make compile
-    ```
-
-**Running a workflow with the plugin:**
-
-1. Rebuild the plugin using the `make assemble` command.
-
-2. Run Nextflow with the plugin, using `./launch.sh` as a drop-in replacement for the `nextflow` command, and adding the option `-plugins nf-lamin` to load the plugin:
-    ```bash
-    ./launch.sh run nf-core/hello -plugins nf-lamin
-    ```
-
-## Testing without Nextflow build
-
-The plugin can be tested without using a local Nextflow build using the following steps:
-
-1. Build the plugin: `make buildPlugins`
-2. Copy `build/plugins/<your-plugin>` to `$HOME/.nextflow/plugins`
-3. Create a pipeline that uses your plugin and run it: `nextflow run ./my-pipeline-script.nf`
-
-Some notes on doing this:
-
-- The main reason for doing this is that Nextflow won't install other plugins while in dev mode, so you can't test any workflows with plugins
-- The version of Nextflow in the `plugins/nf-lamin/src/resources/META-INF/MANIFEST.MF` file must be <= the version of Nextflow you want to use
-- There is also a `nextflowVersion` config in the `plugins/nf-lamin/build.gradle` file that may need to be set
-- You may also need to checkout the version of Nextflow you want to use in the sibling `../nextflow` (or wherever you put it) directory before building
-- The `make install` command can be used to build and copy the plugin in one step
 
 ## Package, upload, and publish
 
