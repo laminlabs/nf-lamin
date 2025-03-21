@@ -17,10 +17,16 @@
 package nextflow.lamin
 
 import java.nio.file.Path
+import java.nio.file.PathMatcher
+import java.util.concurrent.locks.Lock
+import java.util.concurrent.locks.ReentrantLock
+
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
+
 import nextflow.Session
 import nextflow.processor.TaskHandler
+import nextflow.processor.TaskRun
 import nextflow.trace.TraceObserver
 import nextflow.trace.TraceRecord
 
@@ -34,26 +40,18 @@ import nextflow.trace.TraceRecord
 class LaminObserver implements TraceObserver {
     private Session session
 
+    private List<PathMatcher> matchers = []
+
+    private Set<TaskRun> tasks = []
+
+    private Set<Path> workflowInputs = []
+    private Map<Path,Path> workflowOutputs = [:]
+
+    private Lock lock = new ReentrantLock()
+
     void logInfo(String message) {
         log.info("nf-lamin> " + message)
     }
-    
-
-/*
-ln.Transform(
-  key="nf-core/scrna-seq",
-  version="2.7.1",
-  type="pipeline",
-  reference="https://github.com/nf-core/scrnaseq",
-  reference_type="url",
-)
-
-ln.Run(
-  transform=trafo,
-  name="romantic_hawking"
-  started_at=started_at_datetime,
-)
-*/
 
     @Override
     void onFlowCreate(Session session) {
@@ -107,18 +105,62 @@ ln.Run(
         }
     }
 
+
     @Override
     void onProcessComplete(TaskHandler handler, TraceRecord trace) {
-        // logInfo "onProcessComplete name='${handler.task.name}'"
+        // skip failed tasks
+        final task = handler.task
+        if( !task.isSuccess() )
+            return
+
+        lock.withLock {
+            tasks << task
+            task.getInputFilesMap().each { name, path ->
+                logInfo "onProcessComplete task.getInputFilesMap() triggered!: name=$name, path=$path"
+                onFileInput(path)
+            }
+        }
+    }
+
+    void onFileInput(Path path) {
+        // if path is already in workflowInputs, do nothing
+        if (workflowInputs.contains(path)) {
+            return
+        }
+
+        logInfo "onFileInput triggered!"
+        logInfo "Create Artifact object:\n" +
+            "  artifact = ln.Artifact(\n" +
+            "    run=run,\n" +
+            "    data=\"${path.toUriString()}\",\n" +
+            "  )\n"
+        lock.withLock {
+            workflowInputs << path
+        }
     }
 
     @Override
     void onProcessCached(TaskHandler handler, TraceRecord trace) {
-        // logInfo "onProcessCached name='${handler.task.name}'"
+        final task = handler.task
+        lock.withLock {
+            tasks << task
+            task.getInputFilesMap().each { name, path ->
+                onFileInput(path)
+            }
+        }
     }
+
 
     @Override
     void onFilePublish(Path destination, Path source) {
+        final match = matchers.isEmpty() || matchers.any { matcher -> matcher.matches(destination) }
+        if( !match )
+            return
+
+        lock.withLock {
+            workflowOutputs[source] = destination
+        }
+
         logInfo "onFilePublish triggered!"
         logInfo "Create Artifact object:\n" +
             "  artifact = ln.Artifact(\n" +
@@ -135,6 +177,5 @@ ln.Run(
     @Override
     void onFlowComplete() {
         logInfo "onFlowComplete triggered!"
-        //this.session 
     }
 }
