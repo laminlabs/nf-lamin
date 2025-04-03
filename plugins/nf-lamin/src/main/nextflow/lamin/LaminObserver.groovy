@@ -30,6 +30,8 @@ import nextflow.processor.TaskRun
 import nextflow.trace.TraceObserver
 import nextflow.trace.TraceRecord
 
+import nextflow.lamin.api.Helper
+
 /**
  * Example workflow events observer
  *
@@ -59,6 +61,8 @@ class LaminObserver implements TraceObserver {
         this.session = session
 
         logInfo "onFlowCreate triggered!"
+
+        Helper.test()
 
         def wfMetadata = session.getWorkflowMetadata()
         def key = wfMetadata.scriptFile.toString().replaceFirst("${wfMetadata.projectDir}/", "")

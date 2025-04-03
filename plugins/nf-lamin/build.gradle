@@ -60,7 +60,7 @@ dependencies {
     compileOnly 'org.pf4j:pf4j:3.4.1'
 
     // add here plugins dependencies
-    api 'com.data-intuitive:lamin-api-client-java:0.0.1'
+    implementation 'com.data-intuitive:lamin-api-client-java:0.0.1'
 
     // test configuration
     testImplementation "org.apache.groovy:groovy:4.0.18"
