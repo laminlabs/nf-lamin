@@ -1,19 +1,3 @@
-/*
- * Copyright 2025, Lamin Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package nextflow.lamin
 
 import java.nio.file.Path
@@ -30,7 +14,11 @@ import nextflow.processor.TaskRun
 import nextflow.trace.TraceObserver
 import nextflow.trace.TraceRecord
 
-import nextflow.lamin.api.Helper
+import nextflow.lamin.api.LaminApiClient
+import nextflow.lamin.api.LaminHubClient
+
+import ai.lamin.lamin_api_client.ApiException;
+import ai.lamin.lamin_api_client.model.GetRecordRequestBody;
 
 /**
  * Example workflow events observer
@@ -40,37 +28,58 @@ import nextflow.lamin.api.Helper
 @Slf4j
 @CompileStatic
 class LaminObserver implements TraceObserver {
-    private Session session
+    protected Session session
+    protected LaminConfig config
+    protected LaminHubClient hubClient
+    protected LaminApiClient apiClient
 
-    private List<PathMatcher> matchers = []
+    protected List<PathMatcher> matchers = []
 
-    private Set<TaskRun> tasks = []
+    protected Set<TaskRun> tasks = []
 
-    private Set<Path> workflowInputs = []
-    private Map<Path,Path> workflowOutputs = [:]
+    protected Set<Path> workflowInputs = []
+    protected Map<Path,Path> workflowOutputs = [:]
 
-    private Lock lock = new ReentrantLock()
+    protected Lock lock = new ReentrantLock()
 
     @Override
     void onFlowCreate(Session session) {
         // store the session for later use
         this.session = session
+        this.config = LaminConfig.createFromSession(session)
+
+        // fetch instance settings
+        this.hubClient = new LaminHubClient(config.apiKey)
+
+        // create apiClient
+        this.apiClient = new LaminApiClient(
+            this.hubClient,
+            this.config.getInstanceOwner(),
+            this.config.getInstanceName()
+        )
+
 
         log.info "nf-lamin> onFlowCreate triggered!"
 
-        Helper.test()
-
         def wfMetadata = session.getWorkflowMetadata()
-        def key = wfMetadata.scriptFile.toString().replaceFirst("${wfMetadata.projectDir}/", "")
-
+        
         // session.baseDir + "/" + session.scriptName
 
-        def description = session.config.navigate("manifest.description") as String
+        String description = session.config.navigate("manifest.description") as String
+
+        // store repository name, commit id, and key
+        String repoName = wfMetadata.repository ?: wfMetadata.projectName
+        String commitId = wfMetadata.commitId
+        String mainScript = wfMetadata.scriptFile.toString().replaceFirst("${wfMetadata.projectDir}/", "")
+        
+        String key = mainScript == "main.nf" ? repoName : "${repoName}:${mainScript}"
+        String sourceCode = "${repoName}@${commitId}:${mainScript}"
 
         log.info "nf-lamin> Fetch or create Transform object:\n" +
             "  trafo = ln.Transform(\n" +
             "    key=\"${key}\",\n" +
             "    version=\"${wfMetadata.revision}\",\n" +
+            "    source_code=\"${sourceCode}\",\n" +
             "    type=\"pipeline\",\n" +
             "    reference=\"${wfMetadata.repository}\",\n" +
             "    reference_type=\"url\",\n" +
@@ -83,6 +92,33 @@ class LaminObserver implements TraceObserver {
             "    name=\"${wfMetadata.runName}\",\n" +
             "    started_at=\"${wfMetadata.start}\"\n" +
             "  )\n"
+
+        // trying to fetch a record from the server
+        try {
+            Integer limitToMany = 10;
+            Boolean includeForeignKeys = true;
+            GetRecordRequestBody getRecordRequestBody = new GetRecordRequestBody();
+            
+            Object result = this.apiClient.getRecord(
+                // moduleName: "core",
+                // modelName: "artifact",
+                // idOrUid: "MDG7BbeFVPvEyyUb0000",
+                // includeForeignKeys: true
+                "core",
+                "artifact",
+                "MDG7BbeFVPvEyyUb0000",
+                limitToMany,
+                includeForeignKeys,
+                getRecordRequestBody
+            );
+            log.info "nf-lamin> Fetched data from server: ${result.toString()}"
+        } catch (ApiException e) {
+            log.error "nf-lamin> Exception when calling LaminApiClient#getRecord"
+            log.error "API call failed: " + e.getMessage()
+            log.error "Status code: " + e.getCode()
+            log.error "Response body: " + e.getResponseBody()
+            log.error "Response headers: " + e.getResponseHeaders()
+        }
     }
 
     void printWorkflowMetadata(nextflow.script.WorkflowMetadata wfMetadata) {
@@ -111,10 +147,11 @@ class LaminObserver implements TraceObserver {
         if( !task.isSuccess() )
             return
 
+        log.info "nf-lamin> onProcessComplete name='${task.name}' triggered! InputMap:"
         lock.withLock {
             tasks << task
             task.getInputFilesMap().each { name, path ->
-                log.info "nf-lamin> onProcessComplete task.getInputFilesMap() triggered!: name=$name, path=$path"
+                log.info "* name=$name, path=$path"
                 onFileInput(path)
             }
         }
@@ -126,7 +163,6 @@ class LaminObserver implements TraceObserver {
             return
         }
 
-        log.info "nf-lamin> onFileInput triggered!"
         log.info "nf-lamin> Create Artifact object:\n" +
             "  artifact = ln.Artifact(\n" +
             "    run=run,\n" +

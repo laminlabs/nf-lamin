@@ -15,7 +15,7 @@ import nextflow.Session
  *
  * lamin {
  *   instance = "laminlabs/lamindata"
- *   access_token = System.getenv("LAMIN_API_KEY")
+ *   api_key = System.getenv("LAMIN_API_KEY")
  * }
  *
  * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
@@ -32,35 +32,35 @@ class LaminConfig {
     /**
      * The access token for the Lamin API
      */
-    final protected String accessToken
+    final protected String apiKey
+
+    /**
+     * The dry run flag
+     */
+    final protected Boolean dryRun
 
     /**
      * Constructor for the LaminConfig class
      * @param session the Nextflow session
      */
-    LaminConfig(final Session session) {
-        final Map config = session.config?.navigate('lamin') as Map ?: [:]
-
+    LaminConfig(String instance, String apiKey, Boolean dryRun = false) {
         // check if all values are available
-        // NOTE: disable this check for now
-        // assert config.instance, "config 'lamin.instance' is required"
-        // assert config.access_token, "config 'lamin.access_token' is required"
-        if (config.instance == null) {
+        if (instance == null || instance.trim().isEmpty()) {
             throw new IllegalArgumentException("Lamin instance is not set. Please set the 'lamin.instance' in your nextflow.config file.")
         }
-        if (config.instance !instanceof String) {
-            throw new IllegalArgumentException("Lamin instance is not a string. Please set the 'lamin.instance' in your nextflow.config file.")
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            throw new IllegalArgumentException("Lamin API key is not set. Please set the 'lamin.api_key' in your nextflow.config file.")
         }
-        if (config.access_token == null) {
-            throw new IllegalArgumentException("Lamin access token is not set. Please set the 'lamin.access_token' in your nextflow.config file.")
-        }
-        if (config.access_token !instanceof String) {
-            throw new IllegalArgumentException("Lamin access token is not a string. Please set the 'lamin.access_token' in your nextflow.config file.")
+
+        // check if instance is <owner>/<repo>
+        if (!instance.matches(/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/)) {
+            throw new IllegalArgumentException("Provided Lamin instance ${instance} is not valid. Please provide a valid instance in the format <owner>/<repo>.")
         }
 
         // store values
-        this.instance = config.instance as String
-        this.accessToken = config.access_token as String
+        this.instance = instance
+        this.apiKey = apiKey
+        this.dryRun = dryRun ?: false
     }
 
     /**
@@ -72,11 +72,50 @@ class LaminConfig {
     }
 
     /**
-     * Get the access token for the Lamin API
-     * @return the access token
+     * Get the instance owner for the Lamin API
+     * @return the instance owner
      */
-    String getAccessToken() {
-        return this.accessToken
+    String getInstanceOwner() {
+        return this.instance.split('/')[0]
     }
 
+    /**
+     * Get the instance name for the Lamin API
+     * @return the instance name
+     */
+    String getInstanceName() {
+        return this.instance.split('/')[1]
+    }
+    
+    /**
+     * Get the API key for Lamin Hub
+     * @return the API key
+     */
+    String getApiKey() {
+        return this.apiKey
+    }
+
+    /**
+     * Get the dry run flag
+     * @return the dry run flag
+     */
+    Boolean isDryRun() {
+        return this.dryRun
+    }
+
+    /**
+     * Create a LaminConfig object from the Nextflow session
+     * @param session the Nextflow session
+     * @return a LaminConfig object
+     */
+    @PackageScope
+    static LaminConfig createFromSession(Session session) {
+        if (session == null) {
+            throw new IllegalArgumentException("Session is null. Please provide a valid session.")
+        }
+        Map map = session.config?.navigate('lamin') as Map ?: [:]
+        String instance = map.instance
+        String apiKey = map.api_key
+        return new LaminConfig(instance, apiKey)
+    }
 }
