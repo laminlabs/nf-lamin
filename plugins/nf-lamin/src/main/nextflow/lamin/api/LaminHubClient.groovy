@@ -194,7 +194,7 @@ class LaminHubClient {
                     // Refresh the token (this updates this.accessToken internally via getJwt)
                     refreshAccessToken()
                     String newAccessToken = getAccessToken()
-                    
+
                     log.info "Retrying request to ${requestUrl} for ${callingMethod} with new token..."
                     // !!! Recursive Call: Retry the request ONCE with the NEW token and allowRetry=false !!!
                     // Pass the updated this.accessToken stored in the instance

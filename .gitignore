@@ -1,3 +1,30 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Translations
+*.mo
+*.pot
+
+# Sphinx documentation
+docs/_build/
+
+# Lamin
+_build
+docs/nextflow_lamin.*
+lamin_sphinx
+docs/conf.py
+_docs_tmp*
+*lndb
+*.lamindb
+multiqc_report.html
+test-datasets
+test-nextflow
+scrnaseq_input
+scrnaseq_output
+test.ipynb
+
 # Ignore Gradle project-specific cache directory
 .gradle
 .idea
