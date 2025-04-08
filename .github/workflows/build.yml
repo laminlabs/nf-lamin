@@ -56,6 +56,7 @@ jobs:
           aws-region: eu-central-1
 
       - run: nox -s lint
+        if: ${{ matrix.java_version == '21' }}
 
       - name: Setup Java ${{ matrix.java_version }}
         uses: actions/setup-java@v4
@@ -73,8 +74,10 @@ jobs:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
 
       - run: nox -s build
+        if: ${{ matrix.java_version == '21' }}
 
       - uses: nwtgck/actions-netlify@v1.2
+        if: ${{ matrix.java_version == '21' }}
         with:
           publish-dir: "_build/html"
           production-deploy: ${{ github.event_name == 'push' }}
