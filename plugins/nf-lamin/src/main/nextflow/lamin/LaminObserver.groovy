@@ -14,7 +14,11 @@ import nextflow.processor.TaskRun
 import nextflow.trace.TraceObserver
 import nextflow.trace.TraceRecord
 
-import nextflow.lamin.api.Helper
+import nextflow.lamin.api.LaminApiClient
+import nextflow.lamin.api.LaminHubClient
+
+import ai.lamin.lamin_api_client.ApiException;
+import ai.lamin.lamin_api_client.model.GetRecordRequestBody;
 
 /**
  * Example workflow events observer
@@ -24,21 +28,36 @@ import nextflow.lamin.api.Helper
 @Slf4j
 @CompileStatic
 class LaminObserver implements TraceObserver {
-    private Session session
+    protected Session session
+    protected LaminConfig config
+    protected LaminHubClient hubClient
+    protected LaminApiClient apiClient
 
-    private List<PathMatcher> matchers = []
+    protected List<PathMatcher> matchers = []
 
-    private Set<TaskRun> tasks = []
+    protected Set<TaskRun> tasks = []
 
-    private Set<Path> workflowInputs = []
-    private Map<Path,Path> workflowOutputs = [:]
+    protected Set<Path> workflowInputs = []
+    protected Map<Path,Path> workflowOutputs = [:]
 
-    private Lock lock = new ReentrantLock()
+    protected Lock lock = new ReentrantLock()
 
     @Override
     void onFlowCreate(Session session) {
         // store the session for later use
         this.session = session
+        this.config = LaminConfig.createFromSession(session)
+
+        // fetch instance settings
+        this.hubClient = new LaminHubClient(config.apiKey)
+
+        // create apiClient
+        this.apiClient = new LaminApiClient(
+            this.hubClient,
+            this.config.getInstanceOwner(),
+            this.config.getInstanceName()
+        )
+
 
         log.info "nf-lamin> onFlowCreate triggered!"
 
@@ -73,6 +92,33 @@ class LaminObserver implements TraceObserver {
             "    name=\"${wfMetadata.runName}\",\n" +
             "    started_at=\"${wfMetadata.start}\"\n" +
             "  )\n"
+
+        // trying to fetch a record from the server
+        try {
+            Integer limitToMany = 10;
+            Boolean includeForeignKeys = true;
+            GetRecordRequestBody getRecordRequestBody = new GetRecordRequestBody();
+            
+            Object result = this.apiClient.getRecord(
+                // moduleName: "core",
+                // modelName: "artifact",
+                // idOrUid: "MDG7BbeFVPvEyyUb0000",
+                // includeForeignKeys: true
+                "core",
+                "artifact",
+                "MDG7BbeFVPvEyyUb0000",
+                limitToMany,
+                includeForeignKeys,
+                getRecordRequestBody
+            );
+            log.info "nf-lamin> Fetched data from server: ${result.toString()}"
+        } catch (ApiException e) {
+            log.error "nf-lamin> Exception when calling LaminApiClient#getRecord"
+            log.error "API call failed: " + e.getMessage()
+            log.error "Status code: " + e.getCode()
+            log.error "Response body: " + e.getResponseBody()
+            log.error "Response headers: " + e.getResponseHeaders()
+        }
     }
 
     void printWorkflowMetadata(nextflow.script.WorkflowMetadata wfMetadata) {
