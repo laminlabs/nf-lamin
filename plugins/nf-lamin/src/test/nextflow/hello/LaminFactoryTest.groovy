@@ -23,11 +23,11 @@ import spock.lang.Specification
  *
  * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
-class LaminFactoryTest extends Specification {
+class LaminObserverFactoryTest extends Specification {
 
     def 'should return observer' () {
         when:
-        def result = new LaminFactory().create(Mock(Session))
+        def result = new LaminObserverFactoryTest().create(Mock(Session))
         then:
         result.size()==1
         result[0] instanceof LaminObserver

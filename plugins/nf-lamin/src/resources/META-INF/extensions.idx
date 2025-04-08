@@ -1,2 +1,2 @@
-nextflow.lamin.LaminFactory
 nextflow.lamin.LaminExtension
+nextflow.lamin.LaminObserverFactory

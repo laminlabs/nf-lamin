@@ -27,7 +27,7 @@ import nextflow.trace.TraceObserverFactory
  * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
 @CompileStatic
-class LaminFactory implements TraceObserverFactory {
+class LaminObserverFactory implements TraceObserverFactory {
 
     @Override
     Collection<TraceObserver> create(Session session) {

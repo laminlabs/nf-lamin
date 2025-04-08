@@ -38,7 +38,7 @@ See the [Nextflow documentation](https://nextflow.io/docs/latest/plugins.html) f
 
 - `LaminExtension`: shows how to create custom channel factories, operators, and fuctions that can be included into pipeline scripts
 
-- `LaminFactory` and `LaminObserver`: shows how to react to workflow events with custom behavior
+- `LaminObserverFactoryTest` and `LaminObserver`: shows how to react to workflow events with custom behavior
 
 - `LaminPlugin`: the plugin entry point
 

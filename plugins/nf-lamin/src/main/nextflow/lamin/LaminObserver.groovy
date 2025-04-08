@@ -51,16 +51,12 @@ class LaminObserver implements TraceObserver {
 
     private Lock lock = new ReentrantLock()
 
-    void logInfo(String message) {
-        log.info("nf-lamin> " + message)
-    }
-
     @Override
     void onFlowCreate(Session session) {
         // store the session for later use
         this.session = session
 
-        logInfo "onFlowCreate triggered!"
+        log.info "nf-lamin> onFlowCreate triggered!"
 
         Helper.test()
 
@@ -71,7 +67,7 @@ class LaminObserver implements TraceObserver {
 
         def description = session.config.navigate("manifest.description") as String
 
-        logInfo "Fetch or create Transform object:\n" +
+        log.info "nf-lamin> Fetch or create Transform object:\n" +
             "  trafo = ln.Transform(\n" +
             "    key=\"${key}\",\n" +
             "    version=\"${wfMetadata.revision}\",\n" +
@@ -81,31 +77,29 @@ class LaminObserver implements TraceObserver {
             "    description=\"${wfMetadata.manifest.getDescription()}\"\n" +
             "  )\n"
 
-        logInfo "Create Run object:\n" +
+        log.info "nf-lamin> Create Run object:\n" +
             "  run = ln.Run(\n" +
             "    transform=trafo,\n" +
             "    name=\"${wfMetadata.runName}\",\n" +
             "    started_at=\"${wfMetadata.start}\"\n" +
             "  )\n"
-
-
     }
 
     void printWorkflowMetadata(nextflow.script.WorkflowMetadata wfMetadata) {
-        logInfo "Printing wfMetadata"
+        log.info "nf-lamin> Printing wfMetadata"
         for (key in ["scriptId", "scriptFile", "scriptName", "repository", "commitId", "revision", "projectDir", "projectName", "start", "container", "commandLine", "nextflow", "outputDir", "workDir", "launchDir", "profile", "sessionId", "resume", "stubRun", "preview", "runName", "containerEngine", "configFiles", "stats", "userName", "homeDir", "manifest", "wave", "fusion", "failOnIgnore"]) {
-            logInfo "  wfMetadata.$key: ${wfMetadata[key]}"
+            log.info "nf-lamin>   wfMetadata.$key: ${wfMetadata[key]}"
         }
     }
 
     void printSession(nextflow.Session session) {
-        logInfo "  session.binding: ${session.binding}"
+        log.info "nf-lamin>   session.binding: ${session.binding}"
         def configKeys = session.config.collect{k, v -> k}
         for (key in configKeys) {
-            logInfo "  session.config.$key: ${session.config[key]}"
+            log.info "nf-lamin>   session.config.$key: ${session.config[key]}"
         }
         for (key in ["cacheable", "resumeMode", "outputDir", "workDir", "bucketDir", "baseDir", "scriptName", "script", "runName", "stubRun", "preview", "profile", "commandLine", "commitId"]) {
-            logInfo "  session.$key: ${session[key]}"
+            log.info "nf-lamin>   session.$key: ${session[key]}"
         }
     }
 
@@ -120,7 +114,7 @@ class LaminObserver implements TraceObserver {
         lock.withLock {
             tasks << task
             task.getInputFilesMap().each { name, path ->
-                logInfo "onProcessComplete task.getInputFilesMap() triggered!: name=$name, path=$path"
+                log.info "nf-lamin> onProcessComplete task.getInputFilesMap() triggered!: name=$name, path=$path"
                 onFileInput(path)
             }
         }
@@ -132,8 +126,8 @@ class LaminObserver implements TraceObserver {
             return
         }
 
-        logInfo "onFileInput triggered!"
-        logInfo "Create Artifact object:\n" +
+        log.info "nf-lamin> onFileInput triggered!"
+        log.info "nf-lamin> Create Artifact object:\n" +
             "  artifact = ln.Artifact(\n" +
             "    run=run,\n" +
             "    data=\"${path.toUriString()}\",\n" +
@@ -165,8 +159,8 @@ class LaminObserver implements TraceObserver {
             workflowOutputs[source] = destination
         }
 
-        logInfo "onFilePublish triggered!"
-        logInfo "Create Artifact object:\n" +
+        log.info "nf-lamin> onFilePublish triggered!"
+        log.info "nf-lamin> Create Artifact object:\n" +
             "  artifact = ln.Artifact(\n" +
             "    run=run,\n" +
             "    data=\"${destination.toUriString()}\",\n" +
@@ -175,11 +169,11 @@ class LaminObserver implements TraceObserver {
     
     @Override
     void onFlowError(TaskHandler handler, TraceRecord trace) {
-        //logInfo "onFlowError name='${handler.task.name}'"
+        //log.info "nf-lamin> onFlowError name='${handler.task.name}'"
     }
 
     @Override
     void onFlowComplete() {
-        logInfo "onFlowComplete triggered!"
+        log.info "nf-lamin> onFlowComplete triggered!"
     }
 }

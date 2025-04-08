@@ -43,7 +43,7 @@ class LaminExtension extends PluginExtensionPoint {
     /*
      * A session hold information about current execution of the script
      */
-    private Session session
+    protected Session session
 
     /*
      * A Custom config extracted from nextflow.config under lamin tag
@@ -54,16 +54,26 @@ class LaminExtension extends PluginExtensionPoint {
      *   access_token = System.getenv("LAMIN_API_KEY")
      * }
      */
-     private LaminConfig config
+     protected LaminConfig config
 
-    /*
-     * nf-core initializes the plugin once loaded and session is ready
-     * @param session
+    /**
+     * An extension that is automatically initialized by nextflow when the session is ready.
+     *
+     * @param session A nextflow session instance.
      */
     @Override
     protected void init(Session session) {
         this.session = session
-        this.config = new LaminConfig(session.config.navigate('lamin') as Map)
+
+        try {
+            this.config = new LaminConfig(session)
+        } catch (IllegalArgumentException | AssertionError exc) {
+            log.error("${exc.getMessage()}")
+            log.error("Aborting.")
+            session.abort(exc)
+        }
+
+        log.info "nf-lamin> Initializing nf-lamin plugin with config: ${config}"
     }
 
 }
