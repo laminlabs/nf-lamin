@@ -39,6 +39,10 @@ jobs:
           path: lndocs
           ref: main
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
       - run: sudo apt-get -y install graphviz
 
       - run: pip install "laminci@git+https://github.com/laminlabs/laminci"
