@@ -70,7 +70,7 @@ class LaminConfig {
     String getInstance() {
         return this.instance
     }
-    
+
     /**
      * Get the access token for the Lamin API
      * @return the access token

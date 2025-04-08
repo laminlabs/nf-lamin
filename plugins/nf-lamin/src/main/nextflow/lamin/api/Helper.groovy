@@ -16,7 +16,7 @@ import nextflow.lamin.api.LaminApiClient;
 class Helper {
     static void test() {
         String apiKey = "..."
-        
+
         // Fetch instance settings
         LaminHubClient hub = new LaminHubClient(apiKey)
 
@@ -25,7 +25,7 @@ class Helper {
             "laminlabs",
             "lamindata"
         );
-        
+
         Integer limitToMany = 10;
         Boolean includeForeignKeys = true;
         GetRecordRequestBody getRecordRequestBody = new GetRecordRequestBody();

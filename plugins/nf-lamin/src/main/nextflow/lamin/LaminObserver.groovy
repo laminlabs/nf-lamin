@@ -166,7 +166,7 @@ class LaminObserver implements TraceObserver {
             "    data=\"${destination.toUriString()}\",\n" +
             "  )\n"
     }
-    
+
     @Override
     void onFlowError(TaskHandler handler, TraceRecord trace) {
         //log.info "nf-lamin> onFlowError name='${handler.task.name}'"

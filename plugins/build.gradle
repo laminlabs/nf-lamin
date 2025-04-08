@@ -71,7 +71,7 @@ subprojects {
     tasks.withType(Jar) {
         duplicatesStrategy = DuplicatesStrategy.INCLUDE
     }
-    
+
     /*
      * Creates plugin zip and json meta file in plugin `build/libs` directory
      */
@@ -151,7 +151,7 @@ subprojects {
     tasks.withType(GenerateModuleMetadata) {
         enabled = false
     }
-    
+
     task upload(dependsOn: [uploadPlugin] ) { }
 }
 
