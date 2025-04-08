@@ -43,8 +43,6 @@ jobs:
         with:
           python-version: "3.x"
 
-      - run: sudo apt-get -y install graphviz
-
       - run: pip install "laminci@git+https://github.com/laminlabs/laminci"
       - uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -68,6 +66,8 @@ jobs:
         run: ./gradlew check
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+      - run: nox -s build
 
       - uses: nwtgck/actions-netlify@v1.2
         with:
