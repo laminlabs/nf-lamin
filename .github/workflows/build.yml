@@ -1,18 +1,22 @@
-name: nf-lamin CI
+name: build
 on:
   push:
-    branches:
-      - '*'
+    branches: [main]
     tags-ignore:
-      - '*'
+      - "*"
   pull_request:
     branches:
-      - '*'
+      - "*"
+  repository_dispatch:
+    types: [build]
 jobs:
   build:
     name: Build nf-lamin
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    env:
+      GITHUB_EVENT_NAME: ${{ github.event_name }}
+      NXF_ANSI_LOG: false
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -23,17 +27,35 @@ jobs:
         run: env | sort
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           submodules: true
 
+      - uses: actions/checkout@v4
+        with:
+          repository: laminlabs/lndocs
+          ssh-key: ${{ secrets.READ_LNDOCS }}
+          path: lndocs
+          ref: main
+
+      - run: sudo apt-get -y install graphviz
+
+      - run: pip install "laminci@git+https://github.com/laminlabs/laminci"
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+
+      - run: nox -s lint
+
       - name: Setup Java ${{ matrix.java_version }}
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: ${{matrix.java_version}}
           architecture: x64
-          distribution: 'temurin'
+          distribution: "temurin"
 
       - name: Compile
         run: ./gradlew assemble
@@ -41,5 +63,32 @@ jobs:
       - name: Tests
         run: ./gradlew check
         env:
-          GRADLE_OPTS: '-Dorg.gradle.daemon=false'
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false"
 
+      - uses: nwtgck/actions-netlify@v1.2
+        with:
+          publish-dir: "_build/html"
+          production-deploy: ${{ github.event_name == 'push' }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          enable-commit-comment: false
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+
+      - uses: voxmedia/github-action-slack-notify-build@v1
+        if: success()
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_GITHUB_ACTION }}
+        with:
+          channel_id: C05FDBBFJ1F
+          status: SUCCESS
+          color: good
+
+      - uses: voxmedia/github-action-slack-notify-build@v1
+        if: failure()
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_GITHUB_ACTION }}
+        with:
+          channel_id: C05FDBBFJ1F
+          status: FAILURE
+          color: danger

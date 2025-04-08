@@ -1,0 +1,33 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+        exclude: |
+          (?x)(
+              .github/workflows/latest-changes.jinja2
+          )
+      - id: check-yaml
+      - id: check-added-large-files
+        exclude: |
+          (?x)(
+              nextflow_bulk_rna
+          )
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: v3.5.1
+    hooks:
+      - id: prettier
+        exclude: |
+          (?x)(
+            docs/changelog.md|.github/ISSUE_TEMPLATE/config.yml
+          )
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.8.1
+    hooks:
+      - id: nbstripout
+        exclude: |
+          (?x)(
+              docs/examples/|
+              docs/notes/
+          )
