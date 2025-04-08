@@ -1,21 +1,29 @@
 package nextflow.lamin.api
 
-import groovy.transform.CompileStatic
 import java.util.UUID
+
+import groovy.transform.CompileStatic
+import groovy.util.logging.Slf4j
 
 import ai.lamin.lamin_api_client.ApiException;
 import ai.lamin.lamin_api_client.model.GetRecordRequestBody;
 
+import nextflow.lamin.api.LaminHubClient;
 import nextflow.lamin.api.LaminApiClient;
 
 @CompileStatic
+@Slf4j
 class Helper {
     static void test() {
+        String apiKey = "..."
+        
+        // Fetch instance settings
+        LaminHubClient hub = new LaminHubClient(apiKey)
+
         LaminApiClient client = new LaminApiClient(
-            "https://aws.us-east-1.lamin.ai/api",
-            UUID.fromString("037ba1e0-8d80-4f91-a902-75a47735076a"),
-            UUID.fromString("185ae0d3-6f3f-ce2a-8122-516d30520816"),
-            "Bearer ..."
+            hub,
+            "laminlabs",
+            "lamindata"
         );
         
         Integer limitToMany = 10;
