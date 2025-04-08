@@ -43,14 +43,13 @@ class Helper {
                 includeForeignKeys,
                 getRecordRequestBody
             );
-            println("nf-lamin> Fetched data from server: ${result.toString()}");
+            log.info "nf-lamin> Fetched data from server: ${result.toString()}"
         } catch (ApiException e) {
-            System.err.println("Exception when calling LaminApiClient#getRecord");
-            System.err.println("API call failed: " + e.getMessage());
-            System.err.println("Status code: " + e.getCode());
-            System.err.println("Reason: " + e.getResponseBody());
-            System.err.println("Response headers: " + e.getResponseHeaders());
-            e.printStackTrace();
+            log.error "nf-lamin> Exception when calling LaminApiClient#getRecord"
+            log.error "API call failed: " + e.getMessage()
+            log.error "Status code: " + e.getCode()
+            log.error "Response body: " + e.getResponseBody()
+            log.error "Response headers: " + e.getResponseHeaders()
         }
     }
 }

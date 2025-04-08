@@ -1,19 +1,3 @@
-/*
- * Copyright 2025, Lamin Labs
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package nextflow.lamin
 
 import java.nio.file.Path
@@ -58,19 +42,25 @@ class LaminObserver implements TraceObserver {
 
         log.info "nf-lamin> onFlowCreate triggered!"
 
-        Helper.test()
-
         def wfMetadata = session.getWorkflowMetadata()
-        def key = wfMetadata.scriptFile.toString().replaceFirst("${wfMetadata.projectDir}/", "")
-
+        
         // session.baseDir + "/" + session.scriptName
 
-        def description = session.config.navigate("manifest.description") as String
+        String description = session.config.navigate("manifest.description") as String
+
+        // store repository name, commit id, and key
+        String repoName = wfMetadata.repository ?: wfMetadata.projectName
+        String commitId = wfMetadata.commitId
+        String mainScript = wfMetadata.scriptFile.toString().replaceFirst("${wfMetadata.projectDir}/", "")
+        
+        String key = mainScript == "main.nf" ? repoName : "${repoName}:${mainScript}"
+        String sourceCode = "${repoName}@${commitId}:${mainScript}"
 
         log.info "nf-lamin> Fetch or create Transform object:\n" +
             "  trafo = ln.Transform(\n" +
             "    key=\"${key}\",\n" +
             "    version=\"${wfMetadata.revision}\",\n" +
+            "    source_code=\"${sourceCode}\",\n" +
             "    type=\"pipeline\",\n" +
             "    reference=\"${wfMetadata.repository}\",\n" +
             "    reference_type=\"url\",\n" +
@@ -111,10 +101,11 @@ class LaminObserver implements TraceObserver {
         if( !task.isSuccess() )
             return
 
+        log.info "nf-lamin> onProcessComplete name='${task.name}' triggered! InputMap:"
         lock.withLock {
             tasks << task
             task.getInputFilesMap().each { name, path ->
-                log.info "nf-lamin> onProcessComplete task.getInputFilesMap() triggered!: name=$name, path=$path"
+                log.info "* name=$name, path=$path"
                 onFileInput(path)
             }
         }
@@ -126,7 +117,6 @@ class LaminObserver implements TraceObserver {
             return
         }
 
-        log.info "nf-lamin> onFileInput triggered!"
         log.info "nf-lamin> Create Artifact object:\n" +
             "  artifact = ln.Artifact(\n" +
             "    run=run,\n" +
