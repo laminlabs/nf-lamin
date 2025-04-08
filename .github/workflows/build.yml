@@ -43,6 +43,11 @@ jobs:
         with:
           python-version: "3.x"
 
+      - uses: actions/cache@v3
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
       - run: pip install "laminci@git+https://github.com/laminlabs/laminci"
       - uses: aws-actions/configure-aws-credentials@v4
         with:
