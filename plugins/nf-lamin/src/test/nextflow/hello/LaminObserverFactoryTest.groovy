@@ -27,7 +27,7 @@ class LaminObserverFactoryTest extends Specification {
 
     def 'should return observer' () {
         when:
-        def result = new LaminObserverFactoryTest().create(Mock(Session))
+        def result = new LaminObserverFactory().create(Mock(Session))
         then:
         result.size()==1
         result[0] instanceof LaminObserver
