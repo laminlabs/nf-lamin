@@ -11,11 +11,12 @@ import groovy.util.logging.Slf4j
 import nextflow.Session
 import nextflow.processor.TaskHandler
 import nextflow.processor.TaskRun
+import nextflow.script.WorkflowMetadata
 import nextflow.trace.TraceObserver
 import nextflow.trace.TraceRecord
 
-import nextflow.lamin.api.LaminApiClient
-import nextflow.lamin.api.LaminHubClient
+import nextflow.lamin.api.LaminInstance
+import nextflow.lamin.api.LaminHub
 
 import ai.lamin.lamin_api_client.ApiException;
 import ai.lamin.lamin_api_client.model.GetRecordRequestBody;
@@ -30,13 +31,14 @@ import ai.lamin.lamin_api_client.model.GetRecordRequestBody;
 class LaminObserver implements TraceObserver {
     protected Session session
     protected LaminConfig config
-    protected LaminHubClient hubClient
-    protected LaminApiClient apiClient
+    protected LaminHub hub
+    protected LaminInstance instance
+    protected Map<String, String> transform
+    protected Map<String, String> run
 
+    // provenance helper values
     protected List<PathMatcher> matchers = []
-
     protected Set<TaskRun> tasks = []
-
     protected Set<Path> workflowInputs = []
     protected Map<Path,Path> workflowOutputs = [:]
 
@@ -44,149 +46,66 @@ class LaminObserver implements TraceObserver {
 
     @Override
     void onFlowCreate(Session session) {
+        log.debug "onFlowCreate triggered!"
+
         // store the session for later use
         this.session = session
         this.config = LaminConfig.createFromSession(session)
 
         // fetch instance settings
-        this.hubClient = new LaminHubClient(config.apiKey)
+        this.hub = new LaminHub(config.apiKey)
 
-        // create apiClient
-        this.apiClient = new LaminApiClient(
-            this.hubClient,
+        // create instance
+        this.instance = new LaminInstance(
+            this.hub,
             this.config.getInstanceOwner(),
             this.config.getInstanceName()
         )
 
+        // test connection
+        _testConnection()
 
-        log.info "nf-lamin> onFlowCreate triggered!"
+        // fetch or create Transform object
+        this.transform = _fetchOrCreateTransform()
 
-        def wfMetadata = session.getWorkflowMetadata()
-        
-        // session.baseDir + "/" + session.scriptName
-
-        String description = session.config.navigate("manifest.description") as String
-
-        // store repository name, commit id, and key
-        String repoName = wfMetadata.repository ?: wfMetadata.projectName
-        String commitId = wfMetadata.commitId
-        String mainScript = wfMetadata.scriptFile.toString().replaceFirst("${wfMetadata.projectDir}/", "")
-        
-        String key = mainScript == "main.nf" ? repoName : "${repoName}:${mainScript}"
-        String sourceCode = "${repoName}@${commitId}:${mainScript}"
-
-        log.info "nf-lamin> Fetch or create Transform object:\n" +
-            "  trafo = ln.Transform(\n" +
-            "    key=\"${key}\",\n" +
-            "    version=\"${wfMetadata.revision}\",\n" +
-            "    source_code=\"${sourceCode}\",\n" +
-            "    type=\"pipeline\",\n" +
-            "    reference=\"${wfMetadata.repository}\",\n" +
-            "    reference_type=\"url\",\n" +
-            "    description=\"${wfMetadata.manifest.getDescription()}\"\n" +
-            "  )\n"
-
-        log.info "nf-lamin> Create Run object:\n" +
-            "  run = ln.Run(\n" +
-            "    transform=trafo,\n" +
-            "    name=\"${wfMetadata.runName}\",\n" +
-            "    started_at=\"${wfMetadata.start}\"\n" +
-            "  )\n"
-
-        // trying to fetch a record from the server
-        try {
-            Integer limitToMany = 10;
-            Boolean includeForeignKeys = true;
-            GetRecordRequestBody getRecordRequestBody = new GetRecordRequestBody();
-            
-            Object result = this.apiClient.getRecord(
-                // moduleName: "core",
-                // modelName: "artifact",
-                // idOrUid: "MDG7BbeFVPvEyyUb0000",
-                // includeForeignKeys: true
-                "core",
-                "artifact",
-                "MDG7BbeFVPvEyyUb0000",
-                limitToMany,
-                includeForeignKeys,
-                getRecordRequestBody
-            );
-            log.info "nf-lamin> Fetched data from server: ${result.toString()}"
-        } catch (ApiException e) {
-            log.error "nf-lamin> Exception when calling LaminApiClient#getRecord"
-            log.error "API call failed: " + e.getMessage()
-            log.error "Status code: " + e.getCode()
-            log.error "Response body: " + e.getResponseBody()
-            log.error "Response headers: " + e.getResponseHeaders()
-        }
-    }
-
-    void printWorkflowMetadata(nextflow.script.WorkflowMetadata wfMetadata) {
-        log.info "nf-lamin> Printing wfMetadata"
-        for (key in ["scriptId", "scriptFile", "scriptName", "repository", "commitId", "revision", "projectDir", "projectName", "start", "container", "commandLine", "nextflow", "outputDir", "workDir", "launchDir", "profile", "sessionId", "resume", "stubRun", "preview", "runName", "containerEngine", "configFiles", "stats", "userName", "homeDir", "manifest", "wave", "fusion", "failOnIgnore"]) {
-            log.info "nf-lamin>   wfMetadata.$key: ${wfMetadata[key]}"
-        }
-    }
-
-    void printSession(nextflow.Session session) {
-        log.info "nf-lamin>   session.binding: ${session.binding}"
-        def configKeys = session.config.collect{k, v -> k}
-        for (key in configKeys) {
-            log.info "nf-lamin>   session.config.$key: ${session.config[key]}"
-        }
-        for (key in ["cacheable", "resumeMode", "outputDir", "workDir", "bucketDir", "baseDir", "scriptName", "script", "runName", "stubRun", "preview", "profile", "commandLine", "commitId"]) {
-            log.info "nf-lamin>   session.$key: ${session[key]}"
-        }
+        // create Run object
+        this.run = _createRun()
     }
 
 
     @Override
     void onProcessComplete(TaskHandler handler, TraceRecord trace) {
-        // skip failed tasks
-        final task = handler.task
-        if( !task.isSuccess() )
-            return
+        // log.debug "onProcessComplete triggered!"
 
-        log.info "nf-lamin> onProcessComplete name='${task.name}' triggered! InputMap:"
+        // need to keep track of processes
+        final task = handler.task
         lock.withLock {
             tasks << task
-            task.getInputFilesMap().each { name, path ->
-                log.info "* name=$name, path=$path"
-                onFileInput(path)
-            }
-        }
-    }
-
-    void onFileInput(Path path) {
-        // if path is already in workflowInputs, do nothing
-        if (workflowInputs.contains(path)) {
-            return
         }
 
-        log.info "nf-lamin> Create Artifact object:\n" +
-            "  artifact = ln.Artifact(\n" +
-            "    run=run,\n" +
-            "    data=\"${path.toUriString()}\",\n" +
-            "  )\n"
-        lock.withLock {
-            workflowInputs << path
+        // keep track of inputs/outputs
+        task.getInputFilesMap().each { name, path ->
+            _createInputArtifact(path)
         }
     }
 
     @Override
     void onProcessCached(TaskHandler handler, TraceRecord trace) {
+        // log.debug "onProcessCached triggered!"
+
         final task = handler.task
         lock.withLock {
             tasks << task
-            task.getInputFilesMap().each { name, path ->
-                onFileInput(path)
-            }
+        }
+        task.getInputFilesMap().each { name, path ->
+            _createInputArtifact(path)
         }
     }
 
-
+    // TODO: implement tracking an output artifact
     @Override
     void onFilePublish(Path destination, Path source) {
+        // log.debug "onFilePublish triggered!"
         final match = matchers.isEmpty() || matchers.any { matcher -> matcher.matches(destination) }
         if( !match )
             return
@@ -195,21 +114,131 @@ class LaminObserver implements TraceObserver {
             workflowOutputs[source] = destination
         }
 
-        log.info "nf-lamin> onFilePublish triggered!"
-        log.info "nf-lamin> Create Artifact object:\n" +
-            "  artifact = ln.Artifact(\n" +
-            "    run=run,\n" +
-            "    data=\"${destination.toUriString()}\",\n" +
-            "  )\n"
+        // log.debug "onFilePublish triggered!"
+        // log.debug "Create Artifact object:\n" +
+        //     "  artifact = ln.Artifact(\n" +
+        //     "    run=run,\n" +
+        //     "    data=\"${destination.toUriString()}\",\n" +
+        //     "  )\n"
     }
 
     @Override
     void onFlowError(TaskHandler handler, TraceRecord trace) {
-        //log.info "nf-lamin> onFlowError name='${handler.task.name}'"
+        log.debug "onFlowError triggered!"
+        _finalizeRun()
     }
 
     @Override
     void onFlowComplete() {
-        log.info "nf-lamin> onFlowComplete triggered!"
+        log.debug "onFlowComplete triggered!"
+        _finalizeRun()
+    }
+
+    // --- private methods ---
+    void _testConnection() {
+        assert this.instance != null, "API client is null"
+
+        String instanceString = "${this.instance.getOwner()}/${this.instance.getName()}"
+        try {
+            def out = this.instance.getInstanceStatistics()
+            log.info "Connected to Lamin instance: ${instanceString}"
+        } catch (ApiException e) {
+            log.error "Could not connect to Lamin instance: ${instanceString}!"
+            log.error "API call failed: " + e.getMessage()
+        }
+    }
+
+    Map _fetchOrCreateTransform() {
+        assert this.session != null, "Session is null"
+
+        // collect information about the workflow run
+        WorkflowMetadata wfMetadata = this.session.getWorkflowMetadata()
+
+        log.trace "wfMetadata [${wfMetadata}]"
+        log.trace "manifest: ${wfMetadata.manifest.toMap()}"
+        
+        String description = "${wfMetadata.manifest.getName()}: ${wfMetadata.manifest.getDescription()}"
+
+        // store repository name, commit id, and key
+        String repository = wfMetadata.repository ?: wfMetadata.projectName
+        String commitId = wfMetadata.commitId
+        String mainScript = wfMetadata.scriptFile.toString().replaceFirst("${wfMetadata.projectDir}/", "")
+        String revision = wfMetadata.revision
+        
+        // create data for Transform object
+        String key = mainScript == "main.nf" ? repository : "${repository}:${mainScript}"
+        Map info = [
+            "repository": repository,
+            "main-script": mainScript,
+            "commit-id": commitId,
+            "revision": revision
+        ]
+        String infoAsJson = groovy.json.JsonOutput.toJson(info)
+
+        log.debug "Fetch or create Transform object:\n" +
+            "  transform = ln.Transform(\n" +
+            "    key=\"${key}\",\n" +
+            "    version=\"${revision}\",\n" +
+            "    source_code='''${infoAsJson}''',\n" +
+            "    type=\"pipeline\",\n" +
+            "    reference=\"${wfMetadata.repository}\",\n" +
+            "    reference_type=\"url\",\n" +
+            "    description=\"${description}\"\n" +
+            "  ).save()\n"
+        
+        return [id: 1, uid: "abcdef123456"]
+    }
+
+    Map _createRun() {
+        assert this.session != null, "Session is null"
+        assert this.transform != null, "Transform is null"
+
+        // collect information about the workflow run
+        WorkflowMetadata wfMetadata = this.session.getWorkflowMetadata()
+
+        log.debug "Create Run object:\n" +
+            "  transform = ln.Transform.get(\"${this.transform.uid}\")\n" +
+            "  run = ln.Run(\n" +
+            "    transform=transform,\n" +
+            "    name=\"${wfMetadata.runName}\",\n" +
+            "    created_at=\"${wfMetadata.start}\",\n" +
+            "    started_at=\"${wfMetadata.start}\",\n" +
+            "    reference=\"https://cloud.seqera.io/...\",\n" + 
+            "    reference_type=\"url\",\n" +
+            "    project=...\n" +
+            "    created_by=...\n" +
+            "  ).save()\n"
+
+        return [id: 1, uid: "abcdef123456"]
+    }
+
+    void _finalizeRun() {
+        assert this.session != null, "Session is null"
+        assert this.transform != null, "Transform is null"
+        
+        WorkflowMetadata wfMetadata = this.session.getWorkflowMetadata()
+        log.debug "Finalise Run object:\n" +
+            "  run = ln.Run.get(\"${this.run.uid}\")\n" +
+            "  run.finished_at = \"${wfMetadata.complete}\"\n"
+            "  run.environment = ...\n" +
+            "  run.report = ...\n" +
+            "  run.save()\n"
+    }
+
+    // TODO: implement tracking an input artifact
+    void _createInputArtifact(Path path) {
+        // if path is already in workflowInputs, do nothing
+        if (workflowInputs.contains(path)) {
+            return
+        }
+
+        // log.debug "Create Artifact object:\n" +
+        //     "  artifact = ln.Artifact(\n" +
+        //     "    run=run,\n" +
+        //     "    data=\"${path.toUriString()}\",\n" +
+        //     "  )\n"
+        lock.withLock {
+            workflowInputs << path
+        }
     }
 }

@@ -5,8 +5,8 @@ import java.net.URL
 import java.nio.charset.StandardCharsets
 
 import groovy.transform.CompileStatic
-import groovy.json.JsonSlurper
 import groovy.util.logging.Slf4j
+import groovy.json.JsonSlurper
 
 /**
  * Groovy client for interacting with specific Lamin Hub API endpoints.
@@ -14,7 +14,7 @@ import groovy.util.logging.Slf4j
  */
 @Slf4j
 @CompileStatic
-class LaminHubClient {
+class LaminHub {
     // --- Constants ---
 
     // Note: these values could be parameterized similar to
@@ -38,7 +38,7 @@ class LaminHubClient {
      * Constructor.
      * @param apiKey The user's Lamin Hub API Key.
      */
-    LaminHubClient(String apiKey) {
+    LaminHub(String apiKey) {
         if (apiKey == null || apiKey.trim().isEmpty()) {
             throw new IllegalArgumentException("API Key cannot be null or empty.")
         }
@@ -84,7 +84,7 @@ class LaminHubClient {
      */
     String getAccessToken() {
         if (this.accessToken == null) {
-            log.info("Fetching access token...")
+            log.debug("Fetching access token...")
             _updateAccessToken()
         }
         return this.accessToken
@@ -97,7 +97,7 @@ class LaminHubClient {
      * @throws RuntimeException If the API call fails or the token cannot be refreshed.
      */
     void refreshAccessToken() {
-        log.info("Refreshing access token...")
+        log.debug("Refreshing access token...")
         _updateAccessToken()
     }
 
@@ -111,7 +111,7 @@ class LaminHubClient {
      * @throws IllegalStateException If JWT accessToken has not been fetched yet.
      * @throws RuntimeException If the API call fails.
      */
-    Map getInstanceSettings(String owner, String name) {
+    LaminInstanceSettings getInstanceSettings(String owner, String name) {
         String accessToken = getAccessToken()
 
         String url = "${BASE_URL}/get-instance-settings-v1"
@@ -127,8 +127,12 @@ class LaminHubClient {
         // Use the fetched accessToken for authorization here
         String instanceSettingsJson = _makePostRequest(url, payload, accessToken, true, currentMethod)
 
-        return _parseJson(instanceSettingsJson, currentMethod)
+        Map instanceSettingsMap = _parseJson(instanceSettingsJson, currentMethod)
+
+        return LaminInstanceSettings.fromMap(instanceSettingsMap)
     }
+
+    
 
     // --- Private Helper Methods ---
 
@@ -146,7 +150,7 @@ class LaminHubClient {
         String responseBody = null
         int responseCode = -1
 
-        log.debug "Making POST request to ${requestUrl} for method ${callingMethod}. Retry allowed: ${allowRetry}"
+        log.trace "Making POST request to ${requestUrl} for method ${callingMethod}. Retry allowed: ${allowRetry}"
 
         try {
             URL url = new URL(requestUrl)
@@ -195,7 +199,7 @@ class LaminHubClient {
                     refreshAccessToken()
                     String newAccessToken = getAccessToken()
 
-                    log.info "Retrying request to ${requestUrl} for ${callingMethod} with new token..."
+                    log.debug "Retrying request to ${requestUrl} for ${callingMethod} with new token..."
                     // !!! Recursive Call: Retry the request ONCE with the NEW token and allowRetry=false !!!
                     // Pass the updated this.accessToken stored in the instance
                     return _makePostRequest(requestUrl, jsonPayload, newAccessToken, false, callingMethod + " [Retry]")
@@ -261,7 +265,7 @@ class LaminHubClient {
     private void _updateAccessToken() {
         try {
             this.accessToken = fetchAccessToken()
-            log.info("Access token refreshed successfully.")
+            log.debug("Access token refreshed successfully.")
         } catch (Exception e) {
             log.error("Failed to refresh access token: ${e.message}", e)
             throw new RuntimeException("Failed to refresh access token.", e)

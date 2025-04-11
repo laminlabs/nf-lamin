@@ -2,54 +2,62 @@ package nextflow.lamin.api
 
 import java.util.UUID;
 
+import groovy.transform.CompileStatic
+import groovy.util.logging.Slf4j
+
 import ai.lamin.lamin_api_client.ApiClient;
 import ai.lamin.lamin_api_client.ApiException;
 import ai.lamin.lamin_api_client.Configuration;
 import ai.lamin.lamin_api_client.model.*;
 import ai.lamin.lamin_api_client.api.DefaultApi;
 
-class LaminApiClient {
-    final protected LaminHubClient hub;
-    final protected String owner;
-    final protected String name;
+@CompileStatic
+class LaminInstance {
+    final protected LaminHub hub;
 
-    final protected String apiUrl;
-    final protected UUID instanceId;
-    final protected UUID schemaId;
+    final protected LaminInstanceSettings settings;
     final protected DefaultApi apiInstance;
 
-    LaminApiClient(
-        LaminHubClient hub,
+    LaminInstance(
+        LaminHub hub,
         String owner,
         String name
     ) {
         this.hub = hub;
-        this.owner = owner;
-        this.name = name;
 
-        assert hub != null : "LaminHubClient is null. Please check the LaminHubClient instance."
+        assert hub != null : "LaminHub is null. Please check the LaminHub instance."
         assert owner != null : "Owner is null. Please check the owner."
         assert name != null : "Name is null. Please check the name."
 
-        def instanceSettings = hub.getInstanceSettings(this.owner, this.name);
-
-        assert instanceSettings != null : "Instance settings are null. Please check the instance settings."
-        assert instanceSettings.id != null : "Instance ID is null. Please check the instance settings."
-        assert instanceSettings.schema_id != null : "Schema ID is null. Please check the instance settings."
-        assert instanceSettings.api_url != null : "API URL is null. Please check the instance settings."
-
-        this.apiUrl = instanceSettings.api_url;
-        this.instanceId = UUID.fromString(instanceSettings.id);
-        this.schemaId = UUID.fromString(instanceSettings.schema_id);
+        this.settings = hub.getInstanceSettings(owner, name);
 
         // Initialize the API client with the provided API URL
         ApiClient defaultClient = Configuration.getDefaultApiClient();
-        defaultClient.setBasePath(apiUrl);
+        defaultClient.setBasePath(this.settings.apiUrl);
         this.apiInstance = new DefaultApi(defaultClient);
     }
 
-    String getBearerToken() {
+    String getOwner() {
+        return this.settings.owner();
+    }
+
+    String getName() {
+        return this.settings.name();
+    }
+
+    protected String getBearerToken() {
         return "Bearer " + this.hub.getAccessToken();
+    }
+
+    Object getInstanceStatistics() throws ApiException {
+        String accessToken = getBearerToken();
+
+        return this.apiInstance.getInstanceStatisticsInstancesInstanceIdStatisticsGet(
+            this.settings.id(),
+            [],
+            this.settings.schemaId(),
+            accessToken
+        );
     }
 
     /**
@@ -62,7 +70,7 @@ class LaminApiClient {
      * @param getRecordRequestBody the request body
      * @return the record
      */
-    public Object getRecord(
+    Object getRecord(
         String moduleName,
         String modelName,
         String idOrUid,
@@ -77,20 +85,14 @@ class LaminApiClient {
             moduleName,
             modelName,
             idOrUid,
-            this.instanceId,
+            this.settings.id(),
             limitToMany,
             includeForeignKeys,
-            this.schemaId,
+            this.settings.schemaId(),
             accessToken,
             getRecordRequestBody
         );
     }
 
-    /**
-     * Get the Lamin API instance
-     * @return the Lamin API instance
-     */
-    public DefaultApi getApiInstance() {
-        return this.apiInstance;
-    }
+    
 }

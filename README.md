@@ -1,5 +1,6 @@
 # nf-lamin plugin
 
+
 A Nextflow plugin that integrates LaminDB data provenance into Nextflow
 workflows.
 
@@ -7,13 +8,13 @@ workflows.
 
 To install a development build of the plugin, run the following command:
 
-```bash
+``` bash
 make install
 ```
 
 To uninstall the plugin, run the following command:
 
-```bash
+``` bash
 make uninstall
 ```
 
@@ -23,7 +24,7 @@ To use the plugin in a Nextflow workflow, create a Nextflow config
 `nextflow.config` that specifies which LaminDB instance to use and an
 API key:
 
-```groovy
+``` groovy
 lamin {
   instance = "laminlabs/lamindata"
   api_key = System.getenv("LAMIN_API_KEY")
@@ -33,7 +34,7 @@ lamin {
 You can now use the plugin by adding the following option to the
 `nextflow run` command:
 
-```bash
+``` bash
 -plugins nf-lamin@0.0.1
 ```
 
@@ -44,7 +45,7 @@ You can now use the plugin by adding the following option to the
 
 ### Example with scrnaseq workflow:
 
-```bash
+``` bash
 nextflow run nf-core/scrnaseq \
   -latest -resume \
   -plugins nf-lamin@0.0.1 \
@@ -60,7 +61,7 @@ nextflow run nf-core/scrnaseq \
 
 ### Example with Viash Hub workflow:
 
-```bash
+``` bash
 nextflow run https://packages.viash-hub.com/vsh/toolbox.git \
   -revision v0.1.0 \
   -main-script target/nextflow/bgzip/main.nf \
@@ -72,68 +73,64 @@ nextflow run https://packages.viash-hub.com/vsh/toolbox.git \
   --publish_dir gs://di-temporary/scratch/temp-nf-lamin
 ```
 
-    N E X T F L O W   ~  version 24.10.4
-
+    N E X T F L O W  ~  version 24.10.5
     Pulling vsh/toolbox ...
-    Launching `https://packages.viash-hub.com/vsh/toolbox` [nauseous_edison] DSL2 - revision: 09c015bdf2 [v0.1.0]
+    Launching `https://packages.viash-hub.com/vsh/toolbox` [deadly_brazil] DSL2 - revision: 09c015bdf2 [v0.1.0]
+    Connected to Lamin instance: laminlabs/lamindata
+    [d7/36a5b0] Submitted process > bgzip:processWf:bgzip_process (run)
+    [6a/b8c25e] Submitted process > bgzip:publishStatesSimpleWf:publishStatesProc (run)
+    Downloading plugin nf-google@1.15.4
 
-    nf-lamin> onFlowCreate triggered!
-    nf-lamin> Fetch or create Transform object:
-      trafo = ln.Transform(
+Logs produced by lamin:
+
+``` bash
+gawk '
+/\[main\]/ {
+  if ($0 ~ /nextflow\.lamin/) {
+    do_print=1
+  } else {
+    do_print=0
+  }
+}
+do_print {
+  gsub(/.*\[main\] /, "")
+  print
+}
+' .nextflow.log
+```
+
+    DEBUG nextflow.lamin.LaminObserver - onFlowCreate triggered!
+    DEBUG nextflow.lamin.api.LaminHub - Fetching access token...
+    DEBUG nextflow.lamin.api.LaminHub - Access token refreshed successfully.
+    INFO  nextflow.lamin.LaminObserver - Connected to Lamin instance: laminlabs/lamindata
+    DEBUG nextflow.lamin.LaminObserver - Fetch or create Transform object:
+      transform = ln.Transform(
         key="https://packages.viash-hub.com/vsh/toolbox:target/nextflow/bgzip/main.nf",
         version="v0.1.0",
-        source_code="https://packages.viash-hub.com/vsh/toolbox@09c015bdf233c4911f469219ebf46b0c51faa734:target/nextflow/bgzip/main.nf",
+        source_code='''{"repository":"https://packages.viash-hub.com/vsh/toolbox","main-script":"target/nextflow/bgzip/main.nf","commit-id":"09c015bdf233c4911f469219ebf46b0c51faa734","revision":"v0.1.0"}''',
         type="pipeline",
         reference="https://packages.viash-hub.com/vsh/toolbox",
         reference_type="url",
-        description="Block compression/decompression utility"
-      )
+        description="bgzip: Block compression/decompression utility"
+      ).save()
 
-    nf-lamin> Create Run object:
+    DEBUG nextflow.lamin.LaminObserver - Create Run object:
+      transform = ln.Transform.get("abcdef123456")
       run = ln.Run(
-        transform=trafo,
-        name="nauseous_edison",
-        started_at="2025-04-08T13:31:50.020977560+02:00"
-      )
+        transform=transform,
+        name="deadly_brazil",
+        created_at="2025-04-11T10:47:52.433575343+02:00",
+        started_at="2025-04-11T10:47:52.433575343+02:00",
+        reference="https://cloud.seqera.io/...",
+        reference_type="url",
+        project=...
+        created_by=...
+      ).save()
 
-    executor >  local (2)
-    [ca/4944c7] process > bgzip:processWf:bgzip_process (run)                 [100%] 1 of 1 ✔
-    [ee/aeb54c] process > bgzip:publishStatesSimpleWf:publishStatesProc (run) [100%] 1 of 1 ✔
-
-    nf-lamin> onProcessComplete name='bgzip:processWf:bgzip_process (run)' triggered!
-    nf-lamin> Create Artifact object:
-      artifact = ln.Artifact(
-        run=run,
-        data="/home/rcannood/.nextflow/assets/vsh/toolbox/target/nextflow/bgzip",
-      )
-    nf-lamin> Create Artifact object:
-      artifact = ln.Artifact(
-        run=run,
-        data="/home/rcannood/workspace/laminlabs/nf-lamin/work/stage-295860b4-cdd5-4333-a02c-f1b32cc97255/aa/9bdca61d39ca63d20737603be1a33d/samplesheet-2-0.csv",
-      )
-
-    nf-lamin> onProcessComplete name='bgzip:publishStatesSimpleWf:publishStatesProc (run)' triggered!
-    nf-lamin> Create Artifact object:
-      artifact = ln.Artifact(
-        run=run,
-        data="/home/rcannood/workspace/laminlabs/nf-lamin/work/ca/4944c71832a40b321753396c46f2f8/output.gz",
-      )
-
-    nf-lamin> onFilePublish triggered!
-    nf-lamin> Create Artifact object:
-      artifact = ln.Artifact(
-        run=run,
-        data="gs://di-temporary/scratch/temp-nf-lamin/output.gz",
-      )
-
-    nf-lamin> onFilePublish triggered!
-    nf-lamin> Create Artifact object:
-      artifact = ln.Artifact(
-        run=run,
-        data="gs://di-temporary/scratch/temp-nf-lamin/run.bgzip.state.yaml",
-      )
-
-    nf-lamin> onFlowComplete triggered!
+    DEBUG nextflow.lamin.LaminObserver - onFlowComplete triggered!
+    DEBUG nextflow.lamin.LaminObserver - Finalise Run object:
+      run = ln.Run.get("abcdef123456")
+      run.finished_at = "2025-04-11T10:48:08.646595445+02:00"
 
 ## Contributing
 
