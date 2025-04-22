@@ -66,7 +66,6 @@ To build and test the plugin during development, use the following commands:
 
 ## Package, upload, and publish
 
-The project should be hosted in a GitHub repository whose name matches the name of the plugin, that is the name of the directory in the `plugins` folder (e.g. `nf-lamin`).
 
 Follow these steps to package, upload and publish the plugin:
 

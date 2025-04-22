@@ -77,13 +77,13 @@ class LaminObserver implements TraceObserver {
     void onProcessComplete(TaskHandler handler, TraceRecord trace) {
         // log.debug "onProcessComplete triggered!"
 
-        // need to keep track of processes
+        // keeping track of processes to be able to find out what connects to what at the end of the run. might not need this level of detail at the end.
         final task = handler.task
         lock.withLock {
             tasks << task
         }
 
-        // keep track of inputs/outputs
+        // if need be, create artifacts from inputs
         task.getInputFilesMap().each { name, path ->
             _createInputArtifact(path)
         }

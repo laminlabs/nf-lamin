@@ -40,20 +40,22 @@ class LaminConfig {
     final protected Boolean dryRun
 
     /**
-     * Constructor for the LaminConfig class
-     * @param session the Nextflow session
+     * Configuration for Lamin API integration
+     * @param instance format: "owner/repo"
+     * @param apiKey LaminDB API authorization key
+     * @param dryRun whether to execute in dry run mode
      */
     LaminConfig(String instance, String apiKey, Boolean dryRun = false) {
         // check if all values are available
-        if (instance == null || instance.trim().isEmpty()) {
+        if (!instance?.trim()) {
             throw new IllegalArgumentException("Lamin instance is not set. Please set the 'lamin.instance' in your nextflow.config file.")
         }
-        if (apiKey == null || apiKey.trim().isEmpty()) {
+        if (!apiKey?.trim()) {
             throw new IllegalArgumentException("Lamin API key is not set. Please set the 'lamin.api_key' in your nextflow.config file.")
         }
 
         // check if instance is <owner>/<repo>
-        if (!instance.matches(/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/)) {
+        if (!instance.matches(/^[\w.-]+\/[\w.-]+$/)) {
             throw new IllegalArgumentException("Provided Lamin instance ${instance} is not valid. Please provide a valid instance in the format <owner>/<repo>.")
         }
 

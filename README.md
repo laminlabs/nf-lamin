@@ -1,6 +1,6 @@
 # nf-lamin plugin
 
-A Nextflow plugin that integrates LaminDB data provenance into Nextflow
+A Nextflow plugin that integrates [LaminDB](https://github.com/laminlabs/lamindb) data provenance into Nextflow
 workflows.
 
 ## Installation
@@ -42,7 +42,7 @@ You can now use the plugin by adding the following option to the
 > You can fetch your Lamin API key from your [Lamin Hub account
 > settings](https://lamin.ai/settings).
 
-### Example with scrnaseq workflow:
+### Example with nf-core/scrnaseq workflow:
 
 ```bash
 nextflow run nf-core/scrnaseq \
