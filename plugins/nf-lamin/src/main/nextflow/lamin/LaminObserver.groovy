@@ -18,8 +18,8 @@ import nextflow.trace.TraceRecord
 import nextflow.lamin.api.LaminInstance
 import nextflow.lamin.api.LaminHub
 
-import ai.lamin.lamin_api_client.ApiException;
-import ai.lamin.lamin_api_client.model.GetRecordRequestBody;
+import ai.lamin.lamin_api_client.ApiException
+import ai.lamin.lamin_api_client.model.GetRecordRequestBody
 
 /**
  * Example workflow events observer
@@ -29,6 +29,7 @@ import ai.lamin.lamin_api_client.model.GetRecordRequestBody;
 @Slf4j
 @CompileStatic
 class LaminObserver implements TraceObserver {
+
     protected Session session
     protected LaminConfig config
     protected LaminHub hub
@@ -46,7 +47,7 @@ class LaminObserver implements TraceObserver {
 
     @Override
     void onFlowCreate(Session session) {
-        log.debug "onFlowCreate triggered!"
+        log.debug 'onFlowCreate triggered!'
 
         // store the session for later use
         this.session = session
@@ -72,12 +73,12 @@ class LaminObserver implements TraceObserver {
         this.run = createRun()
     }
 
-
     @Override
     void onProcessComplete(TaskHandler handler, TraceRecord trace) {
         // log.debug "onProcessComplete triggered!"
 
-        // keeping track of processes to be able to find out what connects to what at the end of the run. might not need this level of detail at the end.
+        // keeping track of processes to be able to find out what connects to what at the end of the run.
+        // might not need this level of detail at the end.
         final task = handler.task
         lock.withLock {
             tasks << task
@@ -107,122 +108,131 @@ class LaminObserver implements TraceObserver {
     void onFilePublish(Path destination, Path source) {
         // log.debug "onFilePublish triggered!"
         final match = matchers.isEmpty() || matchers.any { matcher -> matcher.matches(destination) }
-        if( !match )
+        if (!match) {
             return
+        }
 
         lock.withLock {
             workflowOutputs[source] = destination
         }
 
-        // log.debug "onFilePublish triggered!"
-        // log.debug "Create Artifact object:\n" +
-        //     "  artifact = ln.Artifact(\n" +
-        //     "    run=run,\n" +
-        //     "    data=\"${destination.toUriString()}\",\n" +
-        //     "  )\n"
+    // log.debug "onFilePublish triggered!"
+    // log.debug "Create Artifact object:\n" +
+    //     "  artifact = ln.Artifact(\n" +
+    //     "    run=run,\n" +
+    //     "    data=\"${destination.toUriString()}\",\n" +
+    //     "  )\n"
     }
 
     @Override
     void onFlowError(TaskHandler handler, TraceRecord trace) {
-        log.debug "onFlowError triggered!"
+        log.debug 'onFlowError triggered!'
         finalizeRun()
     }
 
     @Override
     void onFlowComplete() {
-        log.debug "onFlowComplete triggered!"
+        log.debug 'onFlowComplete triggered!'
         finalizeRun()
     }
 
     // --- private methods ---
     protected void testConnection() {
-        if (!this.instance) throw new IllegalStateException("API client is null")
+        if (!this.instance) {
+            throw new IllegalStateException('API client is null')
+        }
 
         String instanceString = "${this.instance.getOwner()}/${this.instance.getName()}"
         try {
-            def out = this.instance.getInstanceStatistics()
+            this.instance.getInstanceStatistics()
             log.info "Connected to Lamin instance: ${instanceString}"
         } catch (ApiException e) {
             log.error "Could not connect to Lamin instance: ${instanceString}!"
-            log.error "API call failed: " + e.getMessage()
+            log.error 'API call failed: ' + e.getMessage()
         }
     }
 
     protected Map fetchOrCreateTransform() {
-        if (!this.session) throw new IllegalStateException("Session is null")
+        if (!this.session) {
+            throw new IllegalStateException('Session is null')
+        }
 
         // collect information about the workflow run
         WorkflowMetadata wfMetadata = this.session.getWorkflowMetadata()
 
         log.trace "wfMetadata [${wfMetadata}]"
         log.trace "manifest: ${wfMetadata.manifest.toMap()}"
-        
+
         String description = "${wfMetadata.manifest.getName()}: ${wfMetadata.manifest.getDescription()}"
 
         // store repository name, commit id, and key
         String repository = wfMetadata.repository ?: wfMetadata.projectName
         String commitId = wfMetadata.commitId
-        String mainScript = wfMetadata.scriptFile.toString().replaceFirst("${wfMetadata.projectDir}/", "")
+        String mainScript = wfMetadata.scriptFile.toString().replaceFirst("${wfMetadata.projectDir}/", '')
         String revision = wfMetadata.revision
-        
+
         // create data for Transform object
-        String key = mainScript == "main.nf" ? repository : "${repository}:${mainScript}"
+        String key = mainScript == 'main.nf' ? repository : "${repository}:${mainScript}"
         Map info = [
-            "repository": repository,
-            "main-script": mainScript,
-            "commit-id": commitId,
-            "revision": revision
+            'repository': repository,
+            'main-script': mainScript,
+            'commit-id': commitId,
+            'revision': revision
         ]
         String infoAsJson = groovy.json.JsonOutput.toJson(info)
 
-        log.debug "Fetch or create Transform object:\n" +
-            "  transform = ln.Transform(\n" +
+        log.debug 'Fetch or create Transform object:\n' +
+            '  transform = ln.Transform(\n' +
             "    key=\"${key}\",\n" +
             "    version=\"${revision}\",\n" +
             "    source_code='''${infoAsJson}''',\n" +
-            "    type=\"pipeline\",\n" +
+            '    type=\"pipeline\",\n' +
             "    reference=\"${wfMetadata.repository}\",\n" +
-            "    reference_type=\"url\",\n" +
+            '    reference_type=\"url\",\n' +
             "    description=\"${description}\"\n" +
-            "  ).save()\n"
-        
-        return [id: 1, uid: "abcdef123456"]
+            ').save()\n'
+
+        return [id: 1, uid: 'abcdef123456']
     }
 
     protected Map createRun() {
-        if (!this.session) throw new IllegalStateException("Session is null")
-        if (!this.transform) throw new IllegalStateException("Transform is null")
+        if (!this.session) {
+            throw new IllegalStateException('Session is null')
+        }
+        if (!this.transform) {
+            throw new IllegalStateException('Transform is null')
+        }
 
         // collect information about the workflow run
         WorkflowMetadata wfMetadata = this.session.getWorkflowMetadata()
 
-        log.debug "Create Run object:\n" +
+        log.debug 'Create Run object:\n' +
             "  transform = ln.Transform.get(\"${this.transform.uid}\")\n" +
-            "  run = ln.Run(\n" +
-            "    transform=transform,\n" +
+            '  run = ln.Run(\n' +
+            '    transform=transform,\n' +
             "    name=\"${wfMetadata.runName}\",\n" +
             "    created_at=\"${wfMetadata.start}\",\n" +
             "    started_at=\"${wfMetadata.start}\",\n" +
-            "    reference=\"https://cloud.seqera.io/...\",\n" + 
-            "    reference_type=\"url\",\n" +
-            "    project=...\n" +
-            "    created_by=...\n" +
-            "  ).save()\n"
+            '    reference=\"https://cloud.seqera.io/...\",\n' +
+            '    reference_type=\"url\",\n' +
+            '    project=...\n' +
+            '    created_by=...\n' +
+            ').save()\n'
 
-        return [id: 1, uid: "abcdef123456"]
+        return [id: 1, uid: 'abcdef123456']
     }
 
     protected void finalizeRun() {
-        if (!this.session) throw new IllegalStateException("Session is null")
-        if (!this.transform) throw new IllegalStateException("Transform is null")
-        
+        if (!this.session) throw new IllegalStateException('Session is null')
+        if (!this.transform) throw new IllegalStateException('Transform is null')
+
         WorkflowMetadata wfMetadata = this.session.getWorkflowMetadata()
-        log.debug "Finalise Run object:\n" +
+        log.debug 'Finalise Run object:\n' +
             "  run = ln.Run.get(\"${this.run.uid}\")\n" +
             "  run.finished_at = \"${wfMetadata.complete}\"\n"
-            "  run.environment = ...\n" +
-            "  run.report = ...\n" +
-            "  run.save()\n"
+        '  run.environment = ...\n' +
+            '  run.report = ...\n' +
+            '  run.save()\n'
     }
 
     // TODO: implement tracking an input artifact
@@ -241,4 +251,5 @@ class LaminObserver implements TraceObserver {
             workflowInputs << path
         }
     }
+
 }

@@ -13,14 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package nextflow.lamin
 
 import groovy.transform.CompileStatic
 import nextflow.plugin.BasePlugin
-import nextflow.plugin.Scoped
 import org.pf4j.PluginWrapper
-import nextflow.cli.PluginAbstractExec
 
 /**
  * Implements the Lamin plugins entry point
@@ -28,9 +25,10 @@ import nextflow.cli.PluginAbstractExec
  * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
 @CompileStatic
-class LaminPlugin extends BasePlugin implements PluginAbstractExec {
+class LaminPlugin extends BasePlugin {
 
     LaminPlugin(PluginWrapper wrapper) {
         super(wrapper)
     }
+
 }

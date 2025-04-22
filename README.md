@@ -1,7 +1,8 @@
 # nf-lamin plugin
 
-A Nextflow plugin that integrates [LaminDB](https://github.com/laminlabs/lamindb) data provenance into Nextflow
-workflows.
+A Nextflow plugin that integrates
+[LaminDB](https://github.com/laminlabs/lamindb) data provenance into
+Nextflow workflows.
 
 ## Installation
 
@@ -74,11 +75,10 @@ nextflow run https://packages.viash-hub.com/vsh/toolbox.git \
 
     N E X T F L O W  ~  version 24.10.5
     Pulling vsh/toolbox ...
-    Launching `https://packages.viash-hub.com/vsh/toolbox` [deadly_brazil] DSL2 - revision: 09c015bdf2 [v0.1.0]
+    Launching `https://packages.viash-hub.com/vsh/toolbox` [high_waddington] DSL2 - revision: 09c015bdf2 [v0.1.0]
     Connected to Lamin instance: laminlabs/lamindata
-    [d7/36a5b0] Submitted process > bgzip:processWf:bgzip_process (run)
-    [6a/b8c25e] Submitted process > bgzip:publishStatesSimpleWf:publishStatesProc (run)
-    Downloading plugin nf-google@1.15.4
+    [6a/7201f1] Submitted process > bgzip:processWf:bgzip_process (run)
+    [93/7bfc4d] Submitted process > bgzip:publishStatesSimpleWf:publishStatesProc (run)
 
 Logs produced by lamin:
 
@@ -111,25 +111,25 @@ do_print {
         reference="https://packages.viash-hub.com/vsh/toolbox",
         reference_type="url",
         description="bgzip: Block compression/decompression utility"
-      ).save()
+    ).save()
 
     DEBUG nextflow.lamin.LaminObserver - Create Run object:
       transform = ln.Transform.get("abcdef123456")
       run = ln.Run(
         transform=transform,
-        name="deadly_brazil",
-        created_at="2025-04-11T10:47:52.433575343+02:00",
-        started_at="2025-04-11T10:47:52.433575343+02:00",
+        name="high_waddington",
+        created_at="2025-04-22T13:49:18.787752751+02:00",
+        started_at="2025-04-22T13:49:18.787752751+02:00",
         reference="https://cloud.seqera.io/...",
         reference_type="url",
         project=...
         created_by=...
-      ).save()
+    ).save()
 
     DEBUG nextflow.lamin.LaminObserver - onFlowComplete triggered!
     DEBUG nextflow.lamin.LaminObserver - Finalise Run object:
       run = ln.Run.get("abcdef123456")
-      run.finished_at = "2025-04-11T10:48:08.646595445+02:00"
+      run.finished_at = "2025-04-22T13:49:29.017797592+02:00"
 
 ## Contributing
 

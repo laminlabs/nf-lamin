@@ -1,22 +1,23 @@
 package nextflow.lamin.api
 
-import java.util.UUID;
+import java.util.UUID
 
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 
-import ai.lamin.lamin_api_client.ApiClient;
-import ai.lamin.lamin_api_client.ApiException;
-import ai.lamin.lamin_api_client.Configuration;
-import ai.lamin.lamin_api_client.model.*;
-import ai.lamin.lamin_api_client.api.DefaultApi;
+import ai.lamin.lamin_api_client.ApiClient
+import ai.lamin.lamin_api_client.ApiException
+import ai.lamin.lamin_api_client.Configuration
+import ai.lamin.lamin_api_client.model.*
+import ai.lamin.lamin_api_client.api.DefaultApi
 
 @CompileStatic
 class LaminInstance {
-    final protected LaminHub hub;
 
-    final protected LaminInstanceSettings settings;
-    final protected DefaultApi apiInstance;
+    final protected LaminHub hub
+
+    final protected LaminInstanceSettings settings
+    final protected DefaultApi apiInstance
 
     /**
      * Constructor for the LaminInstance class.
@@ -31,17 +32,17 @@ class LaminInstance {
         String owner,
         String name
     ) {
-        if (!hub) throw new IllegalStateException("LaminHub is null. Please check the LaminHub instance.")
-        if (!owner) throw new IllegalStateException("Owner is null. Please check the owner.")
-        if (!name) throw new IllegalStateException("Name is null. Please check the name.")
+        if (!hub) throw new IllegalStateException('LaminHub is null. Please check the LaminHub instance.')
+        if (!owner) throw new IllegalStateException('Owner is null. Please check the owner.')
+        if (!name) throw new IllegalStateException('Name is null. Please check the name.')
 
-        this.hub = hub;
-        this.settings = hub.getInstanceSettings(owner, name);
+        this.hub = hub
+        this.settings = hub.getInstanceSettings(owner, name)
 
         // Initialize the API client with the provided API URL
-        ApiClient defaultClient = Configuration.getDefaultApiClient();
-        defaultClient.setBasePath(this.settings.apiUrl);
-        this.apiInstance = new DefaultApi(defaultClient);
+        ApiClient defaultClient = Configuration.getDefaultApiClient()
+        defaultClient.setBasePath(this.settings.apiUrl)
+        this.apiInstance = new DefaultApi(defaultClient)
     }
 
     /**
@@ -49,7 +50,7 @@ class LaminInstance {
      * @return the owner
      */
     String getOwner() {
-        return this.settings.owner();
+        return this.settings.owner()
     }
 
     /**
@@ -57,11 +58,11 @@ class LaminInstance {
      * @return the name
      */
     String getName() {
-        return this.settings.name();
+        return this.settings.name()
     }
-    
+
     protected String getBearerToken() {
-        return "Bearer " + this.hub.getAccessToken();
+        return 'Bearer ' + this.hub.getAccessToken()
     }
 
     /**
@@ -70,14 +71,14 @@ class LaminInstance {
      * @throws ApiException if an error occurs while fetching the statistics
      */
     Object getInstanceStatistics() throws ApiException {
-        String accessToken = getBearerToken();
+        String accessToken = getBearerToken()
 
         return this.apiInstance.getInstanceStatisticsInstancesInstanceIdStatisticsGet(
             this.settings.id(),
             [],
             this.settings.schemaId(),
             accessToken
-        );
+        )
     }
 
     /**
@@ -100,7 +101,7 @@ class LaminInstance {
         GetRecordRequestBody getRecordRequestBody = new GetRecordRequestBody()
     ) throws ApiException {
         // TODO: refetch accessToken if expired
-        String accessToken = getBearerToken();
+        String accessToken = getBearerToken()
 
         return this.apiInstance.getRecordInstancesInstanceIdModulesModuleNameModelNameIdOrUidPost(
             moduleName,
@@ -112,8 +113,7 @@ class LaminInstance {
             this.settings.schemaId(),
             accessToken,
             getRecordRequestBody
-        );
+        )
     }
 
-    
 }

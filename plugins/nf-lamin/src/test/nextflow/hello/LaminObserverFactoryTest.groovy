@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package nextflow.lamin
 
 import nextflow.Session
@@ -29,7 +28,7 @@ class LaminObserverFactoryTest extends Specification {
         when:
         def result = new LaminObserverFactory().create(Mock(Session))
         then:
-        result.size()==1
+        result.size() == 1
         result[0] instanceof LaminObserver
     }
 

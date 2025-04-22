@@ -41,17 +41,17 @@ class MockScriptRunner extends ScriptRunner {
 
     @Override
     def normalizeOutput(output) {
-        if( output instanceof ChannelOut ) {
+        if (output instanceof ChannelOut) {
             def list = new ArrayList(output.size())
-            for( int i=0; i<output.size(); i++ ) {
+            for (int i = 0; i < output.size(); i++) {
                 list.add(read0(output[i]))
             }
             return list.size() == 1 ? list[0] : list
         }
 
-        if( output instanceof Object[] || output instanceof List) {
+        if (output instanceof Object[] || output instanceof List) {
             def result = new ArrayList<>(output.size())
-            for( def item : output ) {
+            for (def item : output) {
                 ((List)result).add(read0(item))
             }
             return result
@@ -62,10 +62,10 @@ class MockScriptRunner extends ScriptRunner {
         }
     }
 
-
-    private read0( obj ) {
-        if( obj instanceof DataflowBroadcast )
+    private read0(obj) {
+        if (obj instanceof DataflowBroadcast) {
             return obj.createReadChannel()
+        }
         return obj
     }
 
@@ -86,9 +86,11 @@ class MockSession extends Session {
     MockSession(Map config) {
         super(config)
     }
+
 }
 
 class MockExecutorFactory extends ExecutorFactory {
+
     @Override
     protected Class<? extends Executor> getExecutorClass(String executorName) {
         return MockExecutor
@@ -98,6 +100,7 @@ class MockExecutorFactory extends ExecutorFactory {
     protected boolean isTypeSupported(ScriptType type, Object executor) {
         true
     }
+
 }
 
 /**
@@ -117,6 +120,7 @@ class MockExecutor extends Executor {
     TaskHandler createTaskHandler(TaskRun task) {
         return new  MockTaskHandler(task)
     }
+
 }
 
 class MockMonitor implements TaskMonitor {
@@ -142,6 +146,7 @@ class MockMonitor implements TaskMonitor {
      * Notify when a task terminates
      */
     void signal() { }
+
 }
 
 @Slf4j
@@ -154,7 +159,7 @@ class MockTaskHandler extends TaskHandler {
     @Override
     void submit() {
         log.info ">> launching mock task: ${task}"
-        if( task.type == ScriptType.SCRIPTLET ) {
+        if (task.type == ScriptType.SCRIPTLET) {
             task.workDir = Paths.get('.').complete()
             task.stdout = task.script
             task.exitStatus = 0

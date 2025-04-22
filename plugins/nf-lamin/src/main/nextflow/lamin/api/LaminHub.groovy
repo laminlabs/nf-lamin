@@ -1,7 +1,5 @@
 package nextflow.lamin.api
 
-import java.net.HttpURLConnection
-import java.net.URL
 import java.nio.charset.StandardCharsets
 
 import groovy.transform.CompileStatic
@@ -15,14 +13,15 @@ import groovy.json.JsonSlurper
 @Slf4j
 @CompileStatic
 class LaminHub {
+
     // --- Constants ---
 
     // Note: these values could be parameterized similar to
     // https://github.com/laminlabs/lamindb-setup/blob/30f1a4dbbdaa37ab31333d0cc7444730eceb4e12/lamindb_setup/core/_hub_client.py#L32-L60
     // Base URL for the Lamin Hub API
-    private static final String BASE_URL = "https://hub.lamin.ai/functions/v1"
+    private static final String BASE_URL = 'https://hub.lamin.ai/functions/v1'
     // The anonymous key for production access
-    private static final String PROD_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhZXNhdW1tZHlkbGxwcGdmY2h1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2NTY4NDA1NTEsImV4cCI6MTk3MjQxNjU1MX0.WUeCRiun0ExUxKIv5-CtjF6878H8u26t0JmCWx3_2-c"
+    private static final String PROD_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhZXNhdW1tZHlkbGxwcGdmY2h1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2NTY4NDA1NTEsImV4cCI6MTk3MjQxNjU1MX0.WUeCRiun0ExUxKIv5-CtjF6878H8u26t0JmCWx3_2-c'
     // Connection timeout for the connection
     private static final int CONNECT_TIMEOUT_MS = 5000
     // Read timeout for the connection
@@ -40,7 +39,7 @@ class LaminHub {
      */
     LaminHub(String apiKey) {
         if (!apiKey?.trim()) {
-            throw new IllegalArgumentException("API Key cannot be null or empty.")
+            throw new IllegalArgumentException('API Key cannot be null or empty.')
         }
         this.apiKey = apiKey
         this.accessToken = null
@@ -55,24 +54,24 @@ class LaminHub {
     String fetchAccessToken() {
         String url = "${BASE_URL}/get-jwt-v1"
         String payload = """{"api_key": "${this.apiKey}"}"""
-        String currentMethod = "fetchAccessToken()"
+        String currentMethod = 'fetchAccessToken()'
 
         // Use the PROD_ANON_KEY for this specific authorization step
         String responseJson = makePostRequest(url, payload, PROD_ANON_KEY, false, currentMethod)
 
         try {
-            def responseMap = parseJson(responseJson, currentMethod)
-            if (responseMap instanceof Map && responseMap.containsKey('accessToken')) {
-                def accessToken = responseMap.accessToken as String
-                if (accessToken == null || accessToken.trim().isEmpty()) {
-                    throw new RuntimeException("Received empty accessToken from ${url}")
+            Object responseMap = parseJson(responseJson, currentMethod)
+            if (responseMap?.containsKey('accessToken')) {
+                String accessToken = responseMap.accessToken as String
+                if (!accessToken?.trim()) {
+                    throw new IllegalStateException("Access token is null or empty.")
                 }
                 return accessToken
             } else {
-                throw new RuntimeException("Failed to parse 'accessToken' from response. URL: ${url}. Response: ${responseJson}")
+                throw new IllegalStateException("Failed to parse 'accessToken' from response. URL: ${url}. Response: ${responseJson}")
             }
         } catch (Exception e) {
-            throw new RuntimeException("Error parsing JWT response from ${url}. Response: ${responseJson}", e)
+            throw new IllegalStateException("Error parsing JWT response from ${url}. Response: ${responseJson}", e)
         }
     }
 
@@ -84,7 +83,7 @@ class LaminHub {
      */
     String getAccessToken() {
         if (this.accessToken == null) {
-            log.debug("Fetching access token...")
+            log.debug('Fetching access token...')
             updateAccessToken()
         }
         return this.accessToken
@@ -97,7 +96,7 @@ class LaminHub {
      * @throws RuntimeException If the API call fails or the token cannot be refreshed.
      */
     void refreshAccessToken() {
-        log.debug("Refreshing access token...")
+        log.debug('Refreshing access token...')
         updateAccessToken()
     }
 
@@ -132,8 +131,6 @@ class LaminHub {
         return LaminInstanceSettings.fromMap(instanceSettingsMap)
     }
 
-    
-
     // --- Private Helper Methods ---
 
     /**
@@ -157,10 +154,10 @@ class LaminHub {
             connection = (HttpURLConnection) url.openConnection()
 
             // --- Configuration ---
-            connection.setRequestMethod("POST")
-            connection.setRequestProperty("Authorization", "Bearer ${bearerToken}")
-            connection.setRequestProperty("Content-Type", "application/json; utf-8")
-            connection.setRequestProperty("Accept", "application/json")
+            connection.setRequestMethod('POST')
+            connection.setRequestProperty('Authorization', "Bearer ${bearerToken}")
+            connection.setRequestProperty('Content-Type', 'application/json; utf-8')
+            connection.setRequestProperty('Accept', 'application/json')
             connection.setDoOutput(true)
             connection.setConnectTimeout(CONNECT_TIMEOUT_MS)
             connection.setReadTimeout(READ_TIMEOUT_MS)
@@ -178,15 +175,12 @@ class LaminHub {
                 connection.inputStream.withReader(StandardCharsets.UTF_8.name()) { reader ->
                     responseBody = reader.getText() // Groovy helper reads entire stream
                 }
-                if (responseBody == null || responseBody.trim().isEmpty()) {
+                if (!responseBody?.trim()) {
                     // Handle cases where API returns 200 OK but empty body unexpectedly
-                    System.err.println("Warning: Received HTTP 200 but empty response body from ${requestUrl}")
-                    // Depending on API contract, you might throw an error or return empty/null
-                    // Returning empty string here for now.
-                    return ""
+                    log.warn "Warning: Received HTTP 200 but empty response body from ${requestUrl}"
+                    return ''
                 }
                 return responseBody
-
             } else if (allowRetry && (responseCode == HttpURLConnection.HTTP_UNAUTHORIZED || responseCode == HttpURLConnection.HTTP_FORBIDDEN)) {
                 // --- Authorization Error & Retry Allowed ---
                 log.warn "Received HTTP ${responseCode} (${connection.getResponseMessage()}) from ${requestUrl} for ${callingMethod}. Attempting to refresh access token..."
@@ -202,8 +196,7 @@ class LaminHub {
                     log.debug "Retrying request to ${requestUrl} for ${callingMethod} with new token..."
                     // !!! Recursive Call: Retry the request ONCE with the NEW token and allowRetry=false !!!
                     // Pass the updated this.accessToken stored in the instance
-                    return makePostRequest(requestUrl, jsonPayload, newAccessToken, false, callingMethod + " [Retry]")
-
+                    return makePostRequest(requestUrl, jsonPayload, newAccessToken, false, callingMethod + ' [Retry]')
                 } catch (Exception refreshOrRetryException) {
                     // Handle failure during refresh or the retry attempt
                     throw new RuntimeException("Failed during token refresh or retry attempt for ${requestUrl} (Initial code: ${responseCode}). Error: ${refreshOrRetryException.getMessage()}", refreshOrRetryException)
@@ -232,14 +225,15 @@ class LaminHub {
 
                 throw new RuntimeException(errorMessage)
             }
-
         } catch (IOException e) {
             // Handle network/connection level errors
             throw new RuntimeException("IOException during request to ${requestUrl}: ${e.getMessage()}", e)
         } catch (Exception e) {
             // Catch other potential errors (like URL format, etc.) and rethrow
-             if (e instanceof RuntimeException) throw e // Avoid wrapping RuntimeExceptions again
-             throw new RuntimeException("Unexpected error during request to ${requestUrl}: ${e.getMessage()}", e)
+            if (e instanceof RuntimeException) {
+                throw e // Avoid wrapping RuntimeExceptions again
+            }
+            throw new RuntimeException("Unexpected error during request to ${requestUrl}: ${e.getMessage()}", e)
         } finally {
             // --- Ensure Disconnect ---
             if (connection != null) {
@@ -265,10 +259,11 @@ class LaminHub {
     private void updateAccessToken() {
         try {
             this.accessToken = fetchAccessToken()
-            log.debug("Access token refreshed successfully.")
+            log.debug('Access token refreshed successfully.')
         } catch (Exception e) {
             log.error("Failed to refresh access token: ${e.message}", e)
-            throw new RuntimeException("Failed to refresh access token.", e)
+            throw new RuntimeException('Failed to refresh access token.', e)
         }
     }
+
 }

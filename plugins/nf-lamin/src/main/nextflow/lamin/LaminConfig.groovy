@@ -88,7 +88,7 @@ class LaminConfig {
     String getInstanceName() {
         return this.instance.split('/')[1]
     }
-    
+
     /**
      * Get the API key for Lamin Hub
      * @return the API key
@@ -113,11 +113,12 @@ class LaminConfig {
     @PackageScope
     static LaminConfig createFromSession(Session session) {
         if (session == null) {
-            throw new IllegalArgumentException("Session is null. Please provide a valid session.")
+            throw new IllegalArgumentException('Session is null. Please provide a valid session.')
         }
         Map map = session.config?.navigate('lamin') as Map ?: [:]
         String instance = map.instance
         String apiKey = map.api_key
         return new LaminConfig(instance, apiKey)
     }
+
 }
