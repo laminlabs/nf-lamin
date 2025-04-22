@@ -12,16 +12,16 @@ record LaminInstanceSettings(
     String apiUrl
 ) {
     static LaminInstanceSettings fromMap(Map<String, Object> map) {
-        assert map != null : "Instance settings map is null."
-        assert map.owner != null : "Instance settings - owner is null."
+        if (!map) throw new IllegalStateException("Instance settings map is null.")
+        if (!map.owner) throw new IllegalStateException("Instance settings - owner is null.")
         assert map.owner instanceof String : "Instance settings - owner is not a string."
-        assert map.name != null : "Instance settings - name is null."
+        if (!map.name) throw new IllegalStateException("Instance settings - name is null.")
         assert map.name instanceof String : "Instance settings - name is not a string."
-        assert map.id != null : "Instance settings - instance ID is null."
+        if (!map.id) throw new IllegalStateException("Instance settings - instance ID is null.")
         assert map.id instanceof String : "Instance settings - instance ID is not a string."
-        assert map.schema_id != null : "Instance settings - Schema ID is null."
+        if (!map.schema_id) throw new IllegalStateException("Instance settings - Schema ID is null.")
         assert map.schema_id instanceof String : "Instance settings - Schema ID is not a string."
-        assert map.api_url != null : "Instance settings - API URL is null."
+        if (!map.api_url) throw new IllegalStateException("Instance settings - API URL is null.")
         assert map.api_url instanceof String : "Instance settings - API URL is not a string."
         assert map.api_url.startsWith("http") : "Instance settings - API URL is not a valid URL."
         return new LaminInstanceSettings(

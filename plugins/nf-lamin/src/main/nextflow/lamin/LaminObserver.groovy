@@ -136,7 +136,7 @@ class LaminObserver implements TraceObserver {
 
     // --- private methods ---
     protected void testConnection() {
-        assert this.instance != null, "API client is null"
+        if (!this.instance) throw new IllegalStateException("API client is null")
 
         String instanceString = "${this.instance.getOwner()}/${this.instance.getName()}"
         try {
@@ -149,7 +149,7 @@ class LaminObserver implements TraceObserver {
     }
 
     protected Map fetchOrCreateTransform() {
-        assert this.session != null, "Session is null"
+        if (!this.session) throw new IllegalStateException("Session is null")
 
         // collect information about the workflow run
         WorkflowMetadata wfMetadata = this.session.getWorkflowMetadata()
@@ -190,8 +190,8 @@ class LaminObserver implements TraceObserver {
     }
 
     protected Map createRun() {
-        assert this.session != null, "Session is null"
-        assert this.transform != null, "Transform is null"
+        if (!this.session) throw new IllegalStateException("Session is null")
+        if (!this.transform) throw new IllegalStateException("Transform is null")
 
         // collect information about the workflow run
         WorkflowMetadata wfMetadata = this.session.getWorkflowMetadata()
@@ -213,8 +213,8 @@ class LaminObserver implements TraceObserver {
     }
 
     protected void finalizeRun() {
-        assert this.session != null, "Session is null"
-        assert this.transform != null, "Transform is null"
+        if (!this.session) throw new IllegalStateException("Session is null")
+        if (!this.transform) throw new IllegalStateException("Transform is null")
         
         WorkflowMetadata wfMetadata = this.session.getWorkflowMetadata()
         log.debug "Finalise Run object:\n" +

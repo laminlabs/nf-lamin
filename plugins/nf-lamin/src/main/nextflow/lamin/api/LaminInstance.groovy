@@ -25,9 +25,9 @@ class LaminInstance {
     ) {
         this.hub = hub;
 
-        assert hub != null : "LaminHub is null. Please check the LaminHub instance."
-        assert owner != null : "Owner is null. Please check the owner."
-        assert name != null : "Name is null. Please check the name."
+        if (!hub) throw new IllegalStateException("LaminHub is null. Please check the LaminHub instance.")
+        if (!owner) throw new IllegalStateException("Owner is null. Please check the owner.")
+        if (!name) throw new IllegalStateException("Name is null. Please check the name.")
 
         this.settings = hub.getInstanceSettings(owner, name);
 
