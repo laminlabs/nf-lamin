@@ -33,21 +33,4 @@ class LaminPlugin extends BasePlugin implements PluginAbstractExec {
     LaminPlugin(PluginWrapper wrapper) {
         super(wrapper)
     }
-
-    @Override
-    List<String> getCommands() {
-        [ 'test-lamin-connection' ]
-    }
-
-    @Override
-    int exec(String cmd, List<String> args) {
-        if( cmd == 'test-lamin-connection' ) {
-            println "Hello! You gave me these arguments: ${args.join(' ')}"
-            return 0
-        }
-        else {
-            System.err.println "Invalid command: ${cmd}"
-            return 1
-        }
-    }
 }
