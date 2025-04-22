@@ -63,13 +63,13 @@ class LaminObserver implements TraceObserver {
         )
 
         // test connection
-        _testConnection()
+        testConnection()
 
         // fetch or create Transform object
-        this.transform = _fetchOrCreateTransform()
+        this.transform = fetchOrCreateTransform()
 
         // create Run object
-        this.run = _createRun()
+        this.run = createRun()
     }
 
 
@@ -85,7 +85,7 @@ class LaminObserver implements TraceObserver {
 
         // if need be, create artifacts from inputs
         task.getInputFilesMap().each { name, path ->
-            _createInputArtifact(path)
+            createInputArtifact(path)
         }
     }
 
@@ -98,7 +98,7 @@ class LaminObserver implements TraceObserver {
             tasks << task
         }
         task.getInputFilesMap().each { name, path ->
-            _createInputArtifact(path)
+            createInputArtifact(path)
         }
     }
 
@@ -125,17 +125,17 @@ class LaminObserver implements TraceObserver {
     @Override
     void onFlowError(TaskHandler handler, TraceRecord trace) {
         log.debug "onFlowError triggered!"
-        _finalizeRun()
+        finalizeRun()
     }
 
     @Override
     void onFlowComplete() {
         log.debug "onFlowComplete triggered!"
-        _finalizeRun()
+        finalizeRun()
     }
 
     // --- private methods ---
-    void _testConnection() {
+    protected void testConnection() {
         assert this.instance != null, "API client is null"
 
         String instanceString = "${this.instance.getOwner()}/${this.instance.getName()}"
@@ -148,7 +148,7 @@ class LaminObserver implements TraceObserver {
         }
     }
 
-    Map _fetchOrCreateTransform() {
+    protected Map fetchOrCreateTransform() {
         assert this.session != null, "Session is null"
 
         // collect information about the workflow run
@@ -189,7 +189,7 @@ class LaminObserver implements TraceObserver {
         return [id: 1, uid: "abcdef123456"]
     }
 
-    Map _createRun() {
+    protected Map createRun() {
         assert this.session != null, "Session is null"
         assert this.transform != null, "Transform is null"
 
@@ -212,7 +212,7 @@ class LaminObserver implements TraceObserver {
         return [id: 1, uid: "abcdef123456"]
     }
 
-    void _finalizeRun() {
+    protected void finalizeRun() {
         assert this.session != null, "Session is null"
         assert this.transform != null, "Transform is null"
         
@@ -226,7 +226,7 @@ class LaminObserver implements TraceObserver {
     }
 
     // TODO: implement tracking an input artifact
-    void _createInputArtifact(Path path) {
+    protected void createInputArtifact(Path path) {
         // if path is already in workflowInputs, do nothing
         if (workflowInputs.contains(path)) {
             return

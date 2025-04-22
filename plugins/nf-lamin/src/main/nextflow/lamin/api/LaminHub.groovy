@@ -58,10 +58,10 @@ class LaminHub {
         String currentMethod = "fetchAccessToken()"
 
         // Use the PROD_ANON_KEY for this specific authorization step
-        String responseJson = _makePostRequest(url, payload, PROD_ANON_KEY, false, currentMethod)
+        String responseJson = makePostRequest(url, payload, PROD_ANON_KEY, false, currentMethod)
 
         try {
-            def responseMap = _parseJson(responseJson, currentMethod)
+            def responseMap = parseJson(responseJson, currentMethod)
             if (responseMap instanceof Map && responseMap.containsKey('accessToken')) {
                 def accessToken = responseMap.accessToken as String
                 if (accessToken == null || accessToken.trim().isEmpty()) {
@@ -85,7 +85,7 @@ class LaminHub {
     String getAccessToken() {
         if (this.accessToken == null) {
             log.debug("Fetching access token...")
-            _updateAccessToken()
+            updateAccessToken()
         }
         return this.accessToken
     }
@@ -98,7 +98,7 @@ class LaminHub {
      */
     void refreshAccessToken() {
         log.debug("Refreshing access token...")
-        _updateAccessToken()
+        updateAccessToken()
     }
 
     /**
@@ -125,9 +125,9 @@ class LaminHub {
         String currentMethod = "getInstanceSettings(owner='${owner}', name='${name}')"
 
         // Use the fetched accessToken for authorization here
-        String instanceSettingsJson = _makePostRequest(url, payload, accessToken, true, currentMethod)
+        String instanceSettingsJson = makePostRequest(url, payload, accessToken, true, currentMethod)
 
-        Map instanceSettingsMap = _parseJson(instanceSettingsJson, currentMethod)
+        Map instanceSettingsMap = parseJson(instanceSettingsJson, currentMethod)
 
         return LaminInstanceSettings.fromMap(instanceSettingsMap)
     }
@@ -145,7 +145,7 @@ class LaminHub {
      * @return The response body as a String on success (HTTP 200).
      * @throws RuntimeException For connection errors or non-200 responses.
      */
-    private String _makePostRequest(String requestUrl, String jsonPayload, String bearerToken, boolean allowRetry, String callingMethod) {
+    private String makePostRequest(String requestUrl, String jsonPayload, String bearerToken, boolean allowRetry, String callingMethod) {
         HttpURLConnection connection = null
         String responseBody = null
         int responseCode = -1
@@ -202,7 +202,7 @@ class LaminHub {
                     log.debug "Retrying request to ${requestUrl} for ${callingMethod} with new token..."
                     // !!! Recursive Call: Retry the request ONCE with the NEW token and allowRetry=false !!!
                     // Pass the updated this.accessToken stored in the instance
-                    return _makePostRequest(requestUrl, jsonPayload, newAccessToken, false, callingMethod + " [Retry]")
+                    return makePostRequest(requestUrl, jsonPayload, newAccessToken, false, callingMethod + " [Retry]")
 
                 } catch (Exception refreshOrRetryException) {
                     // Handle failure during refresh or the retry attempt
@@ -248,7 +248,7 @@ class LaminHub {
         }
     }
 
-    Map _parseJson(String jsonString, String callingMethod) {
+    private Map parseJson(String jsonString, String callingMethod) {
         try {
             def output = new JsonSlurper().parseText(jsonString)
 
@@ -262,7 +262,7 @@ class LaminHub {
         }
     }
 
-    private void _updateAccessToken() {
+    private void updateAccessToken() {
         try {
             this.accessToken = fetchAccessToken()
             log.debug("Access token refreshed successfully.")

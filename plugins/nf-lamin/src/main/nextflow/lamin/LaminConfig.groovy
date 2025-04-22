@@ -11,7 +11,7 @@ import nextflow.Session
 /**
  * Handle the configuration of the Lamin plugin
  *
- * The configuration is extracted from the nextflow.config file under the lamin tag. For example:
+ * These settings can be defined in the nextflow config as follows:
  *
  * lamin {
  *   instance = "laminlabs/lamindata"
