@@ -25,9 +25,13 @@ scrnaseq_input
 scrnaseq_output
 test.ipynb
 
-# Ignore Gradle project-specific cache directory
+# Ignore Gradle & IDE-specific files
 .gradle
 .idea
+.vscode
+
+# Ignore python-related files
+__pycache__/
 
 # Ignore nextflow related directories
 .nextflow*
