@@ -39,7 +39,7 @@ class LaminHub {
      * @param apiKey The user's Lamin Hub API Key.
      */
     LaminHub(String apiKey) {
-        if (apiKey == null || apiKey.trim().isEmpty()) {
+        if (!apiKey?.trim()) {
             throw new IllegalArgumentException("API Key cannot be null or empty.")
         }
         this.apiKey = apiKey

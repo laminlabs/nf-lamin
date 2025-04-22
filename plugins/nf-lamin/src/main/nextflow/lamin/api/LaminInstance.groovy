@@ -18,17 +18,24 @@ class LaminInstance {
     final protected LaminInstanceSettings settings;
     final protected DefaultApi apiInstance;
 
+    /**
+     * Constructor for the LaminInstance class.
+     *
+     * @param hub The LaminHub instance.
+     * @param owner The owner of the instance.
+     * @param name The name of the instance.
+     * @throws IllegalStateException if any of the parameters are null or invalid.
+     */
     LaminInstance(
         LaminHub hub,
         String owner,
         String name
     ) {
-        this.hub = hub;
-
         if (!hub) throw new IllegalStateException("LaminHub is null. Please check the LaminHub instance.")
         if (!owner) throw new IllegalStateException("Owner is null. Please check the owner.")
         if (!name) throw new IllegalStateException("Name is null. Please check the name.")
 
+        this.hub = hub;
         this.settings = hub.getInstanceSettings(owner, name);
 
         // Initialize the API client with the provided API URL
@@ -37,18 +44,31 @@ class LaminInstance {
         this.apiInstance = new DefaultApi(defaultClient);
     }
 
+    /**
+     * The owner of the instance.
+     * @return the owner
+     */
     String getOwner() {
         return this.settings.owner();
     }
 
+    /**
+     * The name of the instance.
+     * @return the name
+     */
     String getName() {
         return this.settings.name();
     }
-
+    
     protected String getBearerToken() {
         return "Bearer " + this.hub.getAccessToken();
     }
 
+    /**
+     * Fetch the instance statistics from the Lamin API.
+     * @return the instance statistics
+     * @throws ApiException if an error occurs while fetching the statistics
+     */
     Object getInstanceStatistics() throws ApiException {
         String accessToken = getBearerToken();
 
@@ -69,6 +89,7 @@ class LaminInstance {
      * @param includeForeignKeys whether to include foreign keys
      * @param getRecordRequestBody the request body
      * @return the record
+     * @throws ApiException if an error occurs while fetching the record
      */
     Object getRecord(
         String moduleName,
