@@ -7,6 +7,5 @@
 :maxdepth: 1
 :hidden:
 
-nf_core_scrnaseq
 changelog
 ```
