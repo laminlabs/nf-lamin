@@ -66,7 +66,6 @@ To build and test the plugin during development, use the following commands:
 
 ## Package, upload, and publish
 
-
 Follow these steps to package, upload and publish the plugin:
 
 1. Create a file named `gradle.properties` in the project root containing the following attributes (this file should not be committed to Git):
