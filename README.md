@@ -73,12 +73,18 @@ nextflow run https://packages.viash-hub.com/vsh/toolbox.git \
   --publish_dir gs://di-temporary/scratch/temp-nf-lamin
 ```
 
+    Nextflow 24.10.6 is available - Please consider updating your version to it
     N E X T F L O W  ~  version 24.10.5
     Pulling vsh/toolbox ...
-    Launching `https://packages.viash-hub.com/vsh/toolbox` [high_waddington] DSL2 - revision: 09c015bdf2 [v0.1.0]
+    Launching `https://packages.viash-hub.com/vsh/toolbox` [backstabbing_lattes] DSL2 - revision: 09c015bdf2 [v0.1.0]
     Connected to Lamin instance: laminlabs/lamindata
-    [6a/7201f1] Submitted process > bgzip:processWf:bgzip_process (run)
-    [93/7bfc4d] Submitted process > bgzip:publishStatesSimpleWf:publishStatesProc (run)
+    [e2/2fa36e] Submitted process > bgzip:processWf:bgzip_process (run)
+    [d4/424610] Submitted process > bgzip:publishStatesSimpleWf:publishStatesProc (run)
+
+> [!NOTE]
+>
+> Replace the `--publish_dir` with a valid path to a cloud bucket for
+> this example to work.
 
 Logs produced by lamin:
 
@@ -117,9 +123,9 @@ do_print {
       transform = ln.Transform.get("abcdef123456")
       run = ln.Run(
         transform=transform,
-        name="high_waddington",
-        created_at="2025-04-22T13:49:18.787752751+02:00",
-        started_at="2025-04-22T13:49:18.787752751+02:00",
+        name="backstabbing_lattes",
+        created_at="2025-04-24T14:15:03.339029919+02:00",
+        started_at="2025-04-24T14:15:03.339029919+02:00",
         reference="https://cloud.seqera.io/...",
         reference_type="url",
         project=...
@@ -129,7 +135,7 @@ do_print {
     DEBUG nextflow.lamin.LaminObserver - onFlowComplete triggered!
     DEBUG nextflow.lamin.LaminObserver - Finalise Run object:
       run = ln.Run.get("abcdef123456")
-      run.finished_at = "2025-04-22T13:49:29.017797592+02:00"
+      run.finished_at = "2025-04-24T14:15:16.195145467+02:00"
 
 ## Contributing
 

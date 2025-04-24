@@ -78,6 +78,10 @@ nextflow run https://packages.viash-hub.com/vsh/toolbox.git \
   --publish_dir gs://di-temporary/scratch/temp-nf-lamin
 ```
 
+:::{.callout-note}
+Replace the `--publish_dir` with a valid path to a cloud bucket for this example to work.
+:::
+
 Logs produced by lamin:
 
 ```{bash}
