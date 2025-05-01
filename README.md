@@ -26,7 +26,7 @@ API key:
 
 ```groovy
 plugins {
-    id 'nf-lamin'
+  id 'nf-lamin'
 }
 
 lamin {
