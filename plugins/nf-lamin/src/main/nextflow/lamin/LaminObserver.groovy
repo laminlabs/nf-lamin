@@ -85,29 +85,29 @@ class LaminObserver implements TraceObserver {
 
     @Override
     void onProcessComplete(TaskHandler handler, TraceRecord trace) {
-        log.debug "onProcessComplete triggered!"
-        // handler.task.getInputFilesMap().each { name, path ->
-        //     createInputArtifact(path)
-        // }
+        log.debug 'onProcessComplete triggered!'
+    // handler.task.getInputFilesMap().each { name, path ->
+    //     createInputArtifact(path)
+    // }
     }
 
     @Override
     void onProcessCached(TaskHandler handler, TraceRecord trace) {
-        log.debug "onProcessCached triggered!"
-        // handler.task.getInputFilesMap().each { name, path ->
-        //     createInputArtifact(path)
-        // }
+        log.debug 'onProcessCached triggered!'
+    // handler.task.getInputFilesMap().each { name, path ->
+    //     createInputArtifact(path)
+    // }
     }
 
     // TODO: implement tracking an output artifact
     @Override
     void onFilePublish(Path destination, Path source) {
         log.debug 'onFilePublish triggered!'
-        // log.debug 'Create Artifact object:\n' +
-        //     '  artifact = ln.Artifact(\n' +
-        //     '    run=run,\n' +
-        //     '    data=\'${destination.toUriString()}\',\n' +
-        //     '  )\n'
+    // log.debug 'Create Artifact object:\n' +
+    //     '  artifact = ln.Artifact(\n' +
+    //     '    run=run,\n' +
+    //     '    data=\'${destination.toUriString()}\',\n' +
+    //     '  )\n'
     }
 
     @Override
@@ -196,7 +196,7 @@ class LaminObserver implements TraceObserver {
                 description: description
             ]
         )
-        // todo: link to project?
+    // todo: link to project?
     }
 
     protected Map createRun() {
@@ -213,7 +213,7 @@ class LaminObserver implements TraceObserver {
                 _status_code: -1
             ]
         )
-        // todo: link to project?
+    // todo: link to project?
     }
 
     protected void finalizeRun() {
@@ -237,11 +237,11 @@ class LaminObserver implements TraceObserver {
         //     return
         // }
 
-        // log.debug "Create Artifact object:\n" +
-        //     "  artifact = ln.Artifact(\n" +
-        //     "    run=run,\n" +
-        //     "    data=\"${path.toUriString()}\",\n" +
-        //     "  )\n"
+    // log.debug "Create Artifact object:\n" +
+    //     "  artifact = ln.Artifact(\n" +
+    //     "    run=run,\n" +
+    //     "    data=\"${path.toUriString()}\",\n" +
+    //     "  )\n"
     }
 
 }

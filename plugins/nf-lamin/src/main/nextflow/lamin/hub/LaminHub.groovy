@@ -66,7 +66,7 @@ class LaminHub {
             if (responseMap?.containsKey('accessToken')) {
                 String accessToken = responseMap.accessToken as String
                 if (!accessToken?.trim()) {
-                    throw new IllegalStateException("Access token is null or empty.")
+                    throw new IllegalStateException('Access token is null or empty.')
                 }
                 return accessToken
             } else {

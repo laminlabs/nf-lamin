@@ -29,4 +29,5 @@ class LaminInstanceSettings {
             apiUrl: map.api_url as String
         )
     }
+
 }

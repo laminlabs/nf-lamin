@@ -168,7 +168,7 @@ class LaminInstance {
         List<OrderByColumn> orderBy = args.get('orderBy', null) as List<OrderByColumn>
         Map<String, Object> filter = args.get('filter', null) as Map<String, Object>
         List<String> select = args.get('select', null) as List<String>
-        
+
         // Create the request body
         GetRecordsRequestBody body = new GetRecordsRequestBody(
             select: select,
@@ -289,4 +289,5 @@ class LaminInstance {
             throw e
         }
     }
+
 }
