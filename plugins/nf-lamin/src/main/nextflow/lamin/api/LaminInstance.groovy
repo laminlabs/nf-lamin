@@ -204,9 +204,7 @@ class LaminInstance {
      * @throws IllegalStateException if any of the required arguments are null
      * @throws ApiException if an error occurs while creating the record
      */
-    Map createRecord(
-        Map args
-    ) throws ApiException {
+    Map createRecord(Map args) {
         // required args
         String moduleName = args.moduleName as String
         String modelName = args.modelName as String
@@ -222,6 +220,44 @@ class LaminInstance {
             this.apiInstance.createRecordInstancesInstanceIdModulesModuleNameModelNamePut(
                 moduleName,
                 modelName,
+                this.settings.id(),
+                data,
+                this.settings.schemaId(),
+                accessToken
+            ) as Map
+        }
+    }
+
+    /**
+     * Update a record in the Lamin API
+     * @param args A map containing the following keys:
+     *    - moduleName: The name of the module (required)
+     *    - modelName: The name of the model (required)
+     *    - uid: The UID of the record (required)
+     *    - data: The data to update the record (optional)
+     * @return a map containing the updated record data
+     * @throws IllegalStateException if any of the required arguments are null
+     * @throws ApiException if an error occurs while updating the record
+     */
+    Map updateRecord(Map args) {
+        // required args
+        String moduleName = args.moduleName as String
+        String modelName = args.modelName as String
+        String uid = args.uid as String
+
+        if (!moduleName) { throw new IllegalStateException('Module name is null. Please check the module name.') }
+        if (!modelName) { throw new IllegalStateException('Model name is null. Please check the model name.') }
+        if (!uid) { throw new IllegalStateException('UID is null. Please check the UID.') }
+
+        // Optional arguments
+        Map data = args.get('data', null) as Map
+
+        // Do call
+        return callApi { String accessToken ->
+            this.apiInstance.updateRecordInstancesInstanceIdModulesModuleNameModelNameUidPatch(
+                moduleName,
+                modelName,
+                uid,
                 this.settings.id(),
                 data,
                 this.settings.schemaId(),
