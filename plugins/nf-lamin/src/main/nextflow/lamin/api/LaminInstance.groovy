@@ -1,9 +1,6 @@
 package nextflow.lamin.api
 
-import java.util.UUID
-
 import groovy.transform.CompileStatic
-import groovy.util.logging.Slf4j
 
 import ai.lamin.lamin_api_client.ApiClient
 import ai.lamin.lamin_api_client.ApiException
@@ -11,11 +8,19 @@ import ai.lamin.lamin_api_client.Configuration
 import ai.lamin.lamin_api_client.model.*
 import ai.lamin.lamin_api_client.api.DefaultApi
 
+/**
+ * Represents a Lamin instance.
+ * This class is responsible for interacting with the Lamin API.
+ *
+ * @param hub The LaminHub instance.
+ * @param owner The owner of the instance.
+ * @param name The name of the instance.
+ * @throws IllegalStateException if any of the parameters are null or invalid.
+ */
 @CompileStatic
 class LaminInstance {
 
     final protected LaminHub hub
-
     final protected LaminInstanceSettings settings
     final protected DefaultApi apiInstance
 
@@ -32,9 +37,9 @@ class LaminInstance {
         String owner,
         String name
     ) {
-        if (!hub) throw new IllegalStateException('LaminHub is null. Please check the LaminHub instance.')
-        if (!owner) throw new IllegalStateException('Owner is null. Please check the owner.')
-        if (!name) throw new IllegalStateException('Name is null. Please check the name.')
+        if (!hub) { throw new IllegalStateException('LaminHub is null. Please check the LaminHub instance.') }
+        if (!owner) { throw new IllegalStateException('Owner is null. Please check the owner.') }
+        if (!name) { throw new IllegalStateException('Name is null. Please check the name.') }
 
         this.hub = hub
         this.settings = hub.getInstanceSettings(owner, name)
@@ -61,24 +66,20 @@ class LaminInstance {
         return this.settings.name()
     }
 
-    protected String getBearerToken() {
-        return 'Bearer ' + this.hub.getAccessToken()
-    }
-
     /**
      * Fetch the instance statistics from the Lamin API.
      * @return the instance statistics
      * @throws ApiException if an error occurs while fetching the statistics
      */
     Object getInstanceStatistics() throws ApiException {
-        String accessToken = getBearerToken()
-
-        return this.apiInstance.getInstanceStatisticsInstancesInstanceIdStatisticsGet(
-            this.settings.id(),
-            [],
-            this.settings.schemaId(),
-            accessToken
-        )
+        return callApi { String accessToken ->
+            this.apiInstance.getInstanceStatisticsInstancesInstanceIdStatisticsGet(
+                this.settings.id(),
+                [],
+                this.settings.schemaId(),
+                accessToken
+            )
+        }
     }
 
     /**
@@ -97,23 +98,70 @@ class LaminInstance {
         String modelName,
         String idOrUid,
         Integer limitToMany = 10,
-        Boolean includeForeignKeys = true,
-        GetRecordRequestBody getRecordRequestBody = new GetRecordRequestBody()
+        Boolean includeForeignKeys = false,
+        GetRecordRequestBody body = new GetRecordRequestBody()
     ) throws ApiException {
-        // TODO: refetch accessToken if expired
-        String accessToken = getBearerToken()
-
-        return this.apiInstance.getRecordInstancesInstanceIdModulesModuleNameModelNameIdOrUidPost(
-            moduleName,
-            modelName,
-            idOrUid,
-            this.settings.id(),
-            limitToMany,
-            includeForeignKeys,
-            this.settings.schemaId(),
-            accessToken,
-            getRecordRequestBody
-        )
+        return callApi { String accessToken ->
+            this.apiInstance.getRecordInstancesInstanceIdModulesModuleNameModelNameIdOrUidPost(
+                moduleName,
+                modelName,
+                idOrUid,
+                this.settings.id(),
+                limitToMany,
+                includeForeignKeys,
+                this.settings.schemaId(),
+                accessToken,
+                body
+            )
+        }
     }
 
+    Object getRecords(
+        String moduleName,
+        String modelName,
+        Integer limit = 50,
+        Integer offset = 0,
+        Integer limitToMany = 10,
+        Boolean includeForeignKeys = false,
+        GetRecordsRequestBody body = new GetRecordsRequestBody()
+    ) throws ApiException {
+        return callApi { String accessToken ->
+            this.apiInstance.getRecordsInstancesInstanceIdModulesModuleNameModelNamePost(
+                moduleName,
+                modelName,
+                this.settings.id(),
+                limit,
+                offset,
+                limitToMany,
+                includeForeignKeys,
+                this.settings.schemaId(),
+                accessToken,
+                body
+            )
+        }
+    }
+
+    // ------------------- PRIVATE METHODS -------------------
+    /**
+     * Get the bearer token for authentication.
+     * @return the bearer token
+     */
+    protected String getBearerToken() {
+        return 'Bearer ' + this.hub.getAccessToken()
+    }
+
+    protected <T> T callApi(Closure<T> closure) {
+        String accessToken = getBearerToken()
+        try {
+            return closure.call(accessToken)
+        } catch (ApiException e) {
+            if (e.code == 401) {
+                // Token expired, refresh it and try again
+                this.hub.refreshAccessToken()
+                accessToken = getBearerToken()
+                return closure.call(accessToken)
+            }
+            throw e
+        }
+    }
 }
