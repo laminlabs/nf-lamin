@@ -105,8 +105,8 @@ do_print {
 ```
 
     DEBUG nextflow.lamin.LaminObserver - onFlowCreate triggered!
-    DEBUG nextflow.lamin.api.LaminHub - Fetching access token...
-    DEBUG nextflow.lamin.api.LaminHub - Access token refreshed successfully.
+    DEBUG nextflow.lamin.hub.LaminHub - Fetching access token...
+    DEBUG nextflow.lamin.hub.LaminHub - Access token refreshed successfully.
     INFO  nextflow.lamin.LaminObserver - Connected to Lamin instance: laminlabs/lamindata
     DEBUG nextflow.lamin.LaminObserver - Fetch or create Transform object:
       transform = ln.Transform(
