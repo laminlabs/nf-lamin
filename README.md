@@ -25,17 +25,14 @@ To use the plugin in a Nextflow workflow, create a Nextflow config
 API key:
 
 ```groovy
+plugins {
+  id 'nf-lamin'
+}
+
 lamin {
   instance = "laminlabs/lamindata"
-  api_key = System.getenv("LAMIN_API_KEY")
+  api_key = secrets.LAMIN_API_KEY
 }
-```
-
-You can now use the plugin by adding the following option to the
-`nextflow run` command:
-
-```bash
--plugins nf-lamin@0.0.2
 ```
 
 > [!TIP]
@@ -48,7 +45,6 @@ You can now use the plugin by adding the following option to the
 ```bash
 nextflow run nf-core/scrnaseq \
   -latest -resume \
-  -plugins nf-lamin@0.0.2 \
   -r 2.7.1 \
   -profile docker \
   --input https://github.com/nf-core/test-datasets/raw/scrnaseq/samplesheet-2-0.csv \
@@ -67,7 +63,6 @@ nextflow run https://packages.viash-hub.com/vsh/toolbox.git \
   -main-script target/nextflow/bgzip/main.nf \
   -profile docker \
   -latest \
-  -plugins nf-lamin@0.0.2 \
   --input https://github.com/nf-core/test-datasets/raw/scrnaseq/samplesheet-2-0.csv \
   --output output.gz \
   --publish_dir gs://di-temporary/scratch/temp-nf-lamin
@@ -76,10 +71,10 @@ nextflow run https://packages.viash-hub.com/vsh/toolbox.git \
     Nextflow 24.10.6 is available - Please consider updating your version to it
     N E X T F L O W  ~  version 24.10.5
     Pulling vsh/toolbox ...
-    Launching `https://packages.viash-hub.com/vsh/toolbox` [backstabbing_lattes] DSL2 - revision: 09c015bdf2 [v0.1.0]
+    Launching `https://packages.viash-hub.com/vsh/toolbox` [grave_woese] DSL2 - revision: 09c015bdf2 [v0.1.0]
     Connected to Lamin instance: laminlabs/lamindata
-    [e2/2fa36e] Submitted process > bgzip:processWf:bgzip_process (run)
-    [d4/424610] Submitted process > bgzip:publishStatesSimpleWf:publishStatesProc (run)
+    [32/d9f562] Submitted process > bgzip:processWf:bgzip_process (run)
+    [fa/a6b4c8] Submitted process > bgzip:publishStatesSimpleWf:publishStatesProc (run)
 
 > [!NOTE]
 >
@@ -88,25 +83,9 @@ nextflow run https://packages.viash-hub.com/vsh/toolbox.git \
 
 Logs produced by lamin:
 
-```bash
-gawk '
-/\[main\]/ {
-  if ($0 ~ /nextflow\.lamin/) {
-    do_print=1
-  } else {
-    do_print=0
-  }
-}
-do_print {
-  gsub(/.*\[main\] /, "")
-  print
-}
-' .nextflow.log
-```
-
     DEBUG nextflow.lamin.LaminObserver - onFlowCreate triggered!
-    DEBUG nextflow.lamin.hub.LaminHub - Fetching access token...
-    DEBUG nextflow.lamin.hub.LaminHub - Access token refreshed successfully.
+    DEBUG nextflow.lamin.api.LaminHub - Fetching access token...
+    DEBUG nextflow.lamin.api.LaminHub - Access token refreshed successfully.
     INFO  nextflow.lamin.LaminObserver - Connected to Lamin instance: laminlabs/lamindata
     DEBUG nextflow.lamin.LaminObserver - Fetch or create Transform object:
       transform = ln.Transform(
@@ -123,9 +102,9 @@ do_print {
       transform = ln.Transform.get("abcdef123456")
       run = ln.Run(
         transform=transform,
-        name="backstabbing_lattes",
-        created_at="2025-04-24T14:15:03.339029919+02:00",
-        started_at="2025-04-24T14:15:03.339029919+02:00",
+        name="grave_woese",
+        created_at="2025-05-01T15:59:52.472365911+02:00",
+        started_at="2025-05-01T15:59:52.472365911+02:00",
         reference="https://cloud.seqera.io/...",
         reference_type="url",
         project=...
@@ -135,7 +114,7 @@ do_print {
     DEBUG nextflow.lamin.LaminObserver - onFlowComplete triggered!
     DEBUG nextflow.lamin.LaminObserver - Finalise Run object:
       run = ln.Run.get("abcdef123456")
-      run.finished_at = "2025-04-24T14:15:16.195145467+02:00"
+      run.finished_at = "2025-05-01T16:00:02.838812764+02:00"
 
 ## Contributing
 
