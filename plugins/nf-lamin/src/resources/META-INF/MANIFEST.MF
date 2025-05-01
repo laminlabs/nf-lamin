@@ -1,6 +1,6 @@
 Manifest-Version: 1.0
 Plugin-Id: nf-lamin
-Plugin-Version: 0.0.1
+Plugin-Version: 0.0.2
 Plugin-Class: nextflow.lamin.LaminPlugin
 Plugin-Provider: Lamin Labs
 Plugin-Requires: >=24.10.4

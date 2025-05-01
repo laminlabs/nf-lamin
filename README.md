@@ -35,7 +35,7 @@ You can now use the plugin by adding the following option to the
 `nextflow run` command:
 
 ```bash
--plugins nf-lamin@0.0.1
+-plugins nf-lamin@0.0.2
 ```
 
 > [!TIP]
@@ -48,7 +48,7 @@ You can now use the plugin by adding the following option to the
 ```bash
 nextflow run nf-core/scrnaseq \
   -latest -resume \
-  -plugins nf-lamin@0.0.1 \
+  -plugins nf-lamin@0.0.2 \
   -r 2.7.1 \
   -profile docker \
   --input https://github.com/nf-core/test-datasets/raw/scrnaseq/samplesheet-2-0.csv \
@@ -67,7 +67,7 @@ nextflow run https://packages.viash-hub.com/vsh/toolbox.git \
   -main-script target/nextflow/bgzip/main.nf \
   -profile docker \
   -latest \
-  -plugins nf-lamin@0.0.1 \
+  -plugins nf-lamin@0.0.2 \
   --input https://github.com/nf-core/test-datasets/raw/scrnaseq/samplesheet-2-0.csv \
   --output output.gz \
   --publish_dir gs://di-temporary/scratch/temp-nf-lamin
