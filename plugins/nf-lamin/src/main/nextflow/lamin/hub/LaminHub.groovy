@@ -1,10 +1,12 @@
-package nextflow.lamin.api
+package nextflow.lamin.hub
 
 import java.nio.charset.StandardCharsets
 
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import groovy.json.JsonSlurper
+
+import nextflow.lamin.api.LaminInstanceSettings
 
 /**
  * Groovy client for interacting with specific Lamin Hub API endpoints.

@@ -16,7 +16,7 @@ import nextflow.trace.TraceObserver
 import nextflow.trace.TraceRecord
 
 import nextflow.lamin.api.LaminInstance
-import nextflow.lamin.api.LaminHub
+import nextflow.lamin.hub.LaminHub
 
 import ai.lamin.lamin_api_client.ApiException
 import ai.lamin.lamin_api_client.model.GetRecordRequestBody

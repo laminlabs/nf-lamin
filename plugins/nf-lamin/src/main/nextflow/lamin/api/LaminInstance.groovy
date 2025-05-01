@@ -8,6 +8,8 @@ import ai.lamin.lamin_api_client.Configuration
 import ai.lamin.lamin_api_client.model.*
 import ai.lamin.lamin_api_client.api.DefaultApi
 
+import nextflow.lamin.hub.LaminHub
+
 /**
  * Represents a Lamin instance.
  * This class is responsible for interacting with the Lamin API.
