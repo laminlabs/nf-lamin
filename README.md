@@ -37,8 +37,13 @@ lamin {
 
 > [!TIP]
 >
-> You can fetch your Lamin API key from your [Lamin Hub account
-> settings](https://lamin.ai/settings).
+> If you haven’t done so already, you’ll need to define the
+> `LAMIN_API_KEY` secret in your Nextflow configuration:
+>
+> - Fet your Lamin API key from your [Lamin Hub account
+>   settings](https://lamin.ai/settings).
+> - Run the command `nextflow secrets set LAMIN_API_KEY "..."` to set
+>   the secret in your Nextflow configuration.
 
 ### Example with nf-core/scrnaseq workflow:
 
@@ -71,10 +76,10 @@ nextflow run https://packages.viash-hub.com/vsh/toolbox.git \
     Nextflow 24.10.6 is available - Please consider updating your version to it
     N E X T F L O W  ~  version 24.10.5
     Pulling vsh/toolbox ...
-    Launching `https://packages.viash-hub.com/vsh/toolbox` [grave_woese] DSL2 - revision: 09c015bdf2 [v0.1.0]
+    Launching `https://packages.viash-hub.com/vsh/toolbox` [golden_williams] DSL2 - revision: 09c015bdf2 [v0.1.0]
     Connected to Lamin instance: laminlabs/lamindata
-    [32/d9f562] Submitted process > bgzip:processWf:bgzip_process (run)
-    [fa/a6b4c8] Submitted process > bgzip:publishStatesSimpleWf:publishStatesProc (run)
+    [e6/b3d564] Submitted process > bgzip:processWf:bgzip_process (run)
+    [44/cd3efb] Submitted process > bgzip:publishStatesSimpleWf:publishStatesProc (run)
 
 > [!NOTE]
 >
@@ -102,9 +107,9 @@ Logs produced by lamin:
       transform = ln.Transform.get("abcdef123456")
       run = ln.Run(
         transform=transform,
-        name="grave_woese",
-        created_at="2025-05-01T15:59:52.472365911+02:00",
-        started_at="2025-05-01T15:59:52.472365911+02:00",
+        name="golden_williams",
+        created_at="2025-05-01T16:33:22.312871837+02:00",
+        started_at="2025-05-01T16:33:22.312871837+02:00",
         reference="https://cloud.seqera.io/...",
         reference_type="url",
         project=...
@@ -114,7 +119,7 @@ Logs produced by lamin:
     DEBUG nextflow.lamin.LaminObserver - onFlowComplete triggered!
     DEBUG nextflow.lamin.LaminObserver - Finalise Run object:
       run = ln.Run.get("abcdef123456")
-      run.finished_at = "2025-05-01T16:00:02.838812764+02:00"
+      run.finished_at = "2025-05-01T16:33:33.208540364+02:00"
 
 ## Contributing
 
