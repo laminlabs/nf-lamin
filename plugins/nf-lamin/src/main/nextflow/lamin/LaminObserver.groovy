@@ -201,17 +201,20 @@ class LaminObserver implements TraceObserver {
 
     protected Map createRun() {
         WorkflowMetadata wfMetadata = this.session.getWorkflowMetadata()
+        Map runData = [
+            transform_id: this.transform.id,
+            name: wfMetadata.runName,
+            created_at: wfMetadata.start,
+            started_at: wfMetadata.start,
+            _status_code: -1
+        ]
+
+        log.debug "Creating Run object: ${runData}"
 
         return this.instance.createRecord(
             moduleName: 'core',
             modelName: 'run',
-            data: [
-                transform_id: this.transform.id,
-                name: wfMetadata.runName,
-                created_at: wfMetadata.start,
-                started_at: wfMetadata.start,
-                _status_code: -1
-            ]
+            data: runData
         )
     // todo: link to project?
     }
