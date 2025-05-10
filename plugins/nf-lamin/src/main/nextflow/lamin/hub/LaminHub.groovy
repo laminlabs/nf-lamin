@@ -1,10 +1,12 @@
-package nextflow.lamin.api
+package nextflow.lamin.hub
 
 import java.nio.charset.StandardCharsets
 
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import groovy.json.JsonSlurper
+
+import nextflow.lamin.api.LaminInstanceSettings
 
 /**
  * Groovy client for interacting with specific Lamin Hub API endpoints.
@@ -64,7 +66,7 @@ class LaminHub {
             if (responseMap?.containsKey('accessToken')) {
                 String accessToken = responseMap.accessToken as String
                 if (!accessToken?.trim()) {
-                    throw new IllegalStateException("Access token is null or empty.")
+                    throw new IllegalStateException('Access token is null or empty.')
                 }
                 return accessToken
             } else {
