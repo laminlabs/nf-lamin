@@ -1,6 +1,7 @@
 package nextflow.lamin.api
 
 import groovy.transform.CompileStatic
+import groovy.util.logging.Slf4j
 
 import ai.lamin.lamin_api_client.ApiClient
 import ai.lamin.lamin_api_client.ApiException
@@ -19,6 +20,7 @@ import nextflow.lamin.hub.LaminHub
  * @param name The name of the instance.
  * @throws IllegalStateException if any of the parameters are null or invalid.
  */
+@Slf4j
 @CompileStatic
 class LaminInstance {
 
@@ -74,6 +76,7 @@ class LaminInstance {
      * @throws ApiException if an error occurs while fetching the statistics
      */
     Object getInstanceStatistics() throws ApiException {
+        log.debug "GET getInstanceStatistics"
         return callApi { String accessToken ->
             this.apiInstance.getInstanceStatisticsInstancesInstanceIdStatisticsGet(
                 this.settings.id(),
@@ -118,6 +121,7 @@ class LaminInstance {
         )
 
         // Do call
+        log.debug "POST getRecord: ${moduleName}.${modelName}, idOrUid=${idOrUid}"
         return callApi { String accessToken ->
             this.apiInstance.getRecordInstancesInstanceIdModulesModuleNameModelNameIdOrUidPost(
                 moduleName,
@@ -178,6 +182,7 @@ class LaminInstance {
         )
 
         // Do call
+        log.debug "POST getRecords: ${moduleName}.${modelName}, filter=${filter}, limit=${limit}, offset=${offset}"
         return callApi { String accessToken ->
             this.apiInstance.getRecordsInstancesInstanceIdModulesModuleNameModelNamePost(
                 moduleName,
@@ -216,6 +221,7 @@ class LaminInstance {
         Map data = args.get('data', null) as Map
 
         // Do call
+        log.debug "PUT createRecord: ${moduleName}.${modelName}, data=${data}"
         return callApi { String accessToken ->
             this.apiInstance.createRecordInstancesInstanceIdModulesModuleNameModelNamePut(
                 moduleName,
@@ -253,6 +259,7 @@ class LaminInstance {
         Map data = args.get('data', null) as Map
 
         // Do call
+        log.debug "PATCH updateRecord: ${moduleName}.${modelName}, uid=${uid}, data=${data}"
         return callApi { String accessToken ->
             this.apiInstance.updateRecordInstancesInstanceIdModulesModuleNameModelNameUidPatch(
                 moduleName,
