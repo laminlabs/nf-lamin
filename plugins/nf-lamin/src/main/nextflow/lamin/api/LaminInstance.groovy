@@ -52,6 +52,11 @@ class LaminInstance {
         ApiClient defaultClient = Configuration.getDefaultApiClient()
         defaultClient.setBasePath(this.settings.apiUrl)
         this.apiInstance = new DefaultApi(defaultClient)
+
+        // increase the timeout for the API client to 30 seconds
+        this.apiInstance.getApiClient().setReadTimeout(30000)
+        this.apiInstance.getApiClient().setConnectTimeout(30000)
+        this.apiInstance.getApiClient().setWriteTimeout(30000)
     }
 
     /**
@@ -77,6 +82,7 @@ class LaminInstance {
      */
     Object getInstanceStatistics() throws ApiException {
         log.debug "GET getInstanceStatistics"
+
         return callApi { String accessToken ->
             this.apiInstance.getInstanceStatisticsInstancesInstanceIdStatisticsGet(
                 this.settings.id(),
@@ -85,6 +91,23 @@ class LaminInstance {
                 accessToken
             )
         }
+    }
+
+    /**
+     * Get the non-empty tables from the Lamin API.
+     * @return a Map containing the non-empty tables
+     * @throws ApiException if an error occurs while fetching the non-empty tables
+     */
+    Object getNonEmptyTables() throws ApiException {
+        log.debug "GET getNonEmptyTables"
+
+        return callApi { String accessToken ->
+            this.apiInstance.getNonEmptyTablesInstancesInstanceIdNonEmptyTablesGet(
+                this.settings.id(),
+                this.settings.schemaId(),
+                accessToken
+            )
+        } as Map
     }
 
     /**
