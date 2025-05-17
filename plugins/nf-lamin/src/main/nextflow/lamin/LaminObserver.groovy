@@ -167,7 +167,7 @@ class LaminObserver implements TraceObserver {
                 log.warn "Found multiple Transform objects with key ${key} and revision ${revision}"
             }
             Map transform = existingTransforms[0]
-            log.debug "Using Transform: ${transform}"
+            log.info "Using Transform https://lamin.ai/${this.instance.getOwner()}/${this.instance.getName()}/transform/${transform.uid}"
             return transform
         }
 
@@ -224,7 +224,7 @@ class LaminObserver implements TraceObserver {
             modelName: 'run',
             uid: this.run.uid,
             data: [
-                finalized_at: wfMetadata.complete,
+                finished_at: wfMetadata.complete,
                 _status_code: wfMetadata.exitStatus
             ]
         )
