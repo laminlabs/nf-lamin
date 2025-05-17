@@ -162,47 +162,51 @@ class LaminObserver implements TraceObserver {
         )
         log.debug "Found ${existingTransforms.size()} existing Transform(s) with key ${key} and revision ${revision}"
 
+        Map transform = null
+
         if (existingTransforms) {
             if (existingTransforms.size() > 1) {
                 log.warn "Found multiple Transform objects with key ${key} and revision ${revision}"
             }
-            Map transform = existingTransforms[0]
-            log.info "Using Transform https://lamin.ai/${this.instance.getOwner()}/${this.instance.getName()}/transform/${transform.uid}"
-            return transform
+            transform = existingTransforms[0]
+        } else {
+            // collect info for new Transform object
+            String description = "${wfMetadata.manifest.getName()}: ${wfMetadata.manifest.getDescription()}"
+            String commitId = wfMetadata.commitId
+            Map info = [
+                'repository': repository,
+                'main-script': mainScript,
+                'commit-id': commitId,
+                'revision': revision
+            ]
+            String infoAsJson = groovy.json.JsonOutput.toJson(info)
+
+            // create Transform object
+            transform = this.instance.createRecord(
+                moduleName: 'core',
+                modelName: 'transform',
+                data: [
+                    key: key,
+                    source_code: infoAsJson,
+                    version: revision,
+                    type: 'pipeline',
+                    reference: wfMetadata.repository,
+                    reference_type: 'url',
+                    description: description,
+                    is_latest: true
+                ]
+            )
         }
 
-        // collect info for new Transform object
-        String description = "${wfMetadata.manifest.getName()}: ${wfMetadata.manifest.getDescription()}"
-        String commitId = wfMetadata.commitId
-        Map info = [
-            'repository': repository,
-            'main-script': mainScript,
-            'commit-id': commitId,
-            'revision': revision
-        ]
-        String infoAsJson = groovy.json.JsonOutput.toJson(info)
-
-        // create Transform object
-        return this.instance.createRecord(
-            moduleName: 'core',
-            modelName: 'transform',
-            data: [
-                key: key,
-                source_code: infoAsJson,
-                version: revision,
-                type: 'pipeline',
-                reference: wfMetadata.repository,
-                reference_type: 'url',
-                description: description
-            ]
-        )
+        log.info "Using transform ${transform.uid} (https://lamin.ai/${this.instance.getOwner()}/${this.instance.getName()}/transform/${transform.uid})"
+        return transform
     // todo: link to project?
     }
 
     protected Map createRun() {
         WorkflowMetadata wfMetadata = this.session.getWorkflowMetadata()
 
-        return this.instance.createRecord(
+        Map run = this.instance.createRecord(
             moduleName: 'core',
             modelName: 'run',
             data: [
@@ -213,6 +217,10 @@ class LaminObserver implements TraceObserver {
                 _status_code: -1
             ]
         )
+
+        log.info "Started run ${run.uid} (https://lamin.ai/${this.instance.getOwner()}/${this.instance.getName()}/transform/${this.transform.uid}/${run.uid})"
+
+        return run
     // todo: link to project?
     }
 

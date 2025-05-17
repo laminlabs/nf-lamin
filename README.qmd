@@ -70,6 +70,7 @@ nextflow run https://packages.viash-hub.com/vsh/toolbox.git \
   -revision v0.1.0 \
   -main-script target/nextflow/bgzip/main.nf \
   -profile docker \
+  -plugins nf-lamin@0.0.2 \
   -latest \
   --input https://github.com/nf-core/test-datasets/raw/scrnaseq/samplesheet-2-0.csv \
   --output output.gz \
