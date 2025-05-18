@@ -98,7 +98,7 @@ class LaminInstance {
      * @return a Map containing the non-empty tables
      * @throws ApiException if an error occurs while fetching the non-empty tables
      */
-    Object getNonEmptyTables() throws ApiException {
+    Map getNonEmptyTables() throws ApiException {
         log.debug "GET getNonEmptyTables"
 
         return callApi { String accessToken ->

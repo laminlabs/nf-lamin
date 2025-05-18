@@ -126,10 +126,10 @@ class LaminObserver implements TraceObserver {
     protected void testConnection() {
         String instanceString = "${this.instance.getOwner()}/${this.instance.getName()}"
         try {
-            this.instance.getInstanceStatistics()
-            log.info "Connected to Lamin instance: ${instanceString}"
+            this.instance.getNonEmptyTables()
+            log.info "✅ Connected to Lamin instance '${instanceString}'"
         } catch (ApiException e) {
-            log.error "Could not connect to Lamin instance: ${instanceString}!"
+            log.error "❌ Could not connect to Lamin instance '${instanceString}'!"
             log.error 'API call failed: ' + e.getMessage()
         }
     }
@@ -137,8 +137,6 @@ class LaminObserver implements TraceObserver {
     protected Map fetchOrCreateTransform() {
         // collect information about the workflow run
         WorkflowMetadata wfMetadata = this.session.getWorkflowMetadata()
-        // log.trace "wfMetadata [${wfMetadata}]"
-        // log.trace "manifest: ${wfMetadata.manifest.toMap()}"
 
         // collect info about the workflow
         String repository = wfMetadata.repository ?: wfMetadata.projectName
