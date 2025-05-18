@@ -67,7 +67,7 @@ nextflow run nf-core/scrnaseq \
 
 ```{bash}
 nextflow run https://packages.viash-hub.com/vsh/toolbox.git \
-  -revision v0.1.0 \
+  -revision v0.1.1 \
   -main-script target/nextflow/bgzip/main.nf \
   -profile docker \
   -plugins nf-lamin@0.0.2 \
