@@ -30,9 +30,7 @@ class LaminObserverFactory implements TraceObserverFactory {
 
     @Override
     Collection<TraceObserver> create(Session session) {
-        final result = new ArrayList()
-        result.add(new LaminObserver())
-        return result
+        return [new LaminObserver()]
     }
 
 }
