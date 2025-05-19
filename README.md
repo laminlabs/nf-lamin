@@ -77,13 +77,13 @@ nextflow run https://packages.viash-hub.com/vsh/toolbox.git \
     Nextflow 25.04.2 is available - Please consider updating your version to it
     N E X T F L O W  ~  version 24.10.5
     Pulling vsh/toolbox ...
-    Launching `https://packages.viash-hub.com/vsh/toolbox` [wise_ekeblad] DSL2 - revision: 5cb3251eaf [v0.1.1]
+    Launching `https://packages.viash-hub.com/vsh/toolbox` [chaotic_ampere] DSL2 - revision: 5cb3251eaf [v0.1.1]
     ✅ Connected to Lamin instance 'laminlabs/lamindata'
-    Using transform vplMRD5GZEzOB7PU (https://lamin.ai/laminlabs/lamindata/transform/vplMRD5GZEzOB7PU)
-    Started run h0NGa1VbyEL8stqbJDtp (https://lamin.ai/laminlabs/lamindata/transform/vplMRD5GZEzOB7PU/h0NGa1VbyEL8stqbJDtp)
-    [10/092002] Submitted process > bgzip:processWf:bgzip_process (run)
-    [1b/8a5b0c] Submitted process > bgzip:publishFilesSimpleWf:publishFilesProc (run)
-    [a9/8e2f1b] Submitted process > bgzip:publishStatesSimpleWf:publishStatesProc (run)
+    Transform vplMRD5GZEzOB7PU (https://lamin.ai/laminlabs/lamindata/transform/vplMRD5GZEzOB7PU)
+    Run QE7RpQseiSeHZ4lmA3e7 (https://lamin.ai/laminlabs/lamindata/transform/vplMRD5GZEzOB7PU/QE7RpQseiSeHZ4lmA3e7)
+    [69/b37f2b] Submitted process > bgzip:processWf:bgzip_process (run)
+    [e1/0d32bf] Submitted process > bgzip:publishFilesSimpleWf:publishFilesProc (run)
+    [46/755e51] Submitted process > bgzip:publishStatesSimpleWf:publishStatesProc (run)
 
 > [!NOTE]
 >
@@ -99,13 +99,12 @@ Logs produced by lamin:
     INFO  nextflow.lamin.LaminObserver - ✅ Connected to Lamin instance 'laminlabs/lamindata'
     DEBUG nextflow.lamin.LaminObserver - Searching for existing Transform with key https://packages.viash-hub.com/vsh/toolbox:target/nextflow/bgzip/main.nf and revision v0.1.1
     DEBUG nextflow.lamin.api.LaminInstance - POST getRecords: core.transform, filter=[and:[[key:[eq:https://packages.viash-hub.com/vsh/toolbox:target/nextflow/bgzip/main.nf]], [version:[eq:v0.1.1]]]], limit=50, offset=0
-    DEBUG nextflow.lamin.LaminObserver - Found 0 existing Transform(s) with key https://packages.viash-hub.com/vsh/toolbox:target/nextflow/bgzip/main.nf and revision v0.1.1
-    DEBUG nextflow.lamin.api.LaminInstance - PUT createRecord: core.transform, data=[key:https://packages.viash-hub.com/vsh/toolbox:target/nextflow/bgzip/main.nf, source_code:{"repository":"https://packages.viash-hub.com/vsh/toolbox","main-script":"target/nextflow/bgzip/main.nf","commit-id":"5cb3251eaf4f716fbbf45669b21bb63f95448b6e","revision":"v0.1.1"}, version:v0.1.1, type:pipeline, reference:https://packages.viash-hub.com/vsh/toolbox, reference_type:url, description:bgzip: Block compression/decompression utility, is_latest:true]
-    INFO  nextflow.lamin.LaminObserver - Using transform vplMRD5GZEzOB7PU (https://lamin.ai/laminlabs/lamindata/transform/vplMRD5GZEzOB7PU)
-    DEBUG nextflow.lamin.api.LaminInstance - PUT createRecord: core.run, data=[transform_id:471.0, name:wise_ekeblad, created_at:2025-05-18T08:24:18.759697496+02:00, started_at:2025-05-18T08:24:18.759697496+02:00, _status_code:-1]
-    INFO  nextflow.lamin.LaminObserver - Started run h0NGa1VbyEL8stqbJDtp (https://lamin.ai/laminlabs/lamindata/transform/vplMRD5GZEzOB7PU/h0NGa1VbyEL8stqbJDtp)
+    DEBUG nextflow.lamin.LaminObserver - Found 1 existing Transform(s) with key https://packages.viash-hub.com/vsh/toolbox:target/nextflow/bgzip/main.nf and revision v0.1.1
+    INFO  nextflow.lamin.LaminObserver - Transform vplMRD5GZEzOB7PU (https://lamin.ai/laminlabs/lamindata/transform/vplMRD5GZEzOB7PU)
+    DEBUG nextflow.lamin.api.LaminInstance - PUT createRecord: core.run, data=[transform_id:471.0, name:chaotic_ampere, created_at:2025-05-19T12:32:32.330111553+02:00, started_at:2025-05-19T12:32:32.330111553+02:00, _status_code:-1]
+    INFO  nextflow.lamin.LaminObserver - Run QE7RpQseiSeHZ4lmA3e7 (https://lamin.ai/laminlabs/lamindata/transform/vplMRD5GZEzOB7PU/QE7RpQseiSeHZ4lmA3e7)
     DEBUG nextflow.lamin.LaminObserver - onFlowComplete triggered!
-    DEBUG nextflow.lamin.api.LaminInstance - PATCH updateRecord: core.run, uid=h0NGa1VbyEL8stqbJDtp, data=[finished_at:2025-05-18T08:24:33.131016469+02:00, _status_code:0]
+    DEBUG nextflow.lamin.api.LaminInstance - PATCH updateRecord: core.run, uid=QE7RpQseiSeHZ4lmA3e7, data=[finished_at:2025-05-19T12:32:45.288766606+02:00, _status_code:0]
 
 ## Contributing
 
