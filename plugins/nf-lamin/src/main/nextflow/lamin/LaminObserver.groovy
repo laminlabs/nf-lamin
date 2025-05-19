@@ -103,11 +103,7 @@ class LaminObserver implements TraceObserver {
     @Override
     void onFilePublish(Path destination, Path source) {
         log.debug 'onFilePublish triggered!'
-    // log.debug 'Create Artifact object:\n' +
-    //     '  artifact = ln.Artifact(\n' +
-    //     '    run=run,\n' +
-    //     '    data=\'${destination.toUriString()}\',\n' +
-    //     '  )\n'
+        createOutputArtifact(this.run, source, destination)
     }
 
     @Override
@@ -196,7 +192,7 @@ class LaminObserver implements TraceObserver {
             )
         }
 
-        log.info "Using transform ${transform.uid} (https://lamin.ai/${this.instance.getOwner()}/${this.instance.getName()}/transform/${transform.uid})"
+        log.info "Transform ${transform.uid} (https://lamin.ai/${this.instance.getOwner()}/${this.instance.getName()}/transform/${transform.uid})"
         return transform
     // todo: link to project?
     }
@@ -216,7 +212,7 @@ class LaminObserver implements TraceObserver {
             ]
         )
 
-        log.info "Started run ${run.uid} (https://lamin.ai/${this.instance.getOwner()}/${this.instance.getName()}/transform/${this.transform.uid}/${run.uid})"
+        log.info "Run ${run.uid} (https://lamin.ai/${this.instance.getOwner()}/${this.instance.getName()}/transform/${this.transform.uid}/${run.uid})"
 
         return run
     // todo: link to project?
@@ -236,18 +232,67 @@ class LaminObserver implements TraceObserver {
         )
     }
 
-    // TODO: implement tracking an input artifact
-    protected void createInputArtifact(Path path) {
-        // if path is already in workflowInputs, do nothing
-        // if (workflowInputs.contains(path)) {
-        //     return
-        // }
+    protected Map fetchOrCreateStorage(Path path) {
+        String root = path.getFileSystem().toString()
+        URI uri = path.toUri()
+        String type = uri.getScheme()
 
-    // log.debug "Create Artifact object:\n" +
-    //     "  artifact = ln.Artifact(\n" +
-    //     "    run=run,\n" +
-    //     "    data=\"${path.toUriString()}\",\n" +
-    //     "  )\n"
+        // Search for existing Storage object
+        List<Map> existingStorage = this.instance.getRecords(
+            moduleName: 'core',
+            modelName: 'storage',
+            filter: [
+                and: [
+                    [root: [eq: root]],
+                    [type: [eq: type]]
+                ]
+            ]
+        )
+        log.debug "Found ${existingStorage.size()} existing Storage(s) with root ${root} and type ${type}"
+
+        Map storage = null
+        if (existingStorage) {
+            if (existingStorage.size() > 1) {
+                log.warn "Found multiple Storage objects with root ${root} and type ${type}"
+            }
+            storage = existingStorage[0]
+        } else {
+            // create Storage object
+            storage = this.instance.createRecord(
+                moduleName: 'core',
+                modelName: 'storage',
+                data: [
+                    root: root,
+                    type: type
+                ]
+            )
+        }
+        return storage
+    }
+
+    // TODO: implement tracking an input artifact
+    protected Map createOutputArtifact(Map run, Path localPath, Path destPath) {
+        Map storage = fetchOrCreateStorage(destPath)
+
+        Map artifact = this.instance.createRecord(
+            moduleName: 'core',
+            modelName: 'artifact',
+            data: [
+                run_id: run.id,
+                storage_id: storage.id,
+                suffix: PathUtils.getSuffix(destPath),
+                // TODO
+                // hash: "",
+                // _hash_type: 'md5',
+                _key_is_virtual: false,
+                // todo: use the destPath?
+                created_at: new Date(),
+                is_latest: true,
+                _overwrite_versions: true
+            ]
+        )
+
+        return artifact
     }
 
 }
