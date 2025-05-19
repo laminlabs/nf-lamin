@@ -1,7 +1,10 @@
 package nextflow.lamin
 
+import java.net.URI
 import java.nio.file.Path
 import java.nio.file.PathMatcher
+import java.nio.file.Files
+import java.nio.file.attribute.BasicFileAttributes
 import java.util.concurrent.locks.Lock
 import java.util.concurrent.locks.ReentrantLock
 
@@ -175,20 +178,37 @@ class LaminObserver implements TraceObserver {
             ]
             String infoAsJson = groovy.json.JsonOutput.toJson(info)
 
+            Map transformData = [
+                key: key,
+                source_code: infoAsJson,
+                version: revision,
+                type: 'pipeline',
+                reference: wfMetadata.repository,
+                reference_type: 'url',
+                description: description,
+                is_latest: true
+            ]
+
+            // // look for previous tranforms
+            // List<Map> previousTranforms = this.instance.getRecords(
+            //     moduleName: 'core',
+            //     modelName: 'transform',
+            //     filter: [
+            //         [key: [eq: key]]
+            //     ]
+            // )
+            // if (previousTranforms) {
+            //     String prevUID = previousTranforms[0].uid
+            //     // increment last 4 digits of UID
+            //     String newUID = prevUID[0..-5] + String.format('%04d', Integer.parseInt(prevUID[-4..-1]) + 1)
+            //     transformData.uid = newUID
+            // }
+
             // create Transform object
             transform = this.instance.createRecord(
                 moduleName: 'core',
                 modelName: 'transform',
-                data: [
-                    key: key,
-                    source_code: infoAsJson,
-                    version: revision,
-                    type: 'pipeline',
-                    reference: wfMetadata.repository,
-                    reference_type: 'url',
-                    description: description,
-                    is_latest: true
-                ]
+                data: transformData
             )
         }
 
@@ -272,7 +292,11 @@ class LaminObserver implements TraceObserver {
 
     // TODO: implement tracking an input artifact
     protected Map createOutputArtifact(Map run, Path localPath, Path destPath) {
+        URI uri = destPath.toUri()
         Map storage = fetchOrCreateStorage(destPath)
+
+        // get attributes
+        BasicFileAttributes attributes = Files.readAttributes(destPath, BasicFileAttributes)
 
         Map artifact = this.instance.createRecord(
             moduleName: 'core',
@@ -280,13 +304,16 @@ class LaminObserver implements TraceObserver {
             data: [
                 run_id: run.id,
                 storage_id: storage.id,
+                key: uri.getPath().replaceAll('^/', ''),
                 suffix: PathUtils.getSuffix(destPath),
-                // TODO
+                size: attributes.size(),
+                created_at: attributes.creationTime().toString(),
+                // TODO?
+                // description: "",
+                // TODO?
                 // hash: "",
                 // _hash_type: 'md5',
                 _key_is_virtual: false,
-                // todo: use the destPath?
-                created_at: new Date(),
                 is_latest: true,
                 _overwrite_versions: true
             ]
