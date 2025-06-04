@@ -55,12 +55,13 @@ nextflow run nf-core/scrnaseq \
   -latest -resume \
   -r 2.7.1 \
   -profile docker \
+  -plugins nf-lamin@0.1.0 \
   --input https://github.com/nf-core/test-datasets/raw/scrnaseq/samplesheet-2-0.csv \
   --fasta https://github.com/nf-core/test-datasets/raw/scrnaseq/reference/GRCm38.p6.genome.chr19.fa \
   --gtf https://github.com/nf-core/test-datasets/raw/scrnaseq/reference/gencode.vM19.annotation.chr19.gtf \
   --protocol 10XV2 \
   --skip_emptydrops \
-  --outdir output/scrnaseq
+  --publish_dir gs://di-temporary/scratch/temp-scrnaseq
 ```
 
 ### Example with Viash Hub workflow:
@@ -70,7 +71,7 @@ nextflow run https://packages.viash-hub.com/vsh/toolbox.git \
   -revision v0.1.1 \
   -main-script target/nextflow/bgzip/main.nf \
   -profile docker \
-  -plugins nf-lamin@0.0.2 \
+  -plugins nf-lamin@0.1.0 \
   -latest \
   --input https://github.com/nf-core/test-datasets/raw/scrnaseq/samplesheet-2-0.csv \
   --output output.gz \

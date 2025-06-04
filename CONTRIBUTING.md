@@ -56,10 +56,10 @@ To build and test the plugin during development, use the following commands:
 
 1. Rebuild the plugin using the `make install` command. Take note of the version number of the plugin.
 
-2. Run Nextflow with the plugin by adding the option `-plugins nf-lamin@0.0.2` to load the plugin:
+2. Run Nextflow with the plugin by adding the option `-plugins nf-lamin@0.1.0` to load the plugin:
 
    ```bash
-   nextflow run nf-core/hello -plugins nf-lamin@0.0.2
+   nextflow run nf-core/hello -plugins nf-lamin@0.1.0
    ```
 
    Note: replace the version number with the actual version of the plugin.
