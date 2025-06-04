@@ -43,21 +43,26 @@ class LaminObserver implements TraceObserver {
     protected Lock lock = new ReentrantLock()
 
     @Override
-    void onFlowCreate(Session _session) {
+    void onFlowCreate(Session session) {
         log.debug 'onFlowCreate triggered!'
 
         // store the session and config for later use
-        this.session = LaminConfig.getSession()
-        this.config = LaminConfig.getConfig()
+        LaminPlugin.setSession(session)
+        this.session = session
+        this.config = LaminPlugin.getConfig()
 
         // fetch instance settings
-        this.hub = new LaminHub(config.apiKey)
+        this.hub = new LaminHub(
+            this.config.supabaseApiUrl,
+            this.config.supabaseAnonKey,
+            this.config.apiKey
+        )
 
         // create instance
         this.instance = new LaminInstance(
             this.hub,
-            this.config.getInstanceOwner(),
-            this.config.getInstanceName()
+            this.config.instanceOwner,
+            this.config.instanceName
         )
 
         // test connection

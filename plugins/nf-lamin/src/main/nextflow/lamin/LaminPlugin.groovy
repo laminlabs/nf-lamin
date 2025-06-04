@@ -16,8 +16,10 @@
 package nextflow.lamin
 
 import groovy.transform.CompileStatic
+import groovy.transform.PackageScope
 import nextflow.plugin.BasePlugin
 import nextflow.Session
+import nextflow.Nextflow
 import org.pf4j.PluginWrapper
 
 /**
@@ -43,8 +45,7 @@ class LaminPlugin extends BasePlugin {
     @PackageScope
     static LaminConfig getConfig() {
         if (config == null) {
-            Session session = getSession()
-            config = LaminConfig.parseConfig(session)
+            config = LaminConfig.parseConfig(this.getSession())
         }
         return config
     }
@@ -59,15 +60,30 @@ class LaminPlugin extends BasePlugin {
     @PackageScope
     static Session getSession() {
         if (session == null) {
-            session = Session.current()
-            if (session == null) {
-                throw new IllegalStateException(
-                    'LaminPlugin requires a valid Nextflow session. ' +
-                    'Please ensure you are using it in a valid Nextflow context.'
-                )
-            }
+            throw new IllegalStateException(
+                'LaminPlugin requires a valid Nextflow session. ' +
+                'Please ensure you are using it in a valid Nextflow context.'
+            )
         }
         return session
     }
 
+    /**
+     * Set the Nextflow session for the Lamin plugin.
+     * This method should be called once at the start of the Nextflow run.
+     * It ensures that the session is not null and does not change once set.
+     * @param newSession the new Nextflow session to set
+     * @throws IllegalArgumentException if the new session is null
+     * @throws IllegalStateException if the session is already set to a different instance
+     */
+    @PackageScope
+    static void setSession(Session newSession) {
+        if (newSession == null) {
+            throw new IllegalArgumentException('Session cannot be null')
+        }
+        if (session != null && session != newSession) {
+            throw new IllegalStateException('Session already set to a different instance')
+        }
+        session = newSession
+    }
 }

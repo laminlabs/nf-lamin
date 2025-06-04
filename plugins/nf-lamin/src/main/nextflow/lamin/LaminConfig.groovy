@@ -100,8 +100,8 @@ class LaminConfig {
             if (!hubLookup.containsKey(env)) {
                 throw new IllegalArgumentException("Provided environment '${env}' is not valid. Please provide a valid environment: ${hubLookup.keySet().join(', ')}.")
             }
-            supabaseApiUrl = supabaseApiUrl ?: hubLookup[env]?.apiUrl
-            supabaseAnonKey = supabaseAnonKey ?: hubLookup[env]?.anonKey
+            supabaseApiUrl = supabaseApiUrl ?: hubLookup[env]['apiUrl']
+            supabaseAnonKey = supabaseAnonKey ?: hubLookup[env]['anonKey']
         }
 
         // store values

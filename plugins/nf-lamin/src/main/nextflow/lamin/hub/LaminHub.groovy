@@ -118,7 +118,7 @@ class LaminHub {
     LaminInstanceSettings getInstanceSettings(String owner, String name) {
         String accessToken = getAccessToken()
 
-        String url = "${BASE_URL}/get-instance-settings-v1"
+        String url = "${this.apiUrl}/get-instance-settings-v1"
         // Use triple-quoted string with interpolation for readability
         String payload = """
         {
