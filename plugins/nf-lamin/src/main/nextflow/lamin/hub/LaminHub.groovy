@@ -58,7 +58,7 @@ class LaminHub {
      * @throws RuntimeException If the API call fails or response parsing fails.
      */
     String fetchAccessToken() {
-        String url = "${this.apiUrl}/get-jwt-v1"
+        String url = "${this.apiUrl}/functions/v1/get-jwt-v1"
         String payload = """{"api_key": "${this.apiKey}"}"""
         String currentMethod = 'fetchAccessToken()'
 
@@ -118,7 +118,7 @@ class LaminHub {
     LaminInstanceSettings getInstanceSettings(String owner, String name) {
         String accessToken = getAccessToken()
 
-        String url = "${this.apiUrl}/get-instance-settings-v1"
+        String url = "${this.apiUrl}/functions/v1/get-instance-settings-v1"
         // Use triple-quoted string with interpolation for readability
         String payload = """
         {
