@@ -43,19 +43,12 @@ class LaminObserver implements TraceObserver {
     protected Lock lock = new ReentrantLock()
 
     @Override
-    void onFlowCreate(Session session) {
+    void onFlowCreate(Session _session) {
         log.debug 'onFlowCreate triggered!'
 
-        // store the session for later use
-        this.session = session
-        if (!this.session) {
-            throw new IllegalStateException('Session is null')
-        }
-
-        this.config = LaminConfig.createFromSession(session)
-        if (!this.config) {
-            throw new IllegalStateException('LaminConfig is null')
-        }
+        // store the session and config for later use
+        this.session = LaminConfig.getSession()
+        this.config = LaminConfig.getConfig()
 
         // fetch instance settings
         this.hub = new LaminHub(config.apiKey)
@@ -66,24 +59,15 @@ class LaminObserver implements TraceObserver {
             this.config.getInstanceOwner(),
             this.config.getInstanceName()
         )
-        if (!this.instance) {
-            throw new IllegalStateException('Lamin instance is null')
-        }
 
         // test connection
         testConnection()
 
         // fetch or create Transform object
         this.transform = fetchOrCreateTransform()
-        if (!this.transform) {
-            throw new IllegalStateException('Transform object is null')
-        }
 
         // create Run object
         this.run = createRun()
-        if (!this.run) {
-            throw new IllegalStateException('Run object is null')
-        }
     }
 
     @Override
@@ -126,9 +110,9 @@ class LaminObserver implements TraceObserver {
         String instanceString = "${this.instance.getOwner()}/${this.instance.getName()}"
         try {
             this.instance.getNonEmptyTables()
-            log.info "✅ Connected to Lamin instance '${instanceString}'"
+            log.info "✅ Connected to LaminDB instance '${instanceString}'"
         } catch (ApiException e) {
-            log.error "❌ Could not connect to Lamin instance '${instanceString}'!"
+            log.error "❌ Could not connect to LaminDB instance '${instanceString}'!"
             log.error 'API call failed: ' + e.getMessage()
         }
     }

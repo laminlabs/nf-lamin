@@ -113,15 +113,11 @@ class LaminConfig {
      * @return a LaminConfig object
      */
     @PackageScope
-    static LaminConfig createFromSession(Session session) {
-        if (session == null) {
-            throw new IllegalArgumentException('Session is null. Please provide a valid session.')
-        }
+    static LaminConfig parseConfig(Session session) {
         Map map = session.config?.navigate('lamin') as Map ?: [:]
         String instance = map.instance ?: System.getenv('LAMIN_CURRENT_INSTANCE')
         String apiKey = map.api_key ?: System.getenv('LAMIN_API_KEY')
         String project = map.project ?: System.getenv('LAMIN_CURRENT_PROJECT')
         return new LaminConfig(instance, apiKey, project)
     }
-
 }
