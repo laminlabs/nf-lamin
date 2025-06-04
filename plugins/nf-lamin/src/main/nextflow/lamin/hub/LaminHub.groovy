@@ -6,7 +6,7 @@ import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import groovy.json.JsonSlurper
 
-import nextflow.lamin.api.LaminInstanceSettings
+import nextflow.lamin.instance.InstanceSettings
 
 /**
  * Groovy client for interacting with specific Lamin Hub API endpoints.
@@ -115,7 +115,7 @@ class LaminHub {
      * @throws IllegalStateException If JWT accessToken has not been fetched yet.
      * @throws RuntimeException If the API call fails.
      */
-    LaminInstanceSettings getInstanceSettings(String owner, String name) {
+    InstanceSettings getInstanceSettings(String owner, String name) {
         String accessToken = getAccessToken()
 
         String url = "${this.apiUrl}/functions/v1/get-instance-settings-v1"
@@ -133,7 +133,7 @@ class LaminHub {
 
         Map instanceSettingsMap = parseJson(instanceSettingsJson, currentMethod)
 
-        return LaminInstanceSettings.fromMap(instanceSettingsMap)
+        return InstanceSettings.fromMap(instanceSettingsMap)
     }
 
     // --- Private Helper Methods ---

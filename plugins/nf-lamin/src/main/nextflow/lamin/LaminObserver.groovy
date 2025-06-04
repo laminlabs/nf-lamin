@@ -20,9 +20,8 @@ import nextflow.trace.TraceRecord
 
 import ai.lamin.lamin_api_client.ApiException
 
-import nextflow.lamin.api.LaminInstance
+import nextflow.lamin.instance.Instance
 import nextflow.lamin.hub.LaminHub
-import nextflow.lamin.api.arguments.*
 
 /**
  * Example workflow events observer
@@ -36,7 +35,7 @@ class LaminObserver implements TraceObserver {
     protected Session session
     protected LaminConfig config
     protected LaminHub hub
-    protected LaminInstance instance
+    protected Instance instance
     protected Map transform
     protected Map run
 
@@ -59,7 +58,7 @@ class LaminObserver implements TraceObserver {
         )
 
         // create instance
-        this.instance = new LaminInstance(
+        this.instance = new Instance(
             this.hub,
             this.config.instanceOwner,
             this.config.instanceName

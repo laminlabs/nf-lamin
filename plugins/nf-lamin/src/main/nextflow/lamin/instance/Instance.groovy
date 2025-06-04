@@ -1,4 +1,4 @@
-package nextflow.lamin.api
+package nextflow.lamin.instance
 
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
@@ -22,21 +22,21 @@ import nextflow.lamin.hub.LaminHub
  */
 @Slf4j
 @CompileStatic
-class LaminInstance {
+class Instance {
 
     final protected LaminHub hub
-    final protected LaminInstanceSettings settings
+    final protected InstanceSettings settings
     final protected DefaultApi apiInstance
 
     /**
-     * Constructor for the LaminInstance class.
+     * Constructor for the Instance class.
      *
      * @param hub The LaminHub instance.
      * @param owner The owner of the instance.
      * @param name The name of the instance.
      * @throws IllegalStateException if any of the parameters are null or invalid.
      */
-    LaminInstance(
+    Instance(
         LaminHub hub,
         String owner,
         String name
