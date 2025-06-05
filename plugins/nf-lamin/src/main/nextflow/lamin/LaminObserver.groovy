@@ -113,8 +113,8 @@ class LaminObserver implements TraceObserver {
     protected void testConnection() {
         String instanceString = "${this.instance.getOwner()}/${this.instance.getName()}"
         try {
-            this.instance.getNonEmptyTables()
-            log.info "✅ Connected to LaminDB instance '${instanceString}'"
+            Map account = this.instance.getAccount()
+            log.info "✅ Connected to LaminDB instance '${instanceString}' as '${account.handle}'"
         } catch (ApiException e) {
             log.error "❌ Could not connect to LaminDB instance '${instanceString}'!"
             log.error 'API call failed: ' + e.getMessage()
@@ -173,29 +173,11 @@ class LaminObserver implements TraceObserver {
                 type: 'pipeline',
                 reference: wfMetadata.repository,
                 reference_type: 'url',
-                description: description,
-                is_latest: true
+                description: description
             ]
 
-            // // look for previous tranforms
-            // List<Map> previousTranforms = this.instance.getRecords(
-            //     moduleName: 'core',
-            //     modelName: 'transform',
-            //     filter: [
-            //         [key: [eq: key]]
-            //     ]
-            // )
-            // if (previousTranforms) {
-            //     String prevUID = previousTranforms[0].uid
-            //     // increment last 4 digits of UID
-            //     String newUID = prevUID[0..-5] + String.format('%04d', Integer.parseInt(prevUID[-4..-1]) + 1)
-            //     transformData.uid = newUID
-            // }
-
             // create Transform object
-            transform = this.instance.createRecord(
-                moduleName: 'core',
-                modelName: 'transform',
+            transform = this.instance.createTransform(
                 data: transformData
             )
         }
