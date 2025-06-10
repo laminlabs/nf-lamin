@@ -296,6 +296,64 @@ class Instance {
         }
     }
 
+    Map getAccount() {
+        log.debug "GET /account"
+
+        return callApi { String accessToken ->
+            this.apiInstance.getCallerAccountAccountGet(
+                accessToken
+            ) as Map
+        }
+    }
+
+    Map createTransform(Map args) {
+        // required args
+        // Optional arguments
+        Map data = args.get('data', null) as Map
+
+        // Do call
+        log.debug "POST /instances/{instance_id}/transforms: ${moduleName}.${modelName}, data=${data}"
+        Map response = callApi { String accessToken ->
+            this.apiInstance.createTransformInstancesInstanceIdTransformsPost(
+                this.settings.id(),
+                data,
+                accessToken
+            ) as Map
+        }
+
+        if (response == null || response.isEmpty()) {
+            throw new IllegalStateException("Failed to create transform. Response is empty.")
+        }
+        if (!response.transform) {
+            throw new IllegalStateException("Failed to create transform. Message: ${response.message ?: 'No message provided.'}")
+        }
+        return response.transform as Map
+    }
+
+    Map createArtifact(Map args) {
+        // required args
+        // Optional arguments
+        Map data = args.get('data', null) as Map
+
+        // Do call
+        log.debug "POST /instances/{instance_id}/artifacts: data=${data}"
+        Map response = callApi { String accessToken ->
+            this.apiInstance.createArtifactInstancesInstanceIdArtifactsCreatePost(
+                this.settings.id(),
+                data,
+                accessToken
+            ) as Map
+        }
+
+        if (response == null || response.isEmpty()) {
+            throw new IllegalStateException("Failed to create artifact. Response is empty.")
+        }
+        if (!response.artifact) {
+            throw new IllegalStateException("Failed to create artifact. Message: ${response.message ?: 'No message provided.'}")
+        }
+        return response.artifact as Map
+    }
+
     // ------------------- PRIVATE METHODS -------------------
     /**
      * Get the bearer token for authentication.
