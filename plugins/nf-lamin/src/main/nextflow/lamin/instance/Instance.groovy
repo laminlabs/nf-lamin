@@ -307,16 +307,39 @@ class Instance {
     }
 
     Map createTransform(Map args) {
-        // required args
-        // Optional arguments
-        Map data = args.get('data', null) as Map
+        // Required args
+        String key = args.key as String
+        String type = args.type as String
+        String sourceCode = args.sourceCode as String
+
+        if (!key) { throw new IllegalStateException('Key is null. Please check the key.') }
+        if (!type) { throw new IllegalStateException('Type is null. Please check the type.') }
+        if (!sourceCode) { throw new IllegalStateException('Source code is null. Please check the source code.') }
+
+        // Optional args
+        String version = args.get('version', null) as String
+        String reference = args.get('reference', null) as String
+        String referenceType = args.get('referenceType', null) as String
+        String description = args.get('description', null) as String
+
+        // create the request body
+        // TODO: Add back fields when https://github.com/laminlabs/laminhub-public/issues/57 is resolved
+        CreateTransformRequestBody body = new CreateTransformRequestBody(
+            key: key,
+            type: type,
+            sourceCode: sourceCode// ,
+            // version: version,
+            // reference: reference,
+            // referenceType: referenceType,
+            // description: description
+        );
 
         // Do call
-        log.debug "POST /instances/{instance_id}/transforms: ${moduleName}.${modelName}, data=${data}"
+        log.debug "POST /instances/{instance_id}/transforms: ${body.toJson()}"
         Map response = callApi { String accessToken ->
             this.apiInstance.createTransformInstancesInstanceIdTransformsPost(
                 this.settings.id(),
-                data,
+                body,
                 accessToken
             ) as Map
         }
@@ -331,16 +354,25 @@ class Instance {
     }
 
     Map createArtifact(Map args) {
-        // required args
-        // Optional arguments
-        Map data = args.get('data', null) as Map
+        // Required args
+        String path = args.path as String
+        if (!path) { throw new IllegalStateException('Path is null. Please check the path.') }
+
+        // Optional args
+        Map kwargs = args.get('kwargs', [:]) as Map<String, Object>
+
+        // Create the request body
+        CreateArtifactRequestBody body = new CreateArtifactRequestBody(
+            path: path,
+            kwargs: kwargs
+        )
 
         // Do call
-        log.debug "POST /instances/{instance_id}/artifacts: data=${data}"
+        log.debug "POST /instances/{instance_id}/artifacts: ${body.toJson()}"
         Map response = callApi { String accessToken ->
             this.apiInstance.createArtifactInstancesInstanceIdArtifactsCreatePost(
                 this.settings.id(),
-                data,
+                body,
                 accessToken
             ) as Map
         }
