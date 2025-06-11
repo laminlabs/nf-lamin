@@ -166,7 +166,8 @@ class LaminObserver implements TraceObserver {
             ]
             String infoAsJson = groovy.json.JsonOutput.toJson(info)
 
-            Map transformData = [
+            // create Transform object
+            transform = this.instance.createTransform(
                 key: key,
                 source_code: infoAsJson,
                 version: revision,
@@ -174,11 +175,6 @@ class LaminObserver implements TraceObserver {
                 reference: wfMetadata.repository,
                 reference_type: 'url',
                 description: description
-            ]
-
-            // create Transform object
-            transform = this.instance.createTransform(
-                data: transformData
             )
         }
 

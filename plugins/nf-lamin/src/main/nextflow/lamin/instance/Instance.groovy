@@ -246,7 +246,7 @@ class Instance {
         // Do call
         log.debug "PUT createRecord: ${moduleName}.${modelName}, data=${data}"
         return callApi { String accessToken ->
-            this.apiInstance.createRecordInstancesInstanceIdModulesModuleNameModelNamePut(
+            this.apiInstance.createRecordsInstancesInstanceIdModulesModuleNameModelNamePut(
                 moduleName,
                 modelName,
                 this.settings.id(),
@@ -310,28 +310,27 @@ class Instance {
         // Required args
         String key = args.key as String
         String type = args.type as String
-        String sourceCode = args.sourceCode as String
+        String sourceCode = args.source_code as String
 
         if (!key) { throw new IllegalStateException('Key is null. Please check the key.') }
         if (!type) { throw new IllegalStateException('Type is null. Please check the type.') }
         if (!sourceCode) { throw new IllegalStateException('Source code is null. Please check the source code.') }
 
         // Optional args
-        String version = args.get('version', null) as String
-        String reference = args.get('reference', null) as String
-        String referenceType = args.get('referenceType', null) as String
-        String description = args.get('description', null) as String
+        Map kwargs = [:]
+
+        for (field in ["version", "reference", "reference_type", "description"]) {
+            if (args.containsKey(field)) {
+                kwargs[field] = args[field]
+            }
+        }
 
         // create the request body
-        // TODO: Add back fields when https://github.com/laminlabs/laminhub-public/issues/57 is resolved
         CreateTransformRequestBody body = new CreateTransformRequestBody(
             key: key,
             type: type,
-            sourceCode: sourceCode// ,
-            // version: version,
-            // reference: reference,
-            // referenceType: referenceType,
-            // description: description
+            sourceCode: sourceCode,
+            kwargs: kwargs
         );
 
         // Do call
@@ -359,7 +358,13 @@ class Instance {
         if (!path) { throw new IllegalStateException('Path is null. Please check the path.') }
 
         // Optional args
-        Map kwargs = args.get('kwargs', [:]) as Map<String, Object>
+        Map kwargs = [:]
+
+        for (field in ["description", "run"]) {
+            if (args.containsKey(field)) {
+                kwargs[field] = args[field]
+            }
+        }
 
         // Create the request body
         CreateArtifactRequestBody body = new CreateArtifactRequestBody(
