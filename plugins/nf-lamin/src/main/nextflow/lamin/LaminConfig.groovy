@@ -27,18 +27,22 @@ class LaminConfig {
 
     private final Map hubLookup = [
         prod: [
+            webUrl: 'https://lamin.ai',
             apiUrl: 'https://hub.lamin.ai',
             anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhZXNhdW1tZHlkbGxwcGdmY2h1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2NTY4NDA1NTEsImV4cCI6MTk3MjQxNjU1MX0.WUeCRiun0ExUxKIv5-CtjF6878H8u26t0JmCWx3_2-c'
         ],
         staging: [
+            webUrl: "https://staging.laminhub.com",
             apiUrl: 'https://amvrvdwndlqdzgedrqdv.supabase.co',
             anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFtdnJ2ZHduZGxxZHpnZWRycWR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2NzcxNTcxMzMsImV4cCI6MTk5MjczMzEzM30.Gelt3dQEi8tT4j-JA36RbaZuUvxRnczvRr3iyRtzjY0'
         ],
         'staging-test': [
+            webUrl: "https://staging-test.laminhub.com",
             apiUrl: 'https://iugyyajllqftbpidapak.supabase.co',
             anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1Z3l5YWpsbHFmdGJwaWRhcGFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTQyMjYyODMsImV4cCI6MjAwOTgwMjI4M30.s7B0gMogFhUatMSwlfuPJ95kWhdCZMn1ROhZ3t6Og90'
         ],
         'prod-test': [
+            webUrl: "https://prod-test.laminhub.com",
             apiUrl: 'https://xtdacpwiqwpbxsatoyrv.supabase.co',
             anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0ZGFjcHdpcXdwYnhzYXRveXJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTQyMjYxNDIsImV4cCI6MjAwOTgwMjE0Mn0.Dbi27qujTt8Ei9gfp9KnEWTYptE5KUbZzEK6boL46k4'
         ]
@@ -159,6 +163,10 @@ class LaminConfig {
      */
     String getEnv() {
         return this.env
+    }
+
+    String getWebUrl() {
+        return this.hubLookup[this.env ?: 'prod']['webUrl']
     }
 
     /**
