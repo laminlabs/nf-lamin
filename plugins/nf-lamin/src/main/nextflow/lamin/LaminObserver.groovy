@@ -178,7 +178,7 @@ class LaminObserver implements TraceObserver {
             )
         }
 
-        log.info "Transform ${transform.uid} (https://lamin.ai/${this.instance.getOwner()}/${this.instance.getName()}/transform/${transform.uid})"
+        log.info "Transform ${transform.uid} (${this.config.getWebUrl()}/${this.instance.getOwner()}/${this.instance.getName()}/transform/${transform.uid})"
         return transform
     // todo: link to project?
     }
@@ -198,7 +198,7 @@ class LaminObserver implements TraceObserver {
             ]
         )
 
-        log.info "Run ${run.uid} (https://lamin.ai/${this.instance.getOwner()}/${this.instance.getName()}/transform/${this.transform.uid}/${run.uid})"
+        log.info "Run ${run.uid} (${this.config.getWebUrl()}/${this.instance.getOwner()}/${this.instance.getName()}/transform/${this.transform.uid}/${run.uid})"
 
         return run
     // todo: link to project?
@@ -264,25 +264,10 @@ class LaminObserver implements TraceObserver {
         // get attributes
         BasicFileAttributes attributes = Files.readAttributes(destPath, BasicFileAttributes)
 
-        Map artifact = this.instance.createRecord(
-            moduleName: 'core',
-            modelName: 'artifact',
-            data: [
-                run_id: run.id,
-                storage_id: storage.id,
-                key: uri.getPath().replaceAll('^/', ''),
-                suffix: PathUtils.getSuffix(destPath),
-                size: attributes.size(),
-                created_at: attributes.creationTime().toString(),
-                // TODO?
-                // description: "",
-                // TODO?
-                // hash: "",
-                // _hash_type: 'md5',
-                _key_is_virtual: false,
-                is_latest: true,
-                _overwrite_versions: true
-            ]
+        Map artifact = this.instance.createArtifact(
+            path: destPath,
+            run_id: run.id,
+            description: "Output artifact for run ${run.id}"
         )
 
         return artifact

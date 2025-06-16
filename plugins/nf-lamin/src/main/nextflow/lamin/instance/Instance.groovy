@@ -360,7 +360,7 @@ class Instance {
         // Optional args
         Map kwargs = [:]
 
-        for (field in ["description", "run"]) {
+        for (field in ["description", "run_id"]) {
             if (args.containsKey(field)) {
                 kwargs[field] = args[field]
             }
