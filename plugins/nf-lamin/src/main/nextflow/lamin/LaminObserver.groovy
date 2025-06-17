@@ -274,7 +274,7 @@ class LaminObserver implements TraceObserver {
             log.error "Failed to create output artifact for run ${runId} at ${path}: ${e.getMessage()}"
             return null
         }
-        
+
         String verb = artifact.run == runId ? 'Created' : 'Detected previous'
         log.debug "$verb output artifact ${artifact.uid} (${this.config.getWebUrl()}/${this.instance.getOwner()}/${this.instance.getName()}/artifact/${artifact.uid})"
 

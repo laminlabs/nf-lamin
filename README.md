@@ -1,6 +1,5 @@
 # nf-lamin plugin
 
-
 A Nextflow plugin that integrates
 [LaminDB](https://github.com/laminlabs/lamindb) data provenance into
 Nextflow workflows.
@@ -9,13 +8,13 @@ Nextflow workflows.
 
 To install a development build of the plugin, run the following command:
 
-``` bash
+```bash
 make install
 ```
 
 To uninstall the plugin, run the following command:
 
-``` bash
+```bash
 make uninstall
 ```
 
@@ -25,7 +24,7 @@ To use the plugin in a Nextflow workflow, create a Nextflow config
 `nextflow.config` that specifies which LaminDB instance to use and an
 API key:
 
-``` groovy
+```groovy
 plugins {
   id 'nf-lamin'
 }
@@ -48,7 +47,7 @@ lamin {
 
 ### Example with nf-core/scrnaseq workflow:
 
-``` bash
+```bash
 nextflow run nf-core/scrnaseq \
   -latest -resume \
   -r 2.7.1 \
@@ -64,7 +63,7 @@ nextflow run nf-core/scrnaseq \
 
 ### Example with Viash Hub workflow:
 
-``` bash
+```bash
 date > /tmp/lamin-test.txt
 
 nextflow run https://packages.viash-hub.com/vsh/toolbox.git \
