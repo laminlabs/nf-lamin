@@ -1,0 +1,77 @@
+name: build-python-postrunscript
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  repository_dispatch:
+    types: [build]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: ${{ github.event_name }}
+      NXF_ANSI_LOG: false
+    strategy:
+      fail-fast: false
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: laminlabs/lndocs
+          ssh-key: ${{ secrets.READ_LNDOCS }}
+          path: lndocs
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: nf-core/setup-nextflow@v2
+        with:
+          version: "latest-stable"
+      - uses: actions/cache@v3
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+      - run: sudo apt-get -y install graphviz
+      - run: pip install "laminci@git+https://github.com/laminlabs/laminci"
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+      - run: nox -s lint
+      - run: nox -s build
+      - uses: codecov/codecov-action@v2
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - uses: nwtgck/actions-netlify@v1.2
+        with:
+          publish-dir: "_build/html"
+          production-deploy: ${{ github.event_name == 'push' }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          enable-commit-comment: false
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      - uses: voxmedia/github-action-slack-notify-build@v1
+        if: success()
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_GITHUB_ACTION }}
+        with:
+          channel_id: C05FDBBFJ1F
+          status: SUCCESS
+          color: good
+      - uses: voxmedia/github-action-slack-notify-build@v1
+        if: failure()
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_GITHUB_ACTION }}
+        with:
+          channel_id: C05FDBBFJ1F
+          status: FAILURE
+          color: danger
