@@ -61,7 +61,9 @@ class LaminObserver implements TraceObserver {
         this.instance = new Instance(
             this.hub,
             this.config.instanceOwner,
-            this.config.instanceName
+            this.config.instanceName,
+            this.config.getMaxRetries(),
+            this.config.getRetryDelay()
         )
 
         // test connection

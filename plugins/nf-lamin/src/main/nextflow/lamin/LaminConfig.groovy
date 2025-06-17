@@ -230,8 +230,8 @@ class LaminConfig {
         String env = map.env ?: System.getenv('LAMIN_ENV') ?: 'prod'
         String supabaseApiUrl = map.supabase_api_url ?: System.getenv('SUPABASE_API_URL')
         String supabaseAnonKey = map.supabase_anon_key ?: System.getenv('SUPABASE_ANON_KEY')
-        Integer maxRetries = map.max_retries ?: System.getenv('LAMIN_MAX_RETRIES')?.toInteger()
-        Integer retryDelay = map.retry_delay ?: System.getenv('LAMIN_RETRY_DELAY')?.toInteger()
+        Integer maxRetries = (map.max_retries ?: System.getenv('LAMIN_MAX_RETRIES') ?: 3) as Integer
+        Integer retryDelay = (map.retry_delay ?: System.getenv('LAMIN_RETRY_DELAY') ?: 100) as Integer
         return new LaminConfig(instance, apiKey, project, env, supabaseApiUrl, supabaseAnonKey, maxRetries, retryDelay)
     }
 }

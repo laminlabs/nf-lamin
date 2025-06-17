@@ -27,6 +27,8 @@ class Instance {
     final protected LaminHub hub
     final protected InstanceSettings settings
     final protected DefaultApi apiInstance
+    final protected Integer maxRetries
+    final protected Integer retryDelay
 
     /**
      * Constructor for the Instance class.
@@ -39,7 +41,9 @@ class Instance {
     Instance(
         LaminHub hub,
         String owner,
-        String name
+        String name,
+        Integer maxRetries,
+        Integer retryDelay
     ) {
         if (!hub) { throw new IllegalStateException('LaminHub is null. Please check the LaminHub instance.') }
         if (!owner) { throw new IllegalStateException('Owner is null. Please check the owner.') }
@@ -510,10 +514,10 @@ class Instance {
                 this.hub.refreshAccessToken()
                 accessToken = getBearerToken()
                 return closure.call(accessToken)
-            } else if (retries <= this.config.maxRetries) {
+            } else if (retries <= this.maxRetries) {
                 // Retry the API call
-                log.warn "API call failed with status ${e.code}. Retrying (${retries + 1}/${this.config.maxRetries})..."
-                Thread.sleep(this.config.retryDelay)
+                log.warn "API call failed with status ${e.code}. Retrying (${retries + 1}/${this.maxRetries})..."
+                Thread.sleep(this.retryDelay)
                 return callApi(closure, retries + 1)
             }
 

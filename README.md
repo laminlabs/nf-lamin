@@ -80,13 +80,14 @@ nextflow run https://packages.viash-hub.com/vsh/toolbox.git \
     Nextflow 25.04.4 is available - Please consider updating your version to it
     N E X T F L O W  ~  version 24.10.5
     Pulling vsh/toolbox ...
-    Launching `https://packages.viash-hub.com/vsh/toolbox` [maniac_goodall] DSL2 - revision: 5cb3251eaf [v0.1.1]
+    Launching `https://packages.viash-hub.com/vsh/toolbox` [silly_kay] DSL2 - revision: 5cb3251eaf [v0.1.1]
     ✅ Connected to LaminDB instance 'laminlabs/lamindata' as 'rcannood'
     Transform W818bFm1ecyM0002 (https://staging.laminhub.com/laminlabs/lamindata/transform/W818bFm1ecyM0002)
-    Run kjks2fiepijlNpKWTydp (https://staging.laminhub.com/laminlabs/lamindata/transform/W818bFm1ecyM0002/kjks2fiepijlNpKWTydp)
-    [cf/ec11e1] Submitted process > bgzip:processWf:bgzip_process (run)
-    [c8/d11143] Submitted process > bgzip:publishFilesSimpleWf:publishFilesProc (run)
-    [ea/90c1d2] Submitted process > bgzip:publishStatesSimpleWf:publishStatesProc (run)
+    Run xkKm3HSEc4vHMjh9RRK7 (https://staging.laminhub.com/laminlabs/lamindata/transform/W818bFm1ecyM0002/xkKm3HSEc4vHMjh9RRK7)
+    [ca/bd7cd0] Submitted process > bgzip:processWf:bgzip_process (run)
+    [d2/7f1ecb] Submitted process > bgzip:publishFilesSimpleWf:publishFilesProc (run)
+    [2d/95a01e] Submitted process > bgzip:publishStatesSimpleWf:publishStatesProc (run)
+    Waiting for file transfers to complete (2 files)
 
 > [!NOTE]
 >
@@ -106,25 +107,25 @@ Logs produced by lamin:
     DEBUG nextflow.lamin.instance.Instance - Response from getRecords: [[type:pipeline, key:https://packages.viash-hub.com/vsh/toolbox:target/nextflow/bgzip/main.nf, source_code:{"repository":"https://packages.viash-hub.com/vsh/toolbox","main-script":"target/nextflow/bgzip/main.nf","commit-id":"5cb3251eaf4f716fbbf45669b21bb63f95448b6e","revision":"v0.1.1"}, version:v0.1.1, reference:https://packages.viash-hub.com/vsh/toolbox, created_at:2025-06-16T14:46:03.982506+00:00, description:bgzip: Block compression/decompression utility, hash:HYde-dNrm7hxGkcdzbwkeA, uid:W818bFm1ecyM0002, id:330.0, updated_at:2025-06-16T14:46:03.982506+00:00, reference_type:url, is_latest:true, _aux:null]]
     DEBUG nextflow.lamin.LaminObserver - Found 1 existing Transform(s) with key https://packages.viash-hub.com/vsh/toolbox:target/nextflow/bgzip/main.nf and revision v0.1.1
     INFO  nextflow.lamin.LaminObserver - Transform W818bFm1ecyM0002 (https://staging.laminhub.com/laminlabs/lamindata/transform/W818bFm1ecyM0002)
-    DEBUG nextflow.lamin.instance.Instance - PUT createRecord: core.run, data=[transform_id:330.0, name:maniac_goodall, created_at:2025-06-17T16:10:30.429390442+02:00, started_at:2025-06-17T16:10:30.429390442+02:00, _status_code:-1]
-    DEBUG nextflow.lamin.instance.Instance - Response from createRecord: [[id:598.0, uid:kjks2fiepijlNpKWTydp, _aux:null, name:maniac_goodall, space_id:1.0, _branch_code:1.0, report_id:null, _logfile_id:null, reference:null, transform_id:330.0, created_at:2025-06-17T14:10:33.383040+00:00, created_by_id:28.0, started_at:2025-06-17T14:10:30.429390+00:00, environment_id:null, finished_at:null, _status_code:-1.0, reference_type:null, _is_consecutive:null, initiated_by_run_id:null]]
-    INFO  nextflow.lamin.LaminObserver - Run kjks2fiepijlNpKWTydp (https://staging.laminhub.com/laminlabs/lamindata/transform/W818bFm1ecyM0002/kjks2fiepijlNpKWTydp)
-    Jun-17 16:10:37.596 [TaskFinalizer-1] DEBUG nextflow.lamin.LaminObserver - onProcessComplete triggered!
-    Jun-17 16:10:38.458 [TaskFinalizer-2] DEBUG nextflow.lamin.LaminObserver - onProcessComplete triggered!
-    Jun-17 16:10:38.458 [TaskFinalizer-3] DEBUG nextflow.lamin.LaminObserver - onProcessComplete triggered!
-    Jun-17 16:10:39.005 [PublishDir-1] DEBUG nextflow.lamin.LaminObserver - onFilePublish triggered!
-    Jun-17 16:10:39.006 [PublishDir-1] DEBUG nextflow.lamin.LaminObserver - Creating output artifact for run 598 at gs://di-temporary-public/scratch/temp-nf-lamin/run_20250617_161028/output.gz
-    Jun-17 16:10:39.007 [PublishDir-1] DEBUG nextflow.lamin.instance.Instance - POST /instances/{instance_id}/artifacts/create: {"path":"gs://di-temporary-public/scratch/temp-nf-lamin/run_20250617_161028/output.gz","kwargs":{"run_id":598,"description":"Output artifact for run 598"}}
-    Jun-17 16:10:39.019 [PublishDir-2] DEBUG nextflow.lamin.LaminObserver - onFilePublish triggered!
-    Jun-17 16:10:39.020 [PublishDir-2] DEBUG nextflow.lamin.LaminObserver - Creating output artifact for run 598 at gs://di-temporary-public/scratch/temp-nf-lamin/run_20250617_161028/run.bgzip.state.yaml
-    Jun-17 16:10:39.020 [PublishDir-2] DEBUG nextflow.lamin.instance.Instance - POST /instances/{instance_id}/artifacts/create: {"path":"gs://di-temporary-public/scratch/temp-nf-lamin/run_20250617_161028/run.bgzip.state.yaml","kwargs":{"run_id":598,"description":"Output artifact for run 598"}}
-    Jun-17 16:10:41.606 [PublishDir-1] DEBUG nextflow.lamin.instance.Instance - Response from createArtifact: [statusCode:200.0, body:[message:Artifact created successfully, artifact:[version:null, is_latest:true, branch:1.0, space:1.0, _aux:null, created_at:2025-06-17T14:10:41.472Z, updated_at:2025-06-17T14:10:41.472Z, uid:ObDUCPykXpngUmRW0000, key:scratch/temp-nf-lamin/run_20250617_161028/output.gz, description:Output artifact for run 598, storage:32.0, suffix:.gz, kind:null, otype:null, size:86.0, hash:wN2ZQbhdJ3T9qln++SBwdg, n_files:null, n_observations:null, _hash_type:md5, run:598.0, schema:null, _key_is_virtual:false, created_by:28.0, _overwrite_versions:false, input_of_runs:[], _subsequent_runs:[], _actions:[]]]]
-    Jun-17 16:10:41.607 [PublishDir-1] DEBUG nextflow.lamin.LaminObserver - Created output artifact ObDUCPykXpngUmRW0000 (https://staging.laminhub.com/laminlabs/lamindata/artifact/ObDUCPykXpngUmRW0000)
-    Jun-17 16:10:41.716 [PublishDir-2] DEBUG nextflow.lamin.instance.Instance - Response from createArtifact: [statusCode:200.0, body:[message:Artifact created successfully, artifact:[version:null, is_latest:true, branch:1.0, space:1.0, _aux:null, created_at:2025-06-16T15:22:04.384Z, updated_at:2025-06-16T15:22:04.384Z, uid:jAxjm3Kj39aiPUW30000, key:scratch/temp-nf-lamin/run.bgzip.state.yaml, description:Output artifact for run 598, storage:32.0, suffix:.yaml, kind:null, otype:null, size:35.0, hash:p41ifSZvoMr4+4FoOJBpwA, n_files:null, n_observations:null, _hash_type:md5, run:563.0, schema:null, _key_is_virtual:false, created_by:28.0, _overwrite_versions:false, input_of_runs:[], _subsequent_runs:[], _actions:[]]]]
-    Jun-17 16:10:41.716 [PublishDir-2] DEBUG nextflow.lamin.LaminObserver - Detected previous output artifact jAxjm3Kj39aiPUW30000 (https://staging.laminhub.com/laminlabs/lamindata/artifact/jAxjm3Kj39aiPUW30000)
+    DEBUG nextflow.lamin.instance.Instance - PUT createRecord: core.run, data=[transform_id:330.0, name:silly_kay, created_at:2025-06-17T16:25:37.408037390+02:00, started_at:2025-06-17T16:25:37.408037390+02:00, _status_code:-1]
+    DEBUG nextflow.lamin.instance.Instance - Response from createRecord: [[id:599.0, uid:xkKm3HSEc4vHMjh9RRK7, _aux:null, name:silly_kay, space_id:1.0, _branch_code:1.0, report_id:null, _logfile_id:null, reference:null, transform_id:330.0, created_at:2025-06-17T14:25:40.235964+00:00, created_by_id:28.0, started_at:2025-06-17T14:25:37.408037+00:00, environment_id:null, finished_at:null, _status_code:-1.0, reference_type:null, _is_consecutive:null, initiated_by_run_id:null]]
+    INFO  nextflow.lamin.LaminObserver - Run xkKm3HSEc4vHMjh9RRK7 (https://staging.laminhub.com/laminlabs/lamindata/transform/W818bFm1ecyM0002/xkKm3HSEc4vHMjh9RRK7)
+    Jun-17 16:25:44.362 [TaskFinalizer-1] DEBUG nextflow.lamin.LaminObserver - onProcessComplete triggered!
+    Jun-17 16:25:45.210 [TaskFinalizer-2] DEBUG nextflow.lamin.LaminObserver - onProcessComplete triggered!
+    Jun-17 16:25:45.210 [TaskFinalizer-3] DEBUG nextflow.lamin.LaminObserver - onProcessComplete triggered!
+    Jun-17 16:25:45.672 [PublishDir-1] DEBUG nextflow.lamin.LaminObserver - onFilePublish triggered!
+    Jun-17 16:25:45.673 [PublishDir-1] DEBUG nextflow.lamin.LaminObserver - Creating output artifact for run 599 at gs://di-temporary-public/scratch/temp-nf-lamin/run_20250617_162535/output.gz
+    Jun-17 16:25:45.674 [PublishDir-1] DEBUG nextflow.lamin.instance.Instance - POST /instances/{instance_id}/artifacts/create: {"path":"gs://di-temporary-public/scratch/temp-nf-lamin/run_20250617_162535/output.gz","kwargs":{"run_id":599,"description":"Output artifact for run 599"}}
+    Jun-17 16:25:45.684 [PublishDir-2] DEBUG nextflow.lamin.LaminObserver - onFilePublish triggered!
+    Jun-17 16:25:45.684 [PublishDir-2] DEBUG nextflow.lamin.LaminObserver - Creating output artifact for run 599 at gs://di-temporary-public/scratch/temp-nf-lamin/run_20250617_162535/run.bgzip.state.yaml
+    Jun-17 16:25:45.684 [PublishDir-2] DEBUG nextflow.lamin.instance.Instance - POST /instances/{instance_id}/artifacts/create: {"path":"gs://di-temporary-public/scratch/temp-nf-lamin/run_20250617_162535/run.bgzip.state.yaml","kwargs":{"run_id":599,"description":"Output artifact for run 599"}}
+    Jun-17 16:26:10.868 [PublishDir-1] DEBUG nextflow.lamin.instance.Instance - Response from createArtifact: [statusCode:200.0, body:[message:Artifact created successfully, artifact:[version:null, is_latest:true, branch:1.0, space:1.0, _aux:null, created_at:2025-06-17T14:26:10.724Z, updated_at:2025-06-17T14:26:10.724Z, uid:0P6tPRXCkBaU9Q8H0000, key:scratch/temp-nf-lamin/run_20250617_162535/output.gz, description:Output artifact for run 599, storage:32.0, suffix:.gz, kind:null, otype:null, size:86.0, hash:ZBfgYI9182T75D1+IigC9Q, n_files:null, n_observations:null, _hash_type:md5, run:599.0, schema:null, _key_is_virtual:false, created_by:28.0, _overwrite_versions:false, input_of_runs:[], _subsequent_runs:[], _actions:[]]]]
+    Jun-17 16:26:10.869 [PublishDir-1] DEBUG nextflow.lamin.LaminObserver - Created output artifact 0P6tPRXCkBaU9Q8H0000 (https://staging.laminhub.com/laminlabs/lamindata/artifact/0P6tPRXCkBaU9Q8H0000)
+    Jun-17 16:26:11.947 [PublishDir-2] DEBUG nextflow.lamin.instance.Instance - Response from createArtifact: [statusCode:200.0, body:[message:Artifact created successfully, artifact:[version:null, is_latest:true, branch:1.0, space:1.0, _aux:null, created_at:2025-06-16T15:22:04.384Z, updated_at:2025-06-16T15:22:04.384Z, uid:jAxjm3Kj39aiPUW30000, key:scratch/temp-nf-lamin/run.bgzip.state.yaml, description:Output artifact for run 599, storage:32.0, suffix:.yaml, kind:null, otype:null, size:35.0, hash:p41ifSZvoMr4+4FoOJBpwA, n_files:null, n_observations:null, _hash_type:md5, run:563.0, schema:null, _key_is_virtual:false, created_by:28.0, _overwrite_versions:false, input_of_runs:[], _subsequent_runs:[], _actions:[]]]]
+    Jun-17 16:26:11.948 [PublishDir-2] DEBUG nextflow.lamin.LaminObserver - Detected previous output artifact jAxjm3Kj39aiPUW30000 (https://staging.laminhub.com/laminlabs/lamindata/artifact/jAxjm3Kj39aiPUW30000)
     DEBUG nextflow.lamin.LaminObserver - onFlowComplete triggered!
-    DEBUG nextflow.lamin.instance.Instance - PATCH updateRecord: core.run, uid=kjks2fiepijlNpKWTydp, data=[finished_at:2025-06-17T16:10:41.717017610+02:00, _status_code:0]
-    DEBUG nextflow.lamin.instance.Instance - Response from updateRecord: [id:598.0, uid:kjks2fiepijlNpKWTydp, _aux:null, name:maniac_goodall, space_id:1.0, _branch_code:1.0, report_id:null, _logfile_id:null, reference:null, transform_id:330.0, created_at:2025-06-17T14:10:33.383040+00:00, created_by_id:28.0, started_at:2025-06-17T14:10:30.429390+00:00, environment_id:null, finished_at:2025-06-17T14:10:41.717018+00:00, _status_code:0.0, reference_type:null, _is_consecutive:null, initiated_by_run_id:null]
+    DEBUG nextflow.lamin.instance.Instance - PATCH updateRecord: core.run, uid=xkKm3HSEc4vHMjh9RRK7, data=[finished_at:2025-06-17T16:26:11.948616439+02:00, _status_code:0]
+    DEBUG nextflow.lamin.instance.Instance - Response from updateRecord: [id:599.0, uid:xkKm3HSEc4vHMjh9RRK7, _aux:null, name:silly_kay, space_id:1.0, _branch_code:1.0, report_id:null, _logfile_id:null, reference:null, transform_id:330.0, created_at:2025-06-17T14:25:40.235964+00:00, created_by_id:28.0, started_at:2025-06-17T14:25:37.408037+00:00, environment_id:null, finished_at:2025-06-17T14:26:11.948616+00:00, _status_code:0.0, reference_type:null, _is_consecutive:null, initiated_by_run_id:null]
 
 ## Settings
 
