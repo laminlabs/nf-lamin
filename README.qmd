@@ -113,7 +113,7 @@ lamin {
   // The API key for the LaminDB instance
   api_key = secrets.LAMIN_API_KEY
   // The project name in LaminDB
-  project = "nextflow-project"
+  project = "your-lamin-project"
   // The environment name in LaminDB
   env = "prod"
   // The Supabase API URL for the LaminDB instance (if env is set to null)
@@ -128,7 +128,7 @@ In addition to the above settings, you can also set the following environment va
 ```bash
 export LAMIN_INSTANCE="laminlabs/lamindata"
 export LAMIN_API_KEY="your-lamin-api-key"
-export LAMIN_PROJECT="nextflow-project"
+export LAMIN_PROJECT="your-lamin-project"
 export LAMIN_ENV="prod"
 export LAMIN_SUPABASE_API_URL="https://your-supabase-api-url.supabase.co"
 export LAMIN_SUPABASE_ANON_KEY="your-supabase-anon-key"
