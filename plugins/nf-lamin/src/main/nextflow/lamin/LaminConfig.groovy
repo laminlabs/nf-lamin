@@ -79,6 +79,16 @@ class LaminConfig {
     final protected String supabaseAnonKey
 
     /**
+     * Maximum number of retries for API requests
+     */
+    final protected Integer maxRetries = 3
+
+    /**
+     * Delay between retries for API requests
+     */
+    final protected Integer retryDelay = 100 // milliseconds
+
+    /**
      * Configuration for Lamin API integration
      * @param instance format: 'owner/repo'.
      * @param apiKey LaminDB API authorization key
@@ -86,7 +96,7 @@ class LaminConfig {
      * @throws IllegalArgumentException if any of the parameters are null or invalid
      */
     LaminConfig(String instance, String apiKey, String project = null, String env = null,
-                String supabaseApiUrl = null, String supabaseAnonKey = null) {
+                String supabaseApiUrl = null, String supabaseAnonKey = null, Integer maxRetries = null, Integer retryDelay = null) {
         // check if all values are available
         if (!instance?.trim()) {
             throw new IllegalArgumentException('Lamin instance is not set. Please set the "lamin.instance" in your nextflow.config file.')
@@ -115,6 +125,12 @@ class LaminConfig {
         this.env = env
         this.supabaseApiUrl = supabaseApiUrl
         this.supabaseAnonKey = supabaseAnonKey
+        if (maxRetries != null) {
+            this.maxRetries = maxRetries
+        }
+        if (retryDelay != null) {
+            this.retryDelay = retryDelay
+        }
     }
 
     /**
@@ -186,6 +202,21 @@ class LaminConfig {
     }
 
     /**
+     * Get the maximum number of retries for API requests
+     * @return the maximum number of retries
+     */
+    Integer getMaxRetries() {
+        return this.maxRetries
+    }
+    /**
+     * Get the delay between retries for API requests
+     * @return the delay between retries in milliseconds
+     */
+    Integer getRetryDelay() {
+        return this.retryDelay
+    }
+
+    /**
      * Create a LaminConfig object from the Nextflow session and environment variables
      * @param session the Nextflow session
      * @return a LaminConfig object
@@ -199,6 +230,8 @@ class LaminConfig {
         String env = map.env ?: System.getenv('LAMIN_ENV') ?: 'prod'
         String supabaseApiUrl = map.supabase_api_url ?: System.getenv('SUPABASE_API_URL')
         String supabaseAnonKey = map.supabase_anon_key ?: System.getenv('SUPABASE_ANON_KEY')
-        return new LaminConfig(instance, apiKey, project, env, supabaseApiUrl, supabaseAnonKey)
+        Integer maxRetries = map.max_retries ?: System.getenv('LAMIN_MAX_RETRIES')?.toInteger()
+        Integer retryDelay = map.retry_delay ?: System.getenv('LAMIN_RETRY_DELAY')?.toInteger()
+        return new LaminConfig(instance, apiKey, project, env, supabaseApiUrl, supabaseAnonKey, maxRetries, retryDelay)
     }
 }

@@ -500,7 +500,7 @@ class Instance {
      * @return the result of the closure call
      * @throws ApiException if an error occurs while calling the API
      */
-    protected <T> T callApi(Closure<T> closure) {
+    protected <T> T callApi(Closure<T> closure, Integer retries = 0) throws ApiException {
         String accessToken = getBearerToken()
         try {
             return closure.call(accessToken)
@@ -510,7 +510,13 @@ class Instance {
                 this.hub.refreshAccessToken()
                 accessToken = getBearerToken()
                 return closure.call(accessToken)
+            } else if (retries <= this.config.maxRetries) {
+                // Retry the API call
+                log.warn "API call failed with status ${e.code}. Retrying (${retries + 1}/${this.config.maxRetries})..."
+                Thread.sleep(this.config.retryDelay)
+                return callApi(closure, retries + 1)
             }
+
             throw e
         }
     }
