@@ -52,7 +52,7 @@ If you haven't done so already, you'll need to define the `LAMIN_API_KEY` secret
 
 ```bash
 nextflow run nf-core/scrnaseq \
-  -latest -resume \
+  -latest \
   -r 2.7.1 \
   -profile docker \
   -plugins nf-lamin@0.1.0 \
@@ -61,7 +61,7 @@ nextflow run nf-core/scrnaseq \
   --gtf https://github.com/nf-core/test-datasets/raw/scrnaseq/reference/gencode.vM19.annotation.chr19.gtf \
   --protocol 10XV2 \
   --skip_emptydrops \
-  --publish_dir gs://di-temporary-public/scratch/temp-scrnaseq
+  --outdir gs://di-temporary-public/scratch/temp-scrnaseq/run_$(date +%Y%m%d_%H%M%S)
 ```
 
 ### Example with Viash Hub workflow:
@@ -120,18 +120,24 @@ lamin {
   supabase_api_url = "https://your-supabase-api-url.supabase.co"
   // The Supabase anon key for the LaminDB instance (if env is set to null)
   supabase_anon_key = secrets.SUPABASE_ANON_KEY
+  // The number of retries for API requests
+  max_retries = 3
+  // The delay between retries in milliseconds
+  retry_delay = 100
 }
 ```
 
 In addition to the above settings, you can also set the following environment variables:
 
 ```bash
-export LAMIN_INSTANCE="laminlabs/lamindata"
+export LAMIN_CURRENT_INSTANCE="laminlabs/lamindata"
 export LAMIN_API_KEY="your-lamin-api-key"
-export LAMIN_PROJECT="your-lamin-project"
+export LAMIN_CURRENT_PROJECT="your-lamin-project"
 export LAMIN_ENV="prod"
-export LAMIN_SUPABASE_API_URL="https://your-supabase-api-url.supabase.co"
-export LAMIN_SUPABASE_ANON_KEY="your-supabase-anon-key"
+export SUPABASE_API_URL="https://your-supabase-api-url.supabase.co"
+export SUPABASE_ANON_KEY="your-supabase-anon-key"
+export LAMIN_MAX_RETRIES=3
+export LAMIN_RETRY_DELAY=100
 ```
 
 ## Contributing
