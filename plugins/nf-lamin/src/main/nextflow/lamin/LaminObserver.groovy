@@ -258,24 +258,38 @@ class LaminObserver implements TraceObserver {
 
     // TODO: implement tracking an input artifact
     protected Map createOutputArtifact(Map run, Path localPath, Path destPath) {
-        String path = destPath.toUri().toString();
-        Integer runId = run.id as Integer
+        Boolean isLocalFile = localPath.toUri().getScheme() == 'file'
 
-        log.debug "Creating output artifact for run ${runId} at ${path}"
+        // Arguments
+        Integer runId = run.id as Integer
+        String description = "Output artifact for run ${runId}".toString()
+
+        log.debug "Creating output artifact for run ${runId} at ${localPath.toUri()}"
 
         Map artifact = null
         try {
-            artifact = this.instance.createArtifact(
-                path: path,
-                run_id: runId,
-                description: "Output artifact for run ${runId}".toString()
-            )
+            if (isLocalFile) {
+                File file = localPath.toFile()
+                artifact = this.instance.uploadArtifact(
+                    file: file,
+                    run_id: runId,
+                    description: description
+                )
+            } else {
+                String path = destPath.toUri().toString();
+                artifact = this.instance.createArtifact(
+                    path: path,
+                    run_id: runId,
+                    description: description
+                )
+            }
+
         } catch (Exception e) {
-            log.error "Failed to create output artifact for run ${runId} at ${path}: ${e.getMessage()}"
+            log.error "Failed to create output artifact for run ${runId} at ${localPath.toUri()}: ${e.getMessage()}"
             return null
         }
 
-        String verb = artifact.run == runId ? 'Created' : 'Detected previous'
+        String verb = artifact.run != runId ? 'Detected previous' : isLocalFile ? 'Uploaded' : 'Created'
         log.debug "$verb output artifact ${artifact.uid} (${this.config.getWebUrl()}/${this.instance.getOwner()}/${this.instance.getName()}/artifact/${artifact.uid})"
 
         return artifact

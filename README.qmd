@@ -102,6 +102,38 @@ do_print {
 ' .nextflow.log
 ```
 
+## Settings
+
+The plugin supports the following settings in the `nextflow.config` file:
+
+```groovy
+lamin {
+  // The LaminDB instance to use
+  instance = "laminlabs/lamindata"
+  // The API key for the LaminDB instance
+  api_key = secrets.LAMIN_API_KEY
+  // The project name in LaminDB
+  project = "nextflow-project"
+  // The environment name in LaminDB
+  env = "prod"
+  // The Supabase API URL for the LaminDB instance (if env is set to null)
+  supabase_api_url = "https://your-supabase-api-url.supabase.co"
+  // The Supabase anon key for the LaminDB instance (if env is set to null)
+  supabase_anon_key = secrets.SUPABASE_ANON_KEY
+}
+```
+
+In addition to the above settings, you can also set the following environment variables:
+
+```bash
+export LAMIN_INSTANCE="laminlabs/lamindata"
+export LAMIN_API_KEY="your-lamin-api-key"
+export LAMIN_PROJECT="nextflow-project"
+export LAMIN_ENV="prod"
+export LAMIN_SUPABASE_API_URL="https://your-supabase-api-url.supabase.co"
+export LAMIN_SUPABASE_ANON_KEY="your-supabase-anon-key"
+```
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for more information about contributing to this repository.

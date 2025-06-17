@@ -438,6 +438,51 @@ class Instance {
         return responseBody?.artifact as Map
     }
 
+    /**
+     * Upload an artifact to the Lamin API.
+     * @param args A map containing the following keys:
+     *    - file: The file to upload (required)
+     *    - description: The description of the artifact (optional)
+     *    - run_id: The run ID associated with the artifact (optional)
+     * @return a map containing the uploaded artifact data
+     * @throws IllegalStateException if the file is null or does not exist
+     * @throws ApiException if an error occurs while uploading the artifact
+     */
+    Map uploadArtifact(Map args) {
+        // Required args
+        File file = args.file as File
+        if (!file || !file.exists()) {
+            throw new IllegalStateException('File is null or does not exist. Please check the file.')
+        }
+
+        // Create kwargs string
+        Map kwargs = [:]
+        for (field in ["description", "run_id"]) {
+            if (args.containsKey(field)) {
+                kwargs[field] = args[field]
+            }
+        }
+        String kwargsString = kwargs ? groovy.json.JsonOutput.toJson(kwargs) : '{}'
+
+        // Do call
+        log.debug "POST /instances/{instance_id}/artifacts/upload: file=${file}, kwargs=${kwargsString}"
+        Map response = callApi { String accessToken ->
+            this.apiInstance.uploadArtifactInstancesInstanceIdArtifactsUploadPost(
+                this.settings.id(),
+                file,
+                accessToken,
+                kwargsString
+            ) as Map
+        }
+        log.debug "Response from uploadArtifact: ${response}"
+
+        Map responseBody = response?.body as Map
+        if (!responseBody?.artifact) {
+            throw new IllegalStateException("Failed to upload artifact. Response: ${response}")
+        }
+        return responseBody?.artifact as Map
+    }
+
     // ------------------- PRIVATE METHODS -------------------
     /**
      * Get the bearer token for authentication.
