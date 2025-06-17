@@ -180,7 +180,7 @@ class LaminObserver implements TraceObserver {
 
         log.info "Transform ${transform.uid} (${this.config.getWebUrl()}/${this.instance.getOwner()}/${this.instance.getName()}/transform/${transform.uid})"
         return transform
-    // todo: link to project?
+        // todo: link to project?
     }
 
     protected Map createRun() {
@@ -201,7 +201,7 @@ class LaminObserver implements TraceObserver {
         log.info "Run ${run.uid} (${this.config.getWebUrl()}/${this.instance.getOwner()}/${this.instance.getName()}/transform/${this.transform.uid}/${run.uid})"
 
         return run
-    // todo: link to project?
+        // todo: link to project?
     }
 
     protected void finalizeRun() {
@@ -258,17 +258,25 @@ class LaminObserver implements TraceObserver {
 
     // TODO: implement tracking an input artifact
     protected Map createOutputArtifact(Map run, Path localPath, Path destPath) {
-        URI uri = destPath.toUri()
-        Map storage = fetchOrCreateStorage(destPath)
+        String path = destPath.toUri().toString();
+        Integer runId = run.id as Integer
 
-        // get attributes
-        BasicFileAttributes attributes = Files.readAttributes(destPath, BasicFileAttributes)
+        log.debug "Creating output artifact for run ${runId} at ${path}"
 
-        Map artifact = this.instance.createArtifact(
-            path: destPath,
-            run_id: run.id,
-            description: "Output artifact for run ${run.id}"
-        )
+        Map artifact = null
+        try {
+            artifact = this.instance.createArtifact(
+                path: path,
+                run_id: runId,
+                description: "Output artifact for run ${runId}".toString()
+            )
+        } catch (Exception e) {
+            log.error "Failed to create output artifact for run ${runId} at ${path}: ${e.getMessage()}"
+            return null
+        }
+        
+        String verb = artifact.run == runId ? 'Created' : 'Detected previous'
+        log.debug "$verb output artifact ${artifact.uid} (${this.config.getWebUrl()}/${this.instance.getOwner()}/${this.instance.getName()}/artifact/${artifact.uid})"
 
         return artifact
     }

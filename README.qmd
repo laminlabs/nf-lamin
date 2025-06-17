@@ -43,7 +43,7 @@ lamin {
 :::{.callout-tip}
 If you haven't done so already, you'll need to define the `LAMIN_API_KEY` secret in your Nextflow configuration:
 
-* Fet your Lamin API key from your [Lamin Hub account settings](https://lamin.ai/settings).
+* Fetch a Lamin API key from your [Lamin Hub account settings](https://lamin.ai/settings).
 * Run the command `nextflow secrets set LAMIN_API_KEY "..."` to set the secret in your Nextflow configuration.
 :::
 
@@ -61,21 +61,23 @@ nextflow run nf-core/scrnaseq \
   --gtf https://github.com/nf-core/test-datasets/raw/scrnaseq/reference/gencode.vM19.annotation.chr19.gtf \
   --protocol 10XV2 \
   --skip_emptydrops \
-  --publish_dir gs://di-temporary/scratch/temp-scrnaseq
+  --publish_dir gs://di-temporary-public/scratch/temp-scrnaseq
 ```
 
 ### Example with Viash Hub workflow:
 
 ```{bash}
+date > /tmp/lamin-test.txt
+
 nextflow run https://packages.viash-hub.com/vsh/toolbox.git \
   -revision v0.1.1 \
   -main-script target/nextflow/bgzip/main.nf \
   -profile docker \
   -plugins nf-lamin@0.1.0 \
   -latest \
-  --input https://github.com/nf-core/test-datasets/raw/scrnaseq/samplesheet-2-0.csv \
+  --input /tmp/lamin-test.txt \
   --output output.gz \
-  --publish_dir gs://di-temporary/scratch/temp-nf-lamin
+  --publish_dir gs://di-temporary-public/scratch/temp-nf-lamin/run_$(date +%Y%m%d_%H%M%S)
 ```
 
 :::{.callout-note}
@@ -86,7 +88,7 @@ Logs produced by lamin:
 
 ```{bash echo=FALSE}
 gawk '
-/\[main\]/ {
+/[0-9][0-9]:[0-9][0-9]:[0-9][0-9].[0-9][0-9][0-9] \[[^\]]+\]/ {
   if ($0 ~ /nextflow\.lamin/) {
     do_print=1
   } else {
