@@ -258,7 +258,7 @@ class LaminObserver implements TraceObserver {
 
     // TODO: implement tracking an input artifact
     protected Map createOutputArtifact(Map run, Path localPath, Path destPath) {
-        Boolean isLocalFile = localPath.toUri().getScheme() == 'file'
+        Boolean isLocalFile = destPath.toUri().getScheme() == 'file'
 
         // Arguments
         Integer runId = run.id as Integer
