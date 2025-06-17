@@ -1,4 +1,4 @@
-name: build
+name: build-python-postrunscript
 
 on:
   push:
