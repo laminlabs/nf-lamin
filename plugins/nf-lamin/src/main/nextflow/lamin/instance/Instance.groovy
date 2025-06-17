@@ -83,7 +83,7 @@ class Instance {
     Object getInstanceStatistics() throws ApiException {
         log.debug "GET getInstanceStatistics"
 
-        return callApi { String accessToken ->
+        Object response = callApi { String accessToken ->
             this.apiInstance.getInstanceStatisticsInstancesInstanceIdStatisticsGet(
                 this.settings.id(),
                 [],
@@ -91,6 +91,8 @@ class Instance {
                 accessToken
             )
         }
+        log.debug "Response from getInstanceStatistics: ${response}"
+        return response
     }
 
     /**
@@ -101,13 +103,17 @@ class Instance {
     Map getNonEmptyTables() throws ApiException {
         log.debug "GET getNonEmptyTables"
 
-        return callApi { String accessToken ->
+        Map response = callApi { String accessToken ->
             this.apiInstance.getNonEmptyTablesInstancesInstanceIdNonEmptyTablesGet(
                 this.settings.id(),
                 this.settings.schemaId(),
                 accessToken
             )
         } as Map
+
+        log.debug "Response from getNonEmptyTables: ${response}"
+
+        return response
     }
 
     /**
@@ -145,7 +151,7 @@ class Instance {
 
         // Do call
         log.debug "POST getRecord: ${moduleName}.${modelName}, idOrUid=${idOrUid}"
-        return callApi { String accessToken ->
+        Map response = callApi { String accessToken ->
             this.apiInstance.getRecordInstancesInstanceIdModulesModuleNameModelNameIdOrUidPost(
                 moduleName,
                 modelName,
@@ -158,6 +164,7 @@ class Instance {
                 body
             ) as Map
         }
+        log.debug "Response from getRecord: ${response}"
     }
 
     /**
@@ -206,7 +213,7 @@ class Instance {
 
         // Do call
         log.debug "POST getRecords: ${moduleName}.${modelName}, filter=${filter}, limit=${limit}, offset=${offset}"
-        return callApi { String accessToken ->
+        List<Map> response = callApi { String accessToken ->
             this.apiInstance.getRecordsInstancesInstanceIdModulesModuleNameModelNamePost(
                 moduleName,
                 modelName,
@@ -220,6 +227,8 @@ class Instance {
                 body
             ) as List<Map>
         }
+        log.debug "Response from getRecords: ${response}"
+        return response
     }
 
     /**
@@ -245,7 +254,7 @@ class Instance {
 
         // Do call
         log.debug "PUT createRecord: ${moduleName}.${modelName}, data=${data}"
-        return callApi { String accessToken ->
+        List<Map> response = callApi { String accessToken ->
             this.apiInstance.createRecordsInstancesInstanceIdModulesModuleNameModelNamePut(
                 moduleName,
                 modelName,
@@ -253,8 +262,16 @@ class Instance {
                 data,
                 this.settings.schemaId(),
                 accessToken
-            ) as Map
+            )
+        } as List<Map>
+        log.debug "Response from createRecord: ${response}"
+        if (response == null || response.isEmpty()) {
+            throw new IllegalStateException("Failed to create record. Response is empty.")
         }
+        if (response.size() > 1) {
+            log.warn "Multiple records created. Returning the first one."
+        }
+        return response[0]
     }
 
     /**
@@ -283,7 +300,7 @@ class Instance {
 
         // Do call
         log.debug "PATCH updateRecord: ${moduleName}.${modelName}, uid=${uid}, data=${data}"
-        return callApi { String accessToken ->
+        Map response = callApi { String accessToken ->
             this.apiInstance.updateRecordInstancesInstanceIdModulesModuleNameModelNameUidPatch(
                 moduleName,
                 modelName,
@@ -294,18 +311,41 @@ class Instance {
                 accessToken
             ) as Map
         }
+        log.debug "Response from updateRecord: ${response}"
+        return response
     }
 
+    /**
+     * Get the account information from the Lamin API.
+     * @return a map containing the account information
+     * @throws ApiException if an error occurs while fetching the account information
+     */
     Map getAccount() {
         log.debug "GET /account"
 
-        return callApi { String accessToken ->
+        Map response = callApi { String accessToken ->
             this.apiInstance.getCallerAccountAccountGet(
                 accessToken
             ) as Map
         }
+        log.debug "Response from getAccount: ${response}"
+        return response
     }
 
+    /**
+     * Create a transform in the Lamin API.
+     * @param args A map containing the following
+     *    - key: The key for the transform (required)
+     *    - type: The type of the transform (required)
+     *    - source_code: The source code for the transform (required)
+     *    - version: The version of the transform (optional)
+     *    - reference: The reference for the transform (optional)
+     *    - reference_type: The reference type for the transform (optional)
+     *    - description: The description of the transform (optional)
+     * @return a map containing the created transform data
+     * @throws IllegalStateException if any of the required arguments are null
+     * @throws ApiException if an error occurs while creating the transform
+    */
     Map createTransform(Map args) {
         // Required args
         String key = args.key as String
@@ -316,22 +356,19 @@ class Instance {
         if (!type) { throw new IllegalStateException('Type is null. Please check the type.') }
         if (!sourceCode) { throw new IllegalStateException('Source code is null. Please check the source code.') }
 
-        // Optional args
-        Map kwargs = [:]
-
-        for (field in ["version", "reference", "reference_type", "description"]) {
-            if (args.containsKey(field)) {
-                kwargs[field] = args[field]
-            }
-        }
-
         // create the request body
         CreateTransformRequestBody body = new CreateTransformRequestBody(
             key: key,
             type: type,
-            sourceCode: sourceCode,
-            kwargs: kwargs
+            sourceCode: sourceCode
         );
+
+        // Optional args
+        for (field in ["version", "reference", "reference_type", "description"]) {
+            if (args.containsKey(field)) {
+                body.putKwargsItem(field, args[field])
+            }
+        }
 
         // Do call
         log.debug "POST /instances/{instance_id}/transforms: ${body.toJson()}"
@@ -342,6 +379,7 @@ class Instance {
                 accessToken
             ) as Map
         }
+        log.debug "Response from createTransform: ${response}"
 
         if (response == null || response.isEmpty()) {
             throw new IllegalStateException("Failed to create transform. Response is empty.")
@@ -352,28 +390,36 @@ class Instance {
         return response.transform as Map
     }
 
+    /**
+     * Create an artifact in the Lamin API.
+     * @param args A map containing the following keys:
+     *    - path: The path to the artifact (required)
+     *    - description: The description of the artifact (optional)
+     *    - run_id: The run ID associated with the artifact (optional)
+     * @return a map containing the created artifact data
+     * @throws IllegalStateException if the path is null or empty
+     * @throws ApiException if an error occurs while creating the artifact
+     */
     Map createArtifact(Map args) {
         // Required args
         String path = args.path as String
-        if (!path) { throw new IllegalStateException('Path is null. Please check the path.') }
+        if (!path) { throw new IllegalStateException('Path is null or empty. Please check the path.') }
 
-        // Optional args
-        Map kwargs = [:]
+        // Create body
+        CreateArtifactRequestBody body = new CreateArtifactRequestBody(
+            path: path
+        )
 
+        // Process optional args
         for (field in ["description", "run_id"]) {
             if (args.containsKey(field)) {
-                kwargs[field] = args[field]
+                body.putKwargsItem(field, args[field])
             }
         }
 
-        // Create the request body
-        CreateArtifactRequestBody body = new CreateArtifactRequestBody(
-            path: path,
-            kwargs: kwargs
-        )
-
         // Do call
-        log.debug "POST /instances/{instance_id}/artifacts: ${body.toJson()}"
+        log.debug "POST /instances/{instance_id}/artifacts/create: ${body.toJson()}"
+
         Map response = callApi { String accessToken ->
             this.apiInstance.createArtifactInstancesInstanceIdArtifactsCreatePost(
                 this.settings.id(),
@@ -382,13 +428,14 @@ class Instance {
             ) as Map
         }
 
-        if (response == null || response.isEmpty()) {
-            throw new IllegalStateException("Failed to create artifact. Response is empty.")
+        log.debug "Response from createArtifact: ${response}"
+
+        Map responseBody = response?.body as Map
+        if (!responseBody?.artifact) {
+            throw new IllegalStateException("Failed to create artifact. Response: ${response}")
         }
-        if (!response.artifact) {
-            throw new IllegalStateException("Failed to create artifact. Message: ${response.message ?: 'No message provided.'}")
-        }
-        return response.artifact as Map
+
+        return responseBody?.artifact as Map
     }
 
     // ------------------- PRIVATE METHODS -------------------
@@ -400,6 +447,14 @@ class Instance {
         return 'Bearer ' + this.hub.getAccessToken()
     }
 
+    /**
+     * Call the Lamin API with the provided closure.
+     * This method handles token expiration and refreshes the token if necessary.
+     *
+     * @param closure The closure to call with the access token
+     * @return the result of the closure call
+     * @throws ApiException if an error occurs while calling the API
+     */
     protected <T> T callApi(Closure<T> closure) {
         String accessToken = getBearerToken()
         try {
