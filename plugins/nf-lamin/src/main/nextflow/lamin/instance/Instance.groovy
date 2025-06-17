@@ -381,13 +381,13 @@ class Instance {
         }
         log.debug "Response from createTransform: ${response}"
 
-        if (response == null || response.isEmpty()) {
-            throw new IllegalStateException("Failed to create transform. Response is empty.")
+        Map responseBody = response?.body as Map
+
+        if (responseBody?.transform == null) {
+            throw new IllegalStateException("Failed to create transform. Response: ${response}")
         }
-        if (!response.transform) {
-            throw new IllegalStateException("Failed to create transform. Message: ${response.message ?: 'No message provided.'}")
-        }
-        return response.transform as Map
+
+        return responseBody?.transform as Map
     }
 
     /**

@@ -264,12 +264,12 @@ class LaminObserver implements TraceObserver {
         Integer runId = run.id as Integer
         String description = "Output artifact for run ${runId}".toString()
 
-        log.debug "Creating output artifact for run ${runId} at ${localPath.toUri()}"
+        log.debug "Creating output artifact for run ${runId} at ${destPath.toUri()}"
 
         Map artifact = null
         try {
             if (isLocalFile) {
-                File file = localPath.toFile()
+                File file = destPath.toFile()
                 artifact = this.instance.uploadArtifact(
                     file: file,
                     run_id: runId,
@@ -285,7 +285,7 @@ class LaminObserver implements TraceObserver {
             }
 
         } catch (Exception e) {
-            log.error "Failed to create output artifact for run ${runId} at ${localPath.toUri()}: ${e.getMessage()}"
+            log.error "Failed to create output artifact for run ${runId} at ${destPath.toUri()}: ${e.getMessage()}"
             return null
         }
 
