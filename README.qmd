@@ -138,14 +138,6 @@ lamin {
   project = "your-lamin-project"
   // The environment name in LaminDB
   env = "prod"
-  // The Supabase API URL for the LaminDB instance (if env is set to null)
-  supabase_api_url = "https://your-supabase-api-url.supabase.co"
-  // The Supabase anon key for the LaminDB instance (if env is set to null)
-  supabase_anon_key = secrets.SUPABASE_ANON_KEY
-  // The number of retries for API requests
-  max_retries = 3
-  // The delay between retries in milliseconds
-  retry_delay = 100
 }
 ```
 
@@ -156,6 +148,28 @@ export LAMIN_CURRENT_INSTANCE="laminlabs/lamindata"
 export LAMIN_API_KEY="your-lamin-api-key"
 export LAMIN_CURRENT_PROJECT="your-lamin-project"
 export LAMIN_ENV="prod"
+```
+
+## Advanced settings
+
+There are additional advanced settings that can be configured in the `nextflow.config` file to customize the behavior of the plugin:
+
+```groovy
+lamin {
+  // The Supabase API URL for the LaminDB instance (if env is set to "custom")
+  supabase_api_url = "https://your-supabase-api-url.supabase.co"
+  // The Supabase anon key for the LaminDB instance (if env is set to "custom")
+  supabase_anon_key = secrets.SUPABASE_ANON_KEY
+  // The number of retries for API requests
+  max_retries = 3
+  // The delay between retries in milliseconds
+  retry_delay = 100
+}
+```
+
+You can also set these advanced settings using environment variables:
+
+```bash
 export SUPABASE_API_URL="https://your-supabase-api-url.supabase.co"
 export SUPABASE_ANON_KEY="your-supabase-anon-key"
 export LAMIN_MAX_RETRIES=3
