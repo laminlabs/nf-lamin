@@ -43,8 +43,6 @@ class LaminObserver implements TraceObserver {
 
     @Override
     void onFlowCreate(Session session) {
-        log.debug 'onFlowCreate triggered!'
-
         // store the session and config for later use
         LaminPlugin.setSession(session)
         this.session = session
@@ -78,7 +76,6 @@ class LaminObserver implements TraceObserver {
 
     @Override
     void onProcessComplete(TaskHandler handler, TraceRecord trace) {
-        log.debug 'onProcessComplete triggered!'
     // handler.task.getInputFilesMap().each { name, path ->
     //     createInputArtifact(path)
     // }
@@ -86,7 +83,6 @@ class LaminObserver implements TraceObserver {
 
     @Override
     void onProcessCached(TaskHandler handler, TraceRecord trace) {
-        log.debug 'onProcessCached triggered!'
     // handler.task.getInputFilesMap().each { name, path ->
     //     createInputArtifact(path)
     // }
@@ -95,19 +91,16 @@ class LaminObserver implements TraceObserver {
     // TODO: implement tracking an output artifact
     @Override
     void onFilePublish(Path destination, Path source) {
-        log.debug 'onFilePublish triggered!'
         createOutputArtifact(this.run, source, destination)
     }
 
     @Override
     void onFlowError(TaskHandler handler, TraceRecord trace) {
-        log.debug 'onFlowError triggered!'
         finalizeRun()
     }
 
     @Override
     void onFlowComplete() {
-        log.debug 'onFlowComplete triggered!'
         finalizeRun()
     }
 
@@ -263,12 +256,14 @@ class LaminObserver implements TraceObserver {
         Boolean isLocalFile = destPath.toUri().getScheme() == 'file'
 
         // Arguments
+        String runUid = run.uid.toString()
         Integer runId = run.id as Integer
         String description = "Output artifact for run ${runId}".toString()
 
         log.debug "Creating output artifact for run ${runId} at ${destPath.toUri()}"
 
         Map artifact = null
+        lock.lock()
         try {
             if (isLocalFile) {
                 File file = destPath.toFile()
@@ -287,8 +282,11 @@ class LaminObserver implements TraceObserver {
             }
 
         } catch (Exception e) {
-            log.error "Failed to create output artifact for run ${runId} at ${destPath.toUri()}: ${e.getMessage()}"
+            log.error "Failed to create output artifact for run ${runId} at ${destPath.toUri()}"
+            log.debug "Exception: ${e.getMessage()}", e
             return null
+        } finally {
+            lock.unlock()
         }
 
         String verb = artifact.run != runId ? 'Detected previous' : isLocalFile ? 'Uploaded' : 'Created'
