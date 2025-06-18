@@ -81,12 +81,12 @@ class LaminConfig {
     /**
      * Maximum number of retries for API requests
      */
-    final protected Integer maxRetries = 3
+    final protected Integer maxRetries
 
     /**
-     * Delay between retries for API requests
+     * Delay between retries for API requests in milliseconds
      */
-    final protected Integer retryDelay = 100 // milliseconds
+    final protected Integer retryDelay
 
     /**
      * Configuration for Lamin API integration
@@ -125,12 +125,8 @@ class LaminConfig {
         this.env = env
         this.supabaseApiUrl = supabaseApiUrl
         this.supabaseAnonKey = supabaseAnonKey
-        if (maxRetries != null) {
-            this.maxRetries = maxRetries
-        }
-        if (retryDelay != null) {
-            this.retryDelay = retryDelay
-        }
+        this.maxRetries = maxRetries ?: 3
+        this.retryDelay = retryDelay ?: 100
     }
 
     /**
