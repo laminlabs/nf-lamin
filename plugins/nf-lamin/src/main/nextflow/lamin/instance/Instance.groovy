@@ -85,7 +85,7 @@ class Instance {
      * @throws ApiException if an error occurs while fetching the statistics
      */
     Object getInstanceStatistics() throws ApiException {
-        log.debug "GET getInstanceStatistics"
+        log.trace "GET getInstanceStatistics"
 
         Object response = callApi { String accessToken ->
             this.apiInstance.getInstanceStatisticsInstancesInstanceIdStatisticsGet(
@@ -95,7 +95,7 @@ class Instance {
                 accessToken
             )
         }
-        log.debug "Response from getInstanceStatistics: ${response}"
+        log.trace "Response from getInstanceStatistics: ${response}"
         return response
     }
 
@@ -105,7 +105,7 @@ class Instance {
      * @throws ApiException if an error occurs while fetching the non-empty tables
      */
     Map getNonEmptyTables() throws ApiException {
-        log.debug "GET getNonEmptyTables"
+        log.trace "GET getNonEmptyTables"
 
         Map response = callApi { String accessToken ->
             this.apiInstance.getNonEmptyTablesInstancesInstanceIdNonEmptyTablesGet(
@@ -115,7 +115,7 @@ class Instance {
             )
         } as Map
 
-        log.debug "Response from getNonEmptyTables: ${response}"
+        log.trace "Response from getNonEmptyTables: ${response}"
 
         return response
     }
@@ -154,7 +154,7 @@ class Instance {
         )
 
         // Do call
-        log.debug "POST getRecord: ${moduleName}.${modelName}, idOrUid=${idOrUid}"
+        log.trace "POST getRecord: ${moduleName}.${modelName}, idOrUid=${idOrUid}"
         Map response = callApi { String accessToken ->
             this.apiInstance.getRecordInstancesInstanceIdModulesModuleNameModelNameIdOrUidPost(
                 moduleName,
@@ -168,7 +168,7 @@ class Instance {
                 body
             ) as Map
         }
-        log.debug "Response from getRecord: ${response}"
+        log.trace "Response from getRecord: ${response}"
     }
 
     /**
@@ -216,7 +216,7 @@ class Instance {
         )
 
         // Do call
-        log.debug "POST getRecords: ${moduleName}.${modelName}, filter=${filter}, limit=${limit}, offset=${offset}"
+        log.trace "POST getRecords: ${moduleName}.${modelName}, filter=${filter}, limit=${limit}, offset=${offset}"
         List<Map> response = callApi { String accessToken ->
             this.apiInstance.getRecordsInstancesInstanceIdModulesModuleNameModelNamePost(
                 moduleName,
@@ -231,7 +231,7 @@ class Instance {
                 body
             ) as List<Map>
         }
-        log.debug "Response from getRecords: ${response}"
+        log.trace "Response from getRecords: ${response}"
         return response
     }
 
@@ -257,7 +257,7 @@ class Instance {
         Map data = args.get('data', null) as Map
 
         // Do call
-        log.debug "PUT createRecord: ${moduleName}.${modelName}, data=${data}"
+        log.trace "PUT createRecord: ${moduleName}.${modelName}, data=${data}"
         List<Map> response = callApi { String accessToken ->
             this.apiInstance.createRecordsInstancesInstanceIdModulesModuleNameModelNamePut(
                 moduleName,
@@ -268,7 +268,7 @@ class Instance {
                 accessToken
             )
         } as List<Map>
-        log.debug "Response from createRecord: ${response}"
+        log.trace "Response from createRecord: ${response}"
         if (response == null || response.isEmpty()) {
             throw new IllegalStateException("Failed to create record. Response is empty.")
         }
@@ -303,7 +303,7 @@ class Instance {
         Map data = args.get('data', null) as Map
 
         // Do call
-        log.debug "PATCH updateRecord: ${moduleName}.${modelName}, uid=${uid}, data=${data}"
+        log.trace "PATCH updateRecord: ${moduleName}.${modelName}, uid=${uid}, data=${data}"
         Map response = callApi { String accessToken ->
             this.apiInstance.updateRecordInstancesInstanceIdModulesModuleNameModelNameUidPatch(
                 moduleName,
@@ -315,7 +315,7 @@ class Instance {
                 accessToken
             ) as Map
         }
-        log.debug "Response from updateRecord: ${response}"
+        log.trace "Response from updateRecord: ${response}"
         return response
     }
 
@@ -325,14 +325,14 @@ class Instance {
      * @throws ApiException if an error occurs while fetching the account information
      */
     Map getAccount() {
-        log.debug "GET /account"
+        log.trace "GET /account"
 
         Map response = callApi { String accessToken ->
             this.apiInstance.getCallerAccountAccountGet(
                 accessToken
             ) as Map
         }
-        log.debug "Response from getAccount: ${response}"
+        log.trace "Response from getAccount: ${response}"
         return response
     }
 
@@ -375,7 +375,7 @@ class Instance {
         }
 
         // Do call
-        log.debug "POST /instances/{instance_id}/transforms: ${body.toJson()}"
+        log.trace "POST /instances/{instance_id}/transforms: ${body.toJson()}"
         Map response = callApi { String accessToken ->
             this.apiInstance.createTransformInstancesInstanceIdTransformsPost(
                 this.settings.id(),
@@ -383,7 +383,7 @@ class Instance {
                 accessToken
             ) as Map
         }
-        log.debug "Response from createTransform: ${response}"
+        log.trace "Response from createTransform: ${response}"
 
         Map responseBody = response?.body as Map
 
@@ -422,7 +422,7 @@ class Instance {
         }
 
         // Do call
-        log.debug "POST /instances/{instance_id}/artifacts/create: ${body.toJson()}"
+        log.trace "POST /instances/{instance_id}/artifacts/create: ${body.toJson()}"
 
         Map response = callApi { String accessToken ->
             this.apiInstance.createArtifactInstancesInstanceIdArtifactsCreatePost(
@@ -432,7 +432,7 @@ class Instance {
             ) as Map
         }
 
-        log.debug "Response from createArtifact: ${response}"
+        log.trace "Response from createArtifact: ${response}"
 
         Map responseBody = response?.body as Map
         if (!responseBody?.artifact) {
@@ -469,7 +469,7 @@ class Instance {
         String kwargsString = kwargs ? groovy.json.JsonOutput.toJson(kwargs) : '{}'
 
         // Do call
-        log.debug "POST /instances/{instance_id}/artifacts/upload: file=${file}, kwargs=${kwargsString}"
+        log.trace "POST /instances/{instance_id}/artifacts/upload: file=${file}, kwargs=${kwargsString}"
         Map response = callApi { String accessToken ->
             this.apiInstance.uploadArtifactInstancesInstanceIdArtifactsUploadPost(
                 this.settings.id(),
@@ -478,7 +478,7 @@ class Instance {
                 kwargsString
             ) as Map
         }
-        log.debug "Response from uploadArtifact: ${response}"
+        log.trace "Response from uploadArtifact: ${response}"
 
         Map responseBody = response?.body as Map
         if (!responseBody?.artifact) {
