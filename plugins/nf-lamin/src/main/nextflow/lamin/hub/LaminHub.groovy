@@ -1,10 +1,12 @@
-package nextflow.lamin.api
+package nextflow.lamin.hub
 
 import java.nio.charset.StandardCharsets
 
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import groovy.json.JsonSlurper
+
+import nextflow.lamin.instance.InstanceSettings
 
 /**
  * Groovy client for interacting with specific Lamin Hub API endpoints.
@@ -13,21 +15,17 @@ import groovy.json.JsonSlurper
 @Slf4j
 @CompileStatic
 class LaminHub {
-
     // --- Constants ---
-
-    // Note: these values could be parameterized similar to
-    // https://github.com/laminlabs/lamindb-setup/blob/30f1a4dbbdaa37ab31333d0cc7444730eceb4e12/lamindb_setup/core/_hub_client.py#L32-L60
-    // Base URL for the Lamin Hub API
-    private static final String BASE_URL = 'https://hub.lamin.ai/functions/v1'
-    // The anonymous key for production access
-    private static final String PROD_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhZXNhdW1tZHlkbGxwcGdmY2h1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2NTY4NDA1NTEsImV4cCI6MTk3MjQxNjU1MX0.WUeCRiun0ExUxKIv5-CtjF6878H8u26t0JmCWx3_2-c'
     // Connection timeout for the connection
     private static final int CONNECT_TIMEOUT_MS = 5000
     // Read timeout for the connection
     private static final int READ_TIMEOUT_MS = 15000
 
     // --- Instance Fields ---
+    // The base URL for the Lamin Hub API
+    private final String apiUrl
+    // The Supabase Anon Key for the Lamin Hub API
+    private final String anonKey
     // The API key for the user
     private final String apiKey
     // The JWT access token fetched from the API
@@ -37,10 +35,18 @@ class LaminHub {
      * Constructor.
      * @param apiKey The user's Lamin Hub API Key.
      */
-    LaminHub(String apiKey) {
+    LaminHub(String apiUrl, String anonKey, String apiKey) {
+        if (!apiUrl?.trim()) {
+            throw new IllegalArgumentException('API URL cannot be null or empty.')
+        }
+        if (!anonKey?.trim()) {
+            throw new IllegalArgumentException('Anonymous Key cannot be null or empty.')
+        }
         if (!apiKey?.trim()) {
             throw new IllegalArgumentException('API Key cannot be null or empty.')
         }
+        this.apiUrl = apiUrl
+        this.anonKey = anonKey
         this.apiKey = apiKey
         this.accessToken = null
     }
@@ -52,19 +58,18 @@ class LaminHub {
      * @throws RuntimeException If the API call fails or response parsing fails.
      */
     String fetchAccessToken() {
-        String url = "${BASE_URL}/get-jwt-v1"
+        String url = "${this.apiUrl}/functions/v1/get-jwt-v1"
         String payload = """{"api_key": "${this.apiKey}"}"""
         String currentMethod = 'fetchAccessToken()'
 
-        // Use the PROD_ANON_KEY for this specific authorization step
-        String responseJson = makePostRequest(url, payload, PROD_ANON_KEY, false, currentMethod)
+        String responseJson = makePostRequest(url, payload, this.anonKey, false, currentMethod)
 
         try {
             Object responseMap = parseJson(responseJson, currentMethod)
             if (responseMap?.containsKey('accessToken')) {
                 String accessToken = responseMap.accessToken as String
                 if (!accessToken?.trim()) {
-                    throw new IllegalStateException("Access token is null or empty.")
+                    throw new IllegalStateException('Access token is null or empty.')
                 }
                 return accessToken
             } else {
@@ -110,10 +115,10 @@ class LaminHub {
      * @throws IllegalStateException If JWT accessToken has not been fetched yet.
      * @throws RuntimeException If the API call fails.
      */
-    LaminInstanceSettings getInstanceSettings(String owner, String name) {
+    InstanceSettings getInstanceSettings(String owner, String name) {
         String accessToken = getAccessToken()
 
-        String url = "${BASE_URL}/get-instance-settings-v1"
+        String url = "${this.apiUrl}/functions/v1/get-instance-settings-v1"
         // Use triple-quoted string with interpolation for readability
         String payload = """
         {
@@ -128,7 +133,7 @@ class LaminHub {
 
         Map instanceSettingsMap = parseJson(instanceSettingsJson, currentMethod)
 
-        return LaminInstanceSettings.fromMap(instanceSettingsMap)
+        return InstanceSettings.fromMap(instanceSettingsMap)
     }
 
     // --- Private Helper Methods ---

@@ -60,7 +60,7 @@ dependencies {
     compileOnly 'org.pf4j:pf4j:3.4.1'
 
     // add here plugins dependencies
-    implementation 'ai.lamin:lamin-api-client:0.0.1'
+    implementation 'ai.lamin:lamin-api-client:0.0.3'
 
     // test configuration
     testImplementation "org.apache.groovy:groovy:4.0.18"
