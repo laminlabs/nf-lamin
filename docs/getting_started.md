@@ -54,7 +54,7 @@ pipeline on remote input data.
 ```bash
 # The test profile uses publicly available test data
 nextflow run nf-core/scrnaseq \
-  -r 2.7.1 \
+  -r "2.7.1" \
   -profile docker,test \
   -plugins nf-lamin \
   --outdir gs://di-temporary-public/scratch/temp-scrnaseq/run_$(date +%Y%m%d_%H%M%S)
@@ -67,7 +67,7 @@ What is the full command and output when running this command?
 ```bash
 nextflow run nf-core/scrnaseq \
   -latest \
-  -r 2.7.1 \
+  -r "2.7.1" \
   -profile docker \
   -plugins nf-lamin@0.1.0 \
   --input https://github.com/nf-core/test-datasets/raw/scrnaseq/samplesheet-2-0.csv \

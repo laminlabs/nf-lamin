@@ -34,7 +34,7 @@ Then, you can run the pipeline with the `nf-lamin` plugin enabled.
 
 ```bash
 nextflow run nf-core/scrnaseq \
-  -r 2.7.1 \
+  -r "2.7.1" \
   -profile docker,test \
   -plugins nf-lamin \
   --outdir gs://di-temporary-public/scratch/temp-scrnaseq/run_2025-06-23
@@ -48,6 +48,6 @@ Transform J49HdErpEFrs0000 (https://staging.laminhub.com/laminlabs/lamindata/tra
 Run rezkYti2Js3iLPsIlxko (https://staging.laminhub.com/laminlabs/lamindata/transform/J49HdErpEFrs0000/rezkYti2Js3iLPsIlxko)
 ```
 
-## Documentation
+## More information
 
-For detailed documentation on how to use `nf-lamin`, including configuration options and advanced features, please refer to the [Getting Started](getting_started.md) and [Reference](reference.md) sections. You can also find information about the roadmap and planned features in the [Roadmap](roadmap.md) section, and keep track of changes in the [Changelog](changelog.md).
+For detailed documentation on how to use `nf-lamin`, including configuration options and advanced features, please refer to the [Getting Started](getting_started.md) and [Reference](reference.md) sections.

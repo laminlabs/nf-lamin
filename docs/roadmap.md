@@ -7,4 +7,4 @@ We have several features planned for future releases of `nf-lamin`:
 - **Support lamin:// URIs**: Allow users to specify input files using `lamin://` URIs for better integration with LaminDB.
   Example: `lamin://your-organization/your-instance/artifact/1234567890abcdef`
 
-See [the GitHub issues](https://github.com/laminlabs/nf-lamin/issues) for more details and to contribute ideas or feedback.
+See the [GitHub issues](https://github.com/laminlabs/nf-lamin/issues) for more details and to contribute ideas or feedback.
