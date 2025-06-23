@@ -88,7 +88,6 @@ class LaminObserver implements TraceObserver {
     // }
     }
 
-    // TODO: implement tracking an output artifact
     @Override
     void onFilePublish(Path destination, Path source) {
         createOutputArtifact(this.run, source, destination)
