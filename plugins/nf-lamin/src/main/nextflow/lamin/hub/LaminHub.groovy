@@ -88,7 +88,7 @@ class LaminHub {
      */
     String getAccessToken() {
         if (this.accessToken == null) {
-            log.debug('Fetching access token...')
+            log.debug('Fetching access token')
             updateAccessToken()
         }
         return this.accessToken
@@ -101,7 +101,7 @@ class LaminHub {
      * @throws RuntimeException If the API call fails or the token cannot be refreshed.
      */
     void refreshAccessToken() {
-        log.debug('Refreshing access token...')
+        log.debug('Refreshing access token')
         updateAccessToken()
     }
 
@@ -132,6 +132,11 @@ class LaminHub {
         String instanceSettingsJson = makePostRequest(url, payload, accessToken, true, currentMethod)
 
         Map instanceSettingsMap = parseJson(instanceSettingsJson, currentMethod)
+
+        if (!instanceSettingsMap) {
+            log.error "LaminDB instance ${owner}/${name} could not be found."
+            throw new IllegalStateException("LaminDB instance ${owner}/${name} could not be found.")
+        }
 
         return InstanceSettings.fromMap(instanceSettingsMap)
     }
@@ -185,6 +190,7 @@ class LaminHub {
                     log.warn "Warning: Received HTTP 200 but empty response body from ${requestUrl}"
                     return ''
                 }
+                log.trace "Received response from ${requestUrl} for ${callingMethod}: ${responseBody}"
                 return responseBody
             } else if (allowRetry && (responseCode == HttpURLConnection.HTTP_UNAUTHORIZED || responseCode == HttpURLConnection.HTTP_FORBIDDEN)) {
                 // --- Authorization Error & Retry Allowed ---

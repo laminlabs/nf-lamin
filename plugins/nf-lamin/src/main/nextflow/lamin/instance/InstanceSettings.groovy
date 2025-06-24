@@ -30,4 +30,8 @@ class InstanceSettings {
         )
     }
 
+    @Override
+    String toString() {
+        return "InstanceSettings(id: ${id}, owner: ${owner}, name: ${name}, schemaId: ${schemaId}, apiUrl: ${apiUrl})"
+    }
 }
