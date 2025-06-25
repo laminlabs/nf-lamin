@@ -22,4 +22,4 @@ jobs:
         env:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           docs_token: ${{ secrets.LAMIN_BUILD_DOCS }}
-          changelog_file: lamin-docs/docs/changelog/soon/usecases.md
+          changelog_file: lamin-docs/docs/changelog/soon/nf-lamin.md
