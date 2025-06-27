@@ -21,6 +21,7 @@ import nextflow.trace.TraceRecord
 import ai.lamin.lamin_api_client.ApiException
 
 import nextflow.lamin.instance.Instance
+import nextflow.lamin.instance.InstanceSettings
 import nextflow.lamin.hub.LaminHub
 
 /**
@@ -48,18 +49,24 @@ class LaminObserver implements TraceObserver {
         this.session = session
         this.config = LaminPlugin.getConfig()
 
-        // fetch instance settings
+        // print config
+        log.debug "Parsed Lamin config: ${this.config.toString()}"
+
+        // connect to the LaminHub
         this.hub = new LaminHub(
             this.config.supabaseApiUrl,
             this.config.supabaseAnonKey,
             this.config.apiKey
         )
 
+        // fetch instance settings
+        InstanceSettings settings = hub.getInstanceSettings(this.config.instanceOwner, this.config.instanceName)
+        log.debug "Instance settings: ${settings.toString()}"
+
         // create instance
         this.instance = new Instance(
             this.hub,
-            this.config.instanceOwner,
-            this.config.instanceName,
+            settings,
             this.config.getMaxRetries(),
             this.config.getRetryDelay()
         )
