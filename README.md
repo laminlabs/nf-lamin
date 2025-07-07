@@ -79,6 +79,7 @@ cd ../nf-lamin
 ```
 
 5. Build the plugin:
+
 ```bash
 make assemble
 ```
