@@ -86,6 +86,17 @@ make assemble
 
 ### Running the plugin
 
+1. Select the environment:
+
+Edit the `nextflow.config` to select an environment:
+
+```
+// lamin.env = "prod"
+lamin.env = "staging"
+```
+
+2. Run a pipeline:
+
 ```bash
 ./launch.sh run nextflow-io/hello -plugins nf-lamin
 ```
