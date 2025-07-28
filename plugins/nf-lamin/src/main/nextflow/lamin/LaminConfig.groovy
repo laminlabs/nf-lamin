@@ -228,6 +228,23 @@ class LaminConfig {
         String supabaseAnonKey = map.supabase_anon_key ?: System.getenv('SUPABASE_ANON_KEY')
         Integer maxRetries = (map.max_retries ?: System.getenv('LAMIN_MAX_RETRIES') ?: 3) as Integer
         Integer retryDelay = (map.retry_delay ?: System.getenv('LAMIN_RETRY_DELAY') ?: 100) as Integer
+
         return new LaminConfig(instance, apiKey, project, env, supabaseApiUrl, supabaseAnonKey, maxRetries, retryDelay)
+    }
+
+    @Override
+    String toString() {
+        String apiKeyMasked = apiKey ? apiKey.replaceAll(/(.{2}).*(.{2})/, '$1****$2') : 'null'
+        String supabaseAnonKeyMasked = supabaseAnonKey ? supabaseAnonKey.replaceAll(/(.{2}).*(.{2})/, '$1****$2') : 'null'
+        return "LaminConfig{" +
+            "instance='" + instance + '\'' +
+            ", apiKey='" + apiKeyMasked + '\'' +
+            ", project='" + project + '\'' +
+            ", env='" + env + '\'' +
+            ", supabaseApiUrl='" + supabaseApiUrl + '\'' +
+            ", supabaseAnonKey='" + supabaseAnonKeyMasked + '\'' +
+            ", maxRetries=" + maxRetries +
+            ", retryDelay=" + retryDelay +
+            '}'
     }
 }

@@ -34,23 +34,20 @@ class Instance {
      * Constructor for the Instance class.
      *
      * @param hub The LaminHub instance.
-     * @param owner The owner of the instance.
-     * @param name The name of the instance.
+     * @param settings The settings for the instance.
      * @throws IllegalStateException if any of the parameters are null or invalid.
      */
     Instance(
         LaminHub hub,
-        String owner,
-        String name,
+        InstanceSettings settings,
         Integer maxRetries,
         Integer retryDelay
     ) {
         if (!hub) { throw new IllegalStateException('LaminHub is null. Please check the LaminHub instance.') }
-        if (!owner) { throw new IllegalStateException('Owner is null. Please check the owner.') }
-        if (!name) { throw new IllegalStateException('Name is null. Please check the name.') }
+        if (!settings) { throw new IllegalStateException('InstanceSettings is null. Please check the InstanceSettings instance.') }
 
         this.hub = hub
-        this.settings = hub.getInstanceSettings(owner, name)
+        this.settings = settings
 
         // Initialize the API client with the provided API URL
         ApiClient defaultClient = Configuration.getDefaultApiClient()
