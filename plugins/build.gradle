@@ -169,7 +169,7 @@ classes.dependsOn subprojects.copyPluginLibs
  * Merge and publish the plugins index file
  */
 task publishIndex( type: io.nextflow.gradle.tasks.GithubRepositoryPublisher ) {
-    indexUrl = 'https://github.com/nextflow-io/plugins/main/plugins.json'
+    indexUrl = 'https://github.com/data-intuitive/plugins/main/plugins.json'
     repos = allPlugins()
     owner = github_organization
     githubUser = github_username
