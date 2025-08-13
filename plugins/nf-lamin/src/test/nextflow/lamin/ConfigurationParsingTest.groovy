@@ -284,4 +284,63 @@ class ConfigurationParsingTest extends Specification {
             'owner_with_underscores/repo_with_underscores'
         ]
     }
+
+    def "should handle extreme retry values"() {
+        when:
+        def config = new LaminConfig(
+            'owner/repo',
+            'test-api-key',
+            null,
+            null,
+            null,
+            null,
+            maxRetries ?: 3,
+            retryDelay ?: 100
+        )
+
+        then:
+        config.getMaxRetries() == (maxRetries ?: 3)
+        config.getRetryDelay() == (retryDelay ?: 100)
+
+        where:
+        maxRetries | retryDelay
+        null       | null
+        1          | 1
+        100        | 10000
+        Integer.MAX_VALUE | Integer.MAX_VALUE
+    }
+
+    def "should handle special characters in configuration"() {
+        given:
+        def specialKey = 'key-with-special-chars-!@#$%^&*()'
+        def specialProject = 'project with spaces & special chars'
+
+        when:
+        def config = new LaminConfig(
+            'owner/repo',
+            specialKey,
+            specialProject
+        )
+
+        then:
+        config.getApiKey() == specialKey
+        config.getProject() == specialProject
+    }
+
+    def "should handle very long configuration values"() {
+        given:
+        def longKey = 'a' * 1000
+        def longProject = 'b' * 1000
+
+        when:
+        def config = new LaminConfig(
+            'owner/repo',
+            longKey,
+            longProject
+        )
+
+        then:
+        config.getApiKey() == longKey
+        config.getProject() == longProject
+    }
 }
