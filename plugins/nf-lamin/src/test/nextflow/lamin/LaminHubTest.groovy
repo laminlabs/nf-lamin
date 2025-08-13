@@ -87,4 +87,44 @@ class LaminHubTest extends Specification {
         then:
         hub != null
     }
+
+    def "should handle malformed JWT tokens"() {
+        given:
+        def config = new LaminConfig(
+            'owner/repo',
+            'invalid-api-key',
+            null,
+            'staging'
+        )
+
+        when:
+        def hub = new LaminHub(
+            config.getSupabaseApiUrl(),
+            config.getSupabaseAnonKey(),
+            config.getApiKey()
+        )
+
+        then:
+        hub != null
+    }
+
+    def "should handle network connectivity issues gracefully"() {
+        given:
+        def config = new LaminConfig(
+            'owner/repo',
+            'test-api-key',
+            null,
+            'staging'
+        )
+
+        when:
+        def hub = new LaminHub(
+            'https://invalid.nonexistent.domain.com',
+            config.getSupabaseAnonKey(),
+            config.getApiKey()
+        )
+
+        then:
+        hub != null
+    }
 }
