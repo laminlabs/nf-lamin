@@ -230,4 +230,58 @@ class ConfigurationParsingTest extends Specification {
         !result.contains('api-key-that-should-be-masked')
         !result.contains('anon-key-that-should-be-masked')
     }
+
+    @Unroll
+    def "should handle invalid instance format '#invalidInstance'"() {
+        when:
+        new LaminConfig(invalidInstance, 'test-api-key')
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains('not valid')
+
+        where:
+        invalidInstance << [
+            'single-name',
+            'owner/repo/extra',
+            'owner/',
+            '/repo',
+            'owner//repo',
+            'owner/ repo',
+            'owner /repo',
+            'owner/repo '
+        ]
+    }
+
+    def "should handle empty and null instances"() {
+        when:
+        new LaminConfig(emptyInstance, 'test-api-key')
+
+        then:
+        thrown(IllegalArgumentException)
+
+        where:
+        emptyInstance << ['', null, '/', ' ']
+    }
+
+    @Unroll
+    def "should accept valid instance format '#validInstance'"() {
+        when:
+        def config = new LaminConfig(validInstance, 'test-api-key')
+
+        then:
+        config.getInstance() == validInstance
+        noExceptionThrown()
+
+        where:
+        validInstance << [
+            'owner/repo',
+            'test-owner/test-repo',
+            'laminlabs/lamindata',
+            'user123/project456',
+            'owner.with.dots/repo.with.dots',
+            'owner-with-dashes/repo-with-dashes',
+            'owner_with_underscores/repo_with_underscores'
+        ]
+    }
 }
