@@ -1,4 +1,4 @@
-package nextflow.lamin
+package nextflow.lamin.config
 
 import groovy.transform.PackageScope
 import groovy.transform.CompileStatic

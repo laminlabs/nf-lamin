@@ -23,6 +23,7 @@ import ai.lamin.lamin_api_client.ApiException
 import nextflow.lamin.instance.Instance
 import nextflow.lamin.instance.InstanceSettings
 import nextflow.lamin.hub.LaminHub
+import nextflow.lamin.config.LaminConfig
 
 /**
  * Example workflow events observer
