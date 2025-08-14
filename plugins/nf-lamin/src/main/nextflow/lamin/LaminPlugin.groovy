@@ -21,6 +21,7 @@ import nextflow.plugin.BasePlugin
 import nextflow.Session
 import nextflow.Nextflow
 import org.pf4j.PluginWrapper
+import nextflow.lamin.config.LaminConfig
 
 /**
  * Implements the Lamin plugins entry point
@@ -45,7 +46,7 @@ class LaminPlugin extends BasePlugin {
     @PackageScope
     static LaminConfig getConfig() {
         if (config == null) {
-            config = LaminConfig.parseConfig(this.getSession())
+            config = LaminConfig.parseConfig(getSession())
         }
         return config
     }

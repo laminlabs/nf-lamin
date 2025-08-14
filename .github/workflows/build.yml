@@ -72,6 +72,8 @@ jobs:
         run: ./gradlew check
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+          LAMIN_API_KEY: ${{ secrets.LAMIN_API_KEY_TESTUSER1 }}
+          LAMIN_STAGING_API_KEY: ${{ secrets.LAMIN_API_KEY_TESTUSER1_STAGING }}
 
       - run: nox -s build
         if: ${{ matrix.java_version == '21' }}

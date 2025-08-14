@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package nextflow.lamin
+package nextflow.lamin.helpers
 
 import com.google.common.jimfs.Configuration
 import com.google.common.jimfs.Jimfs
