@@ -77,6 +77,46 @@ class Instance {
     }
 
     /**
+     * Get the LaminHub instance.
+     * @return the hub
+     */
+    LaminHub getHub() {
+        return this.hub
+    }
+
+    /**
+     * Get the instance settings.
+     * @return the settings
+     */
+    InstanceSettings getSettings() {
+        return this.settings
+    }
+
+    /**
+     * Get the maximum number of retries.
+     * @return the max retries
+     */
+    Integer getMaxRetries() {
+        return this.maxRetries
+    }
+
+    /**
+     * Get the retry delay.
+     * @return the retry delay
+     */
+    Integer getRetryDelay() {
+        return this.retryDelay
+    }
+
+    /**
+     * Get the API instance.
+     * @return the API instance
+     */
+    DefaultApi getApiInstance() {
+        return this.apiInstance
+    }
+
+    /**
      * Fetch the instance statistics from the Lamin API.
      * @return the instance statistics
      * @throws ApiException if an error occurs while fetching the statistics

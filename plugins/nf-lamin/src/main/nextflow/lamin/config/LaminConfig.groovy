@@ -218,6 +218,15 @@ class LaminConfig {
      */
     static LaminConfig parseConfig(Session session) {
         Map map = session.config?.navigate('lamin') as Map ?: [:]
+        return parseConfig(map)
+    }
+
+    /**
+     * Create a LaminConfig object from the Nextflow session and environment variables
+     * @param session the Nextflow session
+     * @return a LaminConfig object
+     */
+    static LaminConfig parseConfig(Map map) {
         String instance = map.instance ?: System.getenv('LAMIN_CURRENT_INSTANCE')
         String apiKey = map.api_key ?: System.getenv('LAMIN_API_KEY')
         String project = map.project ?: System.getenv('LAMIN_CURRENT_PROJECT')
