@@ -21,7 +21,6 @@ import nextflow.Session
  *
  * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
-@PackageScope
 @CompileStatic
 class LaminConfig {
 
@@ -217,7 +216,6 @@ class LaminConfig {
      * @param session the Nextflow session
      * @return a LaminConfig object
      */
-    @PackageScope
     static LaminConfig parseConfig(Session session) {
         Map map = session.config?.navigate('lamin') as Map ?: [:]
         String instance = map.instance ?: System.getenv('LAMIN_CURRENT_INSTANCE')

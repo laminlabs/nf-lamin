@@ -46,7 +46,7 @@ class LaminPlugin extends BasePlugin {
     @PackageScope
     static LaminConfig getConfig() {
         if (config == null) {
-            config = LaminConfig.parseConfig(this.getSession())
+            config = LaminConfig.parseConfig(getSession())
         }
         return config
     }
