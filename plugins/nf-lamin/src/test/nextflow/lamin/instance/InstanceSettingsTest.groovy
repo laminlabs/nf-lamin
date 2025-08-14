@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package nextflow.lamin
+package nextflow.lamin.instance
 
 import spock.lang.Specification
 import spock.lang.Unroll
@@ -91,7 +91,7 @@ class InstanceSettingsTest extends Specification {
 
         then:
         def e = thrown(IllegalStateException)
-        e.message.contains('Instance settings - owner is empty')
+        e.message == 'Instance settings map is empty.'
     }
 
     def "should handle invalid UUID format"() {
