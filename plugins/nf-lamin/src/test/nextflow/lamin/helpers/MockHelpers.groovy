@@ -1,4 +1,4 @@
-package nextflow.lamin
+package nextflow.lamin.helpers
 
 import groovy.util.logging.Slf4j
 import groovyx.gpars.dataflow.DataflowBroadcast

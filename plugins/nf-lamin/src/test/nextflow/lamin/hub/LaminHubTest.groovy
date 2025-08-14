@@ -13,12 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package nextflow.lamin
+package nextflow.lamin.hub
 
+import spock.lang.IgnoreIf
 import spock.lang.Specification
+import spock.lang.Shared
 import spock.lang.Unroll
-
-import nextflow.lamin.hub.LaminHub
+import nextflow.lamin.config.LaminConfig
 
 /**
  * Test laminhub class
@@ -26,6 +27,10 @@ import nextflow.lamin.hub.LaminHub
  * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
 class LaminHubTest extends Specification {
+
+    @Shared
+    String prodApiKey = System.getenv('LAMIN_API_KEY')
+    String stagingApiKey = System.getenv('LAMIN_STAGING_API_KEY')
 
     def "should create LaminHub with valid parameters"() {
         when:
@@ -126,5 +131,110 @@ class LaminHubTest extends Specification {
 
         then:
         hub != null
+    }
+
+
+    @IgnoreIf({ !env.LAMIN_API_KEY })
+    def "prod: fetch jwt token"() {
+        given:
+        def config = LaminConfig.parseConfig(
+            instance: 'laminlabs/lamindata',
+            api_key: prodApiKey,
+            env: 'prod'
+        )
+        def hub = new LaminHub(
+            config.supabaseApiUrl,
+            config.supabaseAnonKey,
+            config.apiKey
+        )
+
+        when:
+        def accessToken = hub.getAccessToken()
+
+        then:
+        accessToken != null
+        accessToken.length() > 0
+    }
+
+    @IgnoreIf({ !env.LAMIN_API_KEY })
+    def "prod: fetch instance settings"() {
+        given:
+        def config = LaminConfig.parseConfig(
+            instance: 'laminlabs/lamindata',
+            api_key: prodApiKey,
+            env: 'prod'
+        )
+        def hub = new LaminHub(
+            config.supabaseApiUrl,
+            config.supabaseAnonKey,
+            config.apiKey
+        )
+
+        when:
+        def settings = hub.getInstanceSettings(
+            config.instanceOwner,
+            config.instanceName
+        )
+        def str = settings.toString()
+
+        then:
+        settings != null
+        str.contains('id:')
+        str.contains('owner:')
+        str.contains('name:')
+        str.contains('schemaId:')
+        str.contains('apiUrl')
+    }
+
+    @IgnoreIf({ !env.LAMIN_STAGING_API_KEY })
+    def "staging: fetch jwt token"() {
+        given:
+        def config = LaminConfig.parseConfig(
+            instance: 'laminlabs/lamindata',
+            api_key: stagingApiKey,
+            env: 'staging'
+        )
+        def hub = new LaminHub(
+            config.supabaseApiUrl,
+            config.supabaseAnonKey,
+            config.apiKey
+        )
+
+        when:
+        def accessToken = hub.getAccessToken()
+
+        then:
+        accessToken != null
+        accessToken.length() > 0
+    }
+
+    @IgnoreIf({ !env.LAMIN_STAGING_API_KEY })
+    def "staging: fetch instance settings"() {
+        given:
+        def config = LaminConfig.parseConfig(
+            instance: 'laminlabs/lamindata',
+            api_key: stagingApiKey,
+            env: 'staging'
+        )
+        def hub = new LaminHub(
+            config.supabaseApiUrl,
+            config.supabaseAnonKey,
+            config.apiKey
+        )
+
+        when:
+        def settings = hub.getInstanceSettings(
+            config.instanceOwner,
+            config.instanceName
+        )
+        def str = settings.toString()
+
+        then:
+        settings != null
+        str.contains('id:')
+        str.contains('owner:')
+        str.contains('name:')
+        str.contains('schemaId:')
+        str.contains('apiUrl')
     }
 }
