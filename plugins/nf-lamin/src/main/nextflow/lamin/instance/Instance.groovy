@@ -58,6 +58,10 @@ class Instance {
         this.apiInstance.getApiClient().setReadTimeout(30000)
         this.apiInstance.getApiClient().setConnectTimeout(30000)
         this.apiInstance.getApiClient().setWriteTimeout(30000)
+
+        // set maxRetries and retryDelay
+        this.maxRetries = maxRetries
+        this.retryDelay = retryDelay
     }
 
     /**
