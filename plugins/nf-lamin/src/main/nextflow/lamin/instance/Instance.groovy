@@ -58,6 +58,10 @@ class Instance {
         this.apiInstance.getApiClient().setReadTimeout(30000)
         this.apiInstance.getApiClient().setConnectTimeout(30000)
         this.apiInstance.getApiClient().setWriteTimeout(30000)
+
+        // set maxRetries and retryDelay
+        this.maxRetries = maxRetries
+        this.retryDelay = retryDelay
     }
 
     /**
@@ -74,6 +78,46 @@ class Instance {
      */
     String getName() {
         return this.settings.name()
+    }
+
+    /**
+     * Get the LaminHub instance.
+     * @return the hub
+     */
+    LaminHub getHub() {
+        return this.hub
+    }
+
+    /**
+     * Get the instance settings.
+     * @return the settings
+     */
+    InstanceSettings getSettings() {
+        return this.settings
+    }
+
+    /**
+     * Get the maximum number of retries.
+     * @return the max retries
+     */
+    Integer getMaxRetries() {
+        return this.maxRetries
+    }
+
+    /**
+     * Get the retry delay.
+     * @return the retry delay
+     */
+    Integer getRetryDelay() {
+        return this.retryDelay
+    }
+
+    /**
+     * Get the API instance.
+     * @return the API instance
+     */
+    DefaultApi getApiInstance() {
+        return this.apiInstance
     }
 
     /**
