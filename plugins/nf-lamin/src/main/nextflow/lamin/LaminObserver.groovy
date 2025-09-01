@@ -24,6 +24,7 @@ import nextflow.lamin.instance.Instance
 import nextflow.lamin.instance.InstanceSettings
 import nextflow.lamin.hub.LaminHub
 import nextflow.lamin.config.LaminConfig
+import nextflow.lamin.model.RunStatus
 
 /**
  * Example workflow events observer
@@ -78,8 +79,26 @@ class LaminObserver implements TraceObserver {
         // fetch or create Transform object
         this.transform = fetchOrCreateTransform()
 
-        // create Run object
+        // create Run object with "scheduled" status
         this.run = createRun()
+    }
+
+    @Override
+    void onFlowBegin() {
+        // Update run status from "scheduled" (-3) to "started" (-1) when workflow execution begins
+        if (this.run) {
+            WorkflowMetadata wfMetadata = this.session.getWorkflowMetadata()
+            this.instance.updateRecord(
+                moduleName: 'core',
+                modelName: 'run',
+                uid: this.run.uid,
+                data: [
+                    started_at: wfMetadata.start,
+                    _status_code: RunStatus.STARTED.code
+                ]
+            )
+            log.info "Run ${this.run.uid} ${RunStatus.STARTED.description}"
+        }
     }
 
     @Override
@@ -103,12 +122,12 @@ class LaminObserver implements TraceObserver {
 
     @Override
     void onFlowError(TaskHandler handler, TraceRecord trace) {
-        finalizeRun()
+        finalizeRun(RunStatus.ERRORED)
     }
 
     @Override
     void onFlowComplete() {
-        finalizeRun()
+        finalizeRun(RunStatus.COMPLETED)
     }
 
     // --- private methods ---
@@ -196,7 +215,7 @@ class LaminObserver implements TraceObserver {
                 name: wfMetadata.runName,
                 created_at: wfMetadata.start,
                 started_at: wfMetadata.start,
-                _status_code: -1
+                _status_code: RunStatus.SCHEDULED.code
             ]
         )
 
@@ -206,7 +225,8 @@ class LaminObserver implements TraceObserver {
         // todo: link to project?
     }
 
-    protected void finalizeRun() {
+    protected void finalizeRun(RunStatus status) {
+        log.info "Run ${this.run.uid} ${status.description}"
         WorkflowMetadata wfMetadata = this.session.getWorkflowMetadata()
 
         this.instance.updateRecord(
@@ -215,7 +235,7 @@ class LaminObserver implements TraceObserver {
             uid: this.run.uid,
             data: [
                 finished_at: wfMetadata.complete,
-                _status_code: wfMetadata.exitStatus
+                _status_code: status.code
             ]
         )
     }
