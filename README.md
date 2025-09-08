@@ -56,7 +56,7 @@ make assemble
 The plugin can be tested without a local Nextflow installation:
 
 1. Build and install the plugin to your local Nextflow installation: `make install`
-2. Run a pipeline with the right version of the plugin: `nextflow run hello -plugins nf-lamin@0.1.1`
+2. Run a pipeline with the right version of the plugin: `nextflow run hello -plugins nf-lamin@0.2.0`
 
 ## Contributing
 
