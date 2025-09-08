@@ -1,84 +1,126 @@
-# Contributing
+# Contributing to nf-lamin
+
+This document provides guidelines for contributing to the nf-lamin Nextflow plugin.
 
 See the [Nextflow documentation](https://nextflow.io/docs/latest/plugins.html) for more information about developing plugins.
 
-## Plugin structure
+## Project Structure
 
-- `settings.gradle`
+The nf-lamin plugin follows the modern Nextflow plugin architecture:
 
-  Gradle project settings.
+### Core Files
 
-- `plugins/nf-lamin`
+- **`build.gradle`** - Main build configuration using the `io.nextflow.nextflow-plugin` plugin
+- **`settings.gradle`** - Gradle project settings
+- **`src/main/groovy/ai/lamin/plugin/`** - Plugin implementation sources
+- **`src/test/groovy/ai/lamin/plugin/`** - Plugin unit tests
+- **`nextflow_lamin/`** - Python package for documentation and testing
+- **`docs/`** - Documentation as executable Jupyter notebooks
 
-  The plugin implementation base directory.
+### Key Plugin Classes
 
-- `plugins/nf-lamin/build.gradle`
+- **`LaminPlugin.groovy`** - Main plugin entry point extending `BasePlugin`
+- **`LaminConfig.groovy`** - Configuration handling from `nextflow.config` lamin block
+- **`LaminExtension.groovy`** - Custom channel factories, operators, and functions
+- **`LaminFactory.groovy`** - Factory for creating plugin components
+- **`LaminObserver.groovy`** - Implements `TraceObserver` to capture workflow events
+- **`hub/`** and **`instance/`** - API clients for different Lamin environments
 
-  Plugin Gradle build file. Project dependencies should be added here.
+## Development Environment Setup
 
-- `plugins/nf-lamin/src/resources/META-INF/MANIFEST.MF`
+### Prerequisites
 
-  Manifest file defining the plugin attributes e.g. name, version, etc. The attribute `Plugin-Class` declares the plugin main class. This class should extend the base class `nextflow.plugin.BasePlugin` e.g. `lamin.LaminPlugin`.
+1. **Java Development Kit (JDK)** - Full JDK installation (not just JRE)
+2. **Git** - For version control
+3. **Python 3.8+** - For documentation and testing (optional)
 
-- `plugins/nf-lamin/src/resources/META-INF/extensions.idx`
+## Building and Testing
 
-  This file declares one or more extension classes provided by the plugin. Each line should contain the fully qualified name of a Java class that implements the `org.pf4j.ExtensionPoint` interface (or a sub-interface).
+### Building the Plugin
 
-- `plugins/nf-lamin/src/main`
-
-  The plugin implementation sources.
-
-- `plugins/nf-lamin/src/test`
-
-  The plugin unit tests.
-
-## Plugin classes
-
-- `LaminConfig`: shows how to handle options from the Nextflow configuration
-
-- `LaminExtension`: shows how to create custom channel factories, operators, and fuctions that can be included into pipeline scripts
-
-- `LaminObserverFactoryTest` and `LaminObserver`: shows how to react to workflow events with custom behavior
-
-- `LaminPlugin`: the plugin entry point
-
-## Unit testing
-
-To run your unit tests, run the following command in the project root directory (ie. where the file `settings.gradle` is located):
+Build the plugin using the provided Makefile:
 
 ```bash
-./gradlew check
+# Build the plugin
+make assemble
+
+# Install to local Nextflow plugins directory
+make install
 ```
 
-## Testing and debugging
+### Unit Testing
 
-To build and test the plugin during development, use the following commands:
+Run the Groovy unit tests:
 
-1. Rebuild the plugin using the `make install` command. Take note of the version number of the plugin.
+```bash
+# Run all tests
+./gradlew check
 
-2. Run Nextflow with the plugin by adding the option `-plugins nf-lamin@0.1.0` to load the plugin:
+# Run tests with verbose output
+./gradlew test --info
+```
 
-   ```bash
-   nextflow run nf-core/hello -plugins nf-lamin@0.1.0
-   ```
+### Integration Testing
 
-   Note: replace the version number with the actual version of the plugin.
+Test the plugin with real Nextflow workflows:
 
-## Package, upload, and publish
+```bash
+# Test with a simple pipeline
+nextflow run hello -plugins nf-lamin@0.1.1
 
-Follow these steps to package, upload and publish the plugin:
+# Test with nf-core pipeline
+nextflow run nf-core/hello -plugins nf-lamin@0.1.1
+```
 
-1. Create a file named `gradle.properties` in the project root containing the following attributes (this file should not be committed to Git):
+### Documentation Testing
 
-   - `github_organization`: the GitHub organisation where the plugin repository is hosted.
-   - `github_username`: The GitHub username granting access to the plugin repository.
-   - `github_access_token`: The GitHub access token required to upload and commit changes to the plugin repository.
-   - `github_commit_email`: The email address associated with your GitHub account.
+The documentation is tested using Python notebooks:
 
-2. Use the following command to package and create a release for your plugin on GitHub:
+```bash
+# Install Python dependencies (optional)
+pip install -e .
 
-   ```bash
-   ./gradlew :plugins:nf-lamin:upload
-   ```
+# Run notebook tests
+python -m pytest tests/test_notebooks.py
+```
 
-3. Create a pull request against [nextflow-io/plugins](https://github.com/nextflow-io/plugins/blob/main/plugins.json) to make the plugin accessible to Nextflow.
+## Configuration for Development
+
+### Local Testing Configuration
+
+Create a `nextflow.config` file for testing:
+
+```groovy
+plugins {
+    id 'nf-lamin@0.1.1'
+}
+
+lamin {
+    instance = "your-org/your-instance"
+    api_key = secrets.LAMIN_API_KEY
+    env = "staging"  // Use staging for development
+}
+```
+
+### Environment Variables
+
+Useful environment variables for development:
+
+```bash
+# Enable development mode
+export NXF_PLUGINS_MODE=dev
+export NXF_PLUGINS_DEV=$PWD
+
+# Use specific Nextflow version
+export NXF_VER=25.04.6
+
+# Enable debug logging
+export NXF_DEBUG=2
+```
+
+## Getting Help
+
+- Check the [full documentation](https://docs.lamin.ai/nextflow)
+- Review existing [GitHub issues](https://github.com/laminlabs/nf-lamin/issues)
+- Join the discussion in GitHub Discussions
+- Refer to [Nextflow plugin documentation](https://nextflow.io/docs/latest/plugins.html)
