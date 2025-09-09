@@ -16,10 +16,10 @@ nextflowPlugin {
     nextflowVersion = '25.04.0'
 
     provider = 'ai.lamin'
-    className = 'ai.lamin.plugin.LaminPlugin'
+    className = 'ai.lamin.nf_lamin.LaminPlugin'
     extensionPoints = [
-        'ai.lamin.plugin.LaminExtension',
-        'ai.lamin.plugin.LaminFactory',
-        'ai.lamin.plugin.LaminConfig'
+        'ai.lamin.nf_lamin.LaminExtension',
+        'ai.lamin.nf_lamin.LaminFactory',
+        'ai.lamin.nf_lamin.LaminConfig'
     ]
 }
