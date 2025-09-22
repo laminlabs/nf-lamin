@@ -1,0 +1,25 @@
+plugins {
+    id 'io.nextflow.nextflow-plugin' version '1.0.0-beta.6'
+}
+
+version = '0.2.0'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'ai.lamin:lamin-api-client:0.0.3'
+}
+
+nextflowPlugin {
+    nextflowVersion = '25.04.0'
+
+    provider = 'ai.lamin'
+    className = 'ai.lamin.nf_lamin.LaminPlugin'
+    extensionPoints = [
+        'ai.lamin.nf_lamin.LaminExtension',
+        'ai.lamin.nf_lamin.LaminFactory',
+        'ai.lamin.nf_lamin.LaminConfig'
+    ]
+}

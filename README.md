@@ -34,7 +34,7 @@ Now, simply run your Nextflow pipeline with the plugin enabled.
 The plugin will automatically connect to your LaminDB instance and record the run.
 
 ```bash
-nextflow run <your-pipeline> -plugins nf-lamin
+nextflow run <your-pipeline>
 ```
 
     N E X T F L O W  ~  version 24.10.5
@@ -43,82 +43,20 @@ nextflow run <your-pipeline> -plugins nf-lamin
     Transform XXXYYYZZZABC0001 (https://lamin.ai/your-organization/your-instance/transform/XXXYYYZZZABC0001)
     Run abcdefghijklmnopqrst (https://staging.laminhub.com/laminlabs/lamindata/transform/XXXYYYZZZABC0001/abcdefghijklmnopqrst)
 
-## Testing locally
+## Building
 
-### Prerequisites
-
-1. Install full JDK (not just JRE)
-
-### Setup
-
-1. Set path variables:
-
-```bash
-export NXF_PLUGINS_MODE=dev
-export NXF_PLUGINS_DEV=$(pwd)
-```
-
-2. Get a local copy of Nextflow:
-
-```bash
-git clone --depth 1 https://github.com/nextflow-io/nextflow ../nextflow
-```
-
-3. Configure composite build:
-
-```bash
-echo "includeBuild('../nextflow')" >> settings.gradle
-```
-
-4. Create launch classpath (from Nextflow directory):
-
-```bash
-cd ../nextflow
-./gradlew exportClasspath
-cd ../nf-lamin
-```
-
-5. Build the plugin:
+To build the plugin:
 
 ```bash
 make assemble
 ```
 
-### Running the plugin
+## Testing with Nextflow
 
-1. Select the environment:
+The plugin can be tested without a local Nextflow installation:
 
-Edit the `nextflow.config` to select an environment:
-
-```
-// lamin.env = "prod"
-lamin.env = "staging"
-```
-
-2. Run a pipeline:
-
-```bash
-./launch.sh run nextflow-io/hello -plugins nf-lamin
-```
-
-## Publishing the plugin
-
-1. Create a file named gradle.properties in the project root containing the following attributes (this file should not be committed to Git):
-
-```
-github_organization: the GitHub organisation where the plugin repository is hosted.
-github_username: The GitHub username granting access to the plugin repository.
-github_access_token: The GitHub access token required to upload and commit changes to the plugin repository.
-github_commit_email: The email address associated with your GitHub account.
-```
-
-2. Use the following command to package and create a release for your plugin on GitHub:
-
-```bash
-./gradlew :plugins:nf-hello:upload
-```
-
-3. Create a pull request against [nextflow-io/plugins](https://github.com/nextflow-io/plugins/blob/main/plugins.json) to make the plugin accessible to Nextflow.
+1. Build and install the plugin to your local Nextflow installation: `make install`
+2. Run a pipeline with the right version of the plugin: `nextflow run hello -plugins nf-lamin@0.2.0`
 
 ## Contributing
 
