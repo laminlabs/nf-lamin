@@ -1,0 +1,118 @@
+name: build
+on:
+  push:
+    branches: [main]
+    tags-ignore:
+      - "*"
+  pull_request:
+    branches:
+      - "*"
+  repository_dispatch:
+    types: [build]
+jobs:
+  build:
+    name: Build nf-lamin
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: ${{ github.event_name }}
+      NXF_ANSI_LOG: false
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        java_version: [21, 25]
+        group: ["postrun", "plugin"]
+
+    steps:
+      - name: Environment
+        run: env | sort
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: true
+
+      - uses: actions/checkout@v4
+        with:
+          repository: laminlabs/lndocs
+          ssh-key: ${{ secrets.READ_LNDOCS }}
+          path: lndocs
+          ref: main
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
+      - uses: actions/cache@v3
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - run: pip install "laminci@git+https://github.com/laminlabs/laminci"
+      - run: sudo apt-get -y install graphviz
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+
+      - run: nox -s lint
+        if: ${{ matrix.java_version == '21' }}
+
+      - name: Setup Java ${{ matrix.java_version }}
+        uses: actions/setup-java@v5
+        with:
+          java-version: ${{matrix.java_version}}
+          architecture: x64
+          distribution: "temurin"
+
+      - name: Compile
+        run: ./gradlew assemble
+
+      - name: Tests
+        run: ./gradlew check
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+          LAMIN_API_KEY: ${{ secrets.LAMIN_API_KEY_TESTUSER1 }}
+          LAMIN_STAGING_API_KEY: ${{ secrets.LAMIN_API_KEY_TESTUSER1_STAGING }}
+
+      - uses: nf-core/setup-nextflow@v2
+        with:
+          version: "latest-stable"
+
+      - run: nox -s "build(group='${{ matrix.group }}')"
+        if: ${{ matrix.java_version == '21' }}
+
+      - run: nox -s docs
+        if: ${{ matrix.java_version == '21' }}
+
+      - uses: nwtgck/actions-netlify@v1.2
+        if: ${{ matrix.java_version == '21' }}
+        with:
+          publish-dir: "_build/html"
+          production-deploy: ${{ github.event_name == 'push' }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          enable-commit-comment: false
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+
+      - uses: voxmedia/github-action-slack-notify-build@v1
+        if: ${{ success() && github.event_name == 'repository_dispatch' }}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_GITHUB_ACTION }}
+        with:
+          channel_id: C05FDBBFJ1F
+          status: SUCCESS
+          color: good
+
+      - uses: voxmedia/github-action-slack-notify-build@v1
+        if: ${{ failure() && github.event_name == 'repository_dispatch' }}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_GITHUB_ACTION }}
+        with:
+          channel_id: C05FDBBFJ1F
+          status: FAILURE
+          color: danger
