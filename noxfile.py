@@ -1,5 +1,6 @@
 import nox
 import os
+import shutil
 from pathlib import Path
 from laminci import upload_docs_artifact
 from laminci.nox import build_docs, login_testuser1, run_pre_commit, run_pytest, run
@@ -40,6 +41,12 @@ def build(session, group):
     session.run(*"pip install -e .[dev]".split())
     login_testuser1(session)
     run(session, f"pytest -s ./tests/test_notebooks.py::test_{group}")
+
+    # move artifacts into right place
+    target_dir = Path(f"./docs_{group}")
+    target_dir.mkdir(exist_ok=True)
+    for filename in GROUPS[group]:
+        shutil.copy(Path("docs") / filename, target_dir / filename)
 
 
 @nox.session
