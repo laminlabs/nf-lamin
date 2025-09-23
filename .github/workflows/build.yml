@@ -125,6 +125,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-central-1
 
+      - uses: actions/download-artifact@v4
       - run: nox -s docs
 
       - uses: nwtgck/actions-netlify@v1.2
