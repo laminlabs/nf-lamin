@@ -8,6 +8,7 @@
 :hidden:
 
 getting_started
+nf_core_scrnaseq
 reference
 roadmap
 changelog
