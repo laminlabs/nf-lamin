@@ -13,8 +13,8 @@ nox.options.default_venv_backend = "none"
 IS_PR = os.getenv("GITHUB_EVENT_NAME") != "push"
 
 GROUPS = {}
-GROUPS["postrun"] = ["nf_core_scrnaseq.ipynb"]
-GROUPS["plugin"] = ["getting_started.ipynb"]
+GROUPS["postrun"] = ["postrun.ipynb"]
+GROUPS["plugin"] = ["plugin.ipynb"]
 
 @nox.session
 def lint(session: nox.Session) -> None:
@@ -50,6 +50,5 @@ def docs(session):
     ]:
         for path in Path(f"./docs_{group}").glob("*"):
             path.rename(f"./docs/{path.name}")
-    run(session, "lamin init --storage ./docsbuild --modules bionty")
     build_docs(session, strict=False)
     upload_docs_artifact(aws=True)

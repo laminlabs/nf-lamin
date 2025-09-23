@@ -60,7 +60,7 @@ jobs:
           aws-region: eu-central-1
 
       - run: nox -s lint
-        if: ${{ matrix.java_version == '21' }}
+        if: ${{ matrix.java_version == '25' }}
 
       - name: Setup Java ${{ matrix.java_version }}
         uses: actions/setup-java@v5
@@ -84,7 +84,7 @@ jobs:
           version: "latest-stable"
 
       - run: nox -s "build(group='${{ matrix.group }}')"
-        if: ${{ matrix.java_version == '21' }}
+        if: ${{ matrix.java_version == '25' }}
 
   docs:
     name: Build docs
