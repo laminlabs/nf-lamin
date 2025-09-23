@@ -51,4 +51,4 @@ Run rezkYti2Js3iLPsIlxko (https://staging.laminhub.com/laminlabs/lamindata/trans
 
 ## More information
 
-For detailed documentation on how to use `nf-lamin`, including configuration options and advanced features, please refer to the [Getting Started](getting_started.md) and [Reference](reference.md) sections.
+For detailed documentation on how to use `nf-lamin`, including configuration options and advanced features, please refer to the [Getting Started](getting_started.ipynb) and [Reference](reference.md) sections.
