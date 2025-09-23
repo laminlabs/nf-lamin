@@ -122,5 +122,4 @@ export NXF_DEBUG=2
 
 - Check the [full documentation](https://docs.lamin.ai/nextflow)
 - Review existing [GitHub issues](https://github.com/laminlabs/nf-lamin/issues)
-- Join the discussion in GitHub Discussions
-- Refer to [Nextflow plugin documentation](https://nextflow.io/docs/latest/plugins.html)
+- Refer to the [Nextflow plugin documentation](https://nextflow.io/docs/latest/plugins.html)

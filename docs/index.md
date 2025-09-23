@@ -13,7 +13,8 @@ roadmap
 changelog
 ```
 
-The `nf-lamin` plugin for Nextflow provides seamless integration with [LaminDB](https://github.com/laminlabs/lamindb). It allows you to automatically track workflow runs, parameters, and input/output data, ensuring reproducibility and providing a complete audit trail for your analyses.
+The `nf-lamin` plugin for Nextflow provides seamless integration with [LaminDB](https://github.com/laminlabs/lamindb).
+It allows you to automatically track workflow runs, parameters, and input/output data, ensuring reproducibility and providing a complete audit trail for your analyses.
 
 ## Example Usage
 
@@ -34,7 +35,7 @@ Then, you can run the pipeline with the `nf-lamin` plugin enabled.
 
 ```bash
 nextflow run nf-core/scrnaseq \
-  -r "2.7.1" \
+  -r "4.0.0" \
   -profile docker,test \
   -plugins nf-lamin \
   --outdir gs://di-temporary-public/scratch/temp-scrnaseq/run_2025-06-23

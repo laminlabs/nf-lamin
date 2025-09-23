@@ -28,13 +28,16 @@ jobs:
           ssh-key: ${{ secrets.READ_LNDOCS }}
           path: lndocs
           ref: main
+
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.x"
+
       - uses: nf-core/setup-nextflow@v2
         with:
           version: "latest-stable"
-      - uses: actions/cache@v3
+
+      - uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit
           key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -45,8 +48,10 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-central-1
+
       - run: nox -s lint
       - run: nox -s build
+
       - uses: codecov/codecov-action@v2
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -59,6 +64,7 @@ jobs:
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+
       - uses: voxmedia/github-action-slack-notify-build@v1
         if: success()
         env:

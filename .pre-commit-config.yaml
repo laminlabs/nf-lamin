@@ -15,7 +15,7 @@ repos:
               nextflow_bulk_rna
           )
   - repo: https://github.com/rbubley/mirrors-prettier
-    rev: v3.5.1
+    rev: v3.6.2
     hooks:
       - id: prettier
         exclude: |
