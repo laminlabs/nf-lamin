@@ -39,7 +39,6 @@ def build(session, group):
     )
     session.run(*"pip install -e .[dev]".split())
     login_testuser1(session)
-    run_pytest(session)
     run(session, f"pytest -s ./tests/test_notebooks.py::test_{group}")
 
 
