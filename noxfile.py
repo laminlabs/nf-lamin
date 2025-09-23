@@ -45,7 +45,6 @@ def build(session, group):
 
 @nox.session
 def docs(session):
-    # move artifacts into right place
     for group in [
         "postrun",
         "plugin",
