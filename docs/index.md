@@ -9,7 +9,7 @@
 
 plugin
 postrun
-reference
+plugin_reference
 roadmap
 changelog
 ```
