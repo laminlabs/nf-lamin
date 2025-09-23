@@ -49,8 +49,7 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-central-1
 
-      - run: nox -s lint
-      - run: nox -s build
+      - run: nox -s "build(group='postrun')"
 
       - uses: codecov/codecov-action@v2
         with:

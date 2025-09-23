@@ -75,7 +75,7 @@ jobs:
           LAMIN_API_KEY: ${{ secrets.LAMIN_API_KEY_TESTUSER1 }}
           LAMIN_STAGING_API_KEY: ${{ secrets.LAMIN_API_KEY_TESTUSER1_STAGING }}
 
-      - run: nox -s build
+      - run: nox -s "build(group='plugin')"
         if: ${{ matrix.java_version == '21' }}
 
       - uses: nwtgck/actions-netlify@v1.2
