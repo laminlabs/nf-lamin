@@ -38,6 +38,7 @@ __pycache__/
 # Ignore nextflow related directories
 .nextflow*
 work
+bin
 
 # Ignore Gradle build output directory
 build
