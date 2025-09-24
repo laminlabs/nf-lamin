@@ -2,7 +2,7 @@
 
 [Nextflow](https://www.nextflow.io/) is a widely used workflow manager designed for scalable and reproducible data analysis in bioinformatics.
 
-LaminDB integrates with Nextflow runs through:
+LaminDB integrates with Nextflow through:
 
 1. With the `nf-lamin` Nextflow plugin
 2. Using a post-run Python script
@@ -59,7 +59,7 @@ For an example, please see the [post-run documentation](https://docs.lamin.ai/ne
 Such a script could be deployed via:
 
 1. A serverless environment trigger (e.g., AWS Lambda)
-2. A [post-run script](https://docs.seqera.io/platform/23.4.0/launch/advanced#pre-and-post-run-scripts) on the Seqera Platform
+2. A [post-run script](https://docs.seqera.io/platform-cloud/launch/advanced#pre-and-post-run-scripts) on the Seqera Platform
 
 ## Contributing
 
