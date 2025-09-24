@@ -1,25 +1,29 @@
-# nf-lamin plugin
+# nf-lamin
 
-A Nextflow plugin that integrates [LaminDB](https://github.com/laminlabs/lamindb) data provenance into Nextflow workflows.
+[Nextflow](https://www.nextflow.io/) is the most widely used workflow manager in bioinformatics.
 
-This plugin automatically tracks your Nextflow workflow executions, including parameters, code versions, and input/output files as structured metadata in LaminDB.
+There are two ways to register Nextflow runs with a LaminDB instance:
 
-For detailed instructions, please see the [**full documentation**](https://docs.lamin.ai/nextflow).
+1. The `nf-lamin` Nextflow plugin
+2. A postrun Python script
 
-## Usage
+## Plugin
+
+The `nf-lamin` Nextflow plugin automatically tracks your Nextflow workflow executions, including parameters, code versions, and input/output files as structured metadata in LaminDB.
+For detailed instructions, please see the [**full documentation**](https://docs.lamin.ai/nextflow-plugin).
+
+### Usage
 
 You first need to store your [Lamin API key](https://lamin.ai/settings) as a secret in your Nextflow configuration.
-This allows the plugin to authenticate with your LaminDB instance.
-You can do this by running the following command:
+This allows the plugin to authenticate with your LaminDB instance:
 
 ```bash
 nextflow secrets set LAMIN_API_KEY "your_lamin_api_key_here"
 ```
 
-To use the plugin in a Nextflow workflow, add the plugin to your `nextflow.config` and configure it with your LaminDB instance and API key:
+To use the plugin in a Nextflow workflow, add it to your `nextflow.config` file and configure it with your LaminDB instance and API key:
 
 ```groovy
-// filepath: nextflow.config
 plugins {
   id 'nf-lamin'
 }
@@ -43,20 +47,19 @@ nextflow run <your-pipeline>
     Transform XXXYYYZZZABC0001 (https://lamin.ai/your-organization/your-instance/transform/XXXYYYZZZABC0001)
     Run abcdefghijklmnopqrst (https://staging.laminhub.com/laminlabs/lamindata/transform/XXXYYYZZZABC0001/abcdefghijklmnopqrst)
 
-## Building
+## Postrun script
 
-To build the plugin:
+We generally recommend using the `nf-lamin` plugin.
+However, if lower level LaminDB usage is required, it might be worthwhile writing a custom Python script.
 
-```bash
-make assemble
-```
+### Usage
 
-## Testing with Nextflow
+We show an example of such a script [here](https://docs.lamin.ai/nextflow-postrun).
 
-The plugin can be tested without a local Nextflow installation:
+Such a script could be deployed via:
 
-1. Build and install the plugin to your local Nextflow installation: `make install`
-2. Run a pipeline with the right version of the plugin: `nextflow run hello -plugins nf-lamin@0.2.0`
+1. a serverless environment trigger (e.g., AWS Lambda)
+2. a [post-run script](https://docs.seqera.io/platform/23.4.0/launch/advanced#pre-and-post-run-scripts) on the Seqera Platform
 
 ## Contributing
 

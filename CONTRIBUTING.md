@@ -1,14 +1,16 @@
 # Contributing to nf-lamin
 
+## Plugin
+
 This document provides guidelines for contributing to the nf-lamin Nextflow plugin.
 
 See the [Nextflow documentation](https://nextflow.io/docs/latest/plugins.html) for more information about developing plugins.
 
-## Project Structure
+### Structure
 
 The nf-lamin plugin follows the modern Nextflow plugin architecture:
 
-### Core Files
+#### Core Files
 
 - **`build.gradle`** - Main build configuration using the `io.nextflow.nextflow-plugin` plugin
 - **`settings.gradle`** - Gradle project settings
@@ -17,7 +19,7 @@ The nf-lamin plugin follows the modern Nextflow plugin architecture:
 - **`nextflow_lamin/`** - Python package for documentation and testing
 - **`docs/`** - Documentation as executable Jupyter notebooks
 
-### Key Plugin Classes
+#### Key Plugin Classes
 
 - **`LaminPlugin.groovy`** - Main plugin entry point extending `BasePlugin`
 - **`LaminConfig.groovy`** - Configuration handling from `nextflow.config` lamin block
@@ -26,17 +28,17 @@ The nf-lamin plugin follows the modern Nextflow plugin architecture:
 - **`LaminObserver.groovy`** - Implements `TraceObserver` to capture workflow events
 - **`hub/`** and **`instance/`** - API clients for different Lamin environments
 
-## Development Environment Setup
+### Development Environment Setup
 
-### Prerequisites
+#### Prerequisites
 
 1. **Java Development Kit (JDK)** - Full JDK installation (not just JRE)
 2. **Git** - For version control
 3. **Python 3.8+** - For documentation and testing (optional)
 
-## Building and Testing
+### Building and Testing
 
-### Building the Plugin
+#### Building the Plugin
 
 Build the plugin using the provided Makefile:
 
@@ -48,7 +50,7 @@ make assemble
 make install
 ```
 
-### Unit Testing
+#### Unit Testing
 
 Run the Groovy unit tests:
 
@@ -60,7 +62,7 @@ Run the Groovy unit tests:
 ./gradlew test --info
 ```
 
-### Integration Testing
+#### Integration Testing
 
 Test the plugin with real Nextflow workflows:
 
@@ -72,7 +74,7 @@ nextflow run hello -plugins nf-lamin@0.2.0
 nextflow run nf-core/hello -plugins nf-lamin@0.2.0
 ```
 
-### Documentation Testing
+#### Documentation Testing
 
 The documentation is tested using Python notebooks:
 
@@ -84,9 +86,9 @@ pip install -e .
 python -m pytest tests/test_notebooks.py
 ```
 
-## Configuration for Development
+### Configuration for Development
 
-### Local Testing Configuration
+#### Local Testing Configuration
 
 Create a `nextflow.config` file for testing:
 
@@ -102,7 +104,7 @@ lamin {
 }
 ```
 
-### Environment Variables
+#### Environment Variables
 
 Useful environment variables for development:
 
