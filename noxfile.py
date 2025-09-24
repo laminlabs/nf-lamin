@@ -15,8 +15,8 @@ nox.options.default_venv_backend = "none"
 IS_PR = os.getenv("GITHUB_EVENT_NAME") != "push"
 
 GROUPS = {}
-GROUPS["postrun"] = ["postrun.ipynb"]
-GROUPS["plugin"] = ["plugin.ipynb"]
+GROUPS["postrun"] = ["nextflow-postrun.ipynb"]
+GROUPS["plugin"] = ["nextflow.ipynb"]
 
 
 @nox.session
