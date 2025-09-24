@@ -1,4 +1,4 @@
-# Plugin Reference
+# `nf-lamin` plugin reference
 
 ## Configuration
 

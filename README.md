@@ -4,8 +4,8 @@
 
 LaminDB integrates with Nextflow through:
 
-1. With the `nf-lamin` Nextflow plugin
-2. Using a post-run Python script
+1. The `nf-lamin` Nextflow plugin
+2. A post-run Python script
 
 ## Plugin
 
