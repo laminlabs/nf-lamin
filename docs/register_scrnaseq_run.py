@@ -3,6 +3,7 @@ import lamindb as ln
 import json
 import re
 from pathlib import Path
+from lamin_utils import logger
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -48,10 +49,15 @@ def register_pipeline_metadata(output_dir: str, run: ln.Run) -> None:
     # execution report and software versions
     for file_pattern, description, run_attr in [
         ("execution_report*", "execution report", "report"),
-        ("nf_core_pipeline_software*", "software versions", "environment"),
+        ("nf_core_*_software*", "software versions", "environment"),
     ]:
+        matching_files = list(Path(f"{output_dir}/pipeline_info").glob(file_pattern))
+        if not matching_files:
+            logger.warning(f"No files matching '{file_pattern}' in pipeline_info")
+            continue
+
         artifact = ln.Artifact(
-            next(Path(f"{output_dir}/pipeline_info").glob(file_pattern)),
+            matching_files[0],
             description=f"nextflow run {description} of {nextflow_id}",
             visibility=0,
             run=False,
