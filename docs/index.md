@@ -28,4 +28,4 @@ changelog
 
 ## More information
 
-For detailed documentation on how to use `nf-lamin`, including configuration options and advanced features, please refer to the [Getting Started](plugin.ipynb) and [Reference](reference.md) sections.
+For detailed documentation on how to use `nf-lamin`, including configuration options and advanced features, please refer to the [Getting Started](plugin.ipynb) and [Reference](plugin_reference.md) sections.
