@@ -2,7 +2,7 @@
 
 ## Plugin
 
-This document provides guidelines for contributing to the nf-lamin Nextflow plugin.
+This document provides guidelines for contributing to the `nf-lamin` Nextflow plugin.
 
 See the [Nextflow documentation](https://nextflow.io/docs/latest/plugins.html) for more information about developing plugins.
 
