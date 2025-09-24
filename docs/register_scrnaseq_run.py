@@ -52,7 +52,7 @@ def register_pipeline_metadata(output_dir: str, run: ln.Run) -> None:
     ]:
         artifact = ln.Artifact(
             next(Path(f"{output_dir}/pipeline_info").glob(file_pattern)),
-            key=f"nextflow run {description} of {nextflow_id}",
+            description=f"nextflow run {description} of {nextflow_id}",
             visibility=0,
             run=False,
         ).save()
