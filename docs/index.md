@@ -8,8 +8,8 @@
 :hidden:
 
 plugin
-postrun
 plugin_reference
+postrun
 roadmap
 changelog
 ```
