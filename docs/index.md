@@ -7,9 +7,7 @@
 :maxdepth: 1
 :hidden:
 
-plugin
-plugin_reference
-postrun
+nextflow
 roadmap
 changelog
 ```

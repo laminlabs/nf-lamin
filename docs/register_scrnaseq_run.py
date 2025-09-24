@@ -69,7 +69,7 @@ def register_pipeline_metadata(output_dir: str, run: ln.Run) -> None:
     with params_path.open() as params_file:
         params = json.load(params_file)
     ln.Param(name="params", dtype="dict").save()
-    run.params.add_values({"params": params})
+    run.features.add_values({"params": params})
     run.save()
 
 

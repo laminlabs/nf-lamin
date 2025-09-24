@@ -10,7 +10,7 @@ LaminDB integrates with Nextflow through:
 ## Plugin
 
 The `nf-lamin` Nextflow plugin automatically tracks your Nextflow workflow executions, including parameters, code versions, and input/output files as structured metadata in LaminDB.
-For detailed instructions, please see the [plugin documentation](https://docs.lamin.ai/nextflow-plugin).
+For detailed instructions, please see the [plugin documentation](https://docs.lamin.ai/nextflow).
 
 ### Usage
 
@@ -54,7 +54,7 @@ However, if lower level LaminDB usage is required, it might be worthwhile writin
 
 ### Usage
 
-For an example, please see the [post-run documentation](https://docs.lamin.ai/nextflow-plugin).
+For an example, please see the [post-run documentation](https://docs.lamin.ai/nextflow-postrun).
 
 Such a script could be deployed via:
 
