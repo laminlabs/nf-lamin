@@ -1,16 +1,16 @@
 # nf-lamin
 
-[Nextflow](https://www.nextflow.io/) is the most widely used workflow manager in bioinformatics.
+[Nextflow](https://www.nextflow.io/) is a widely used workflow manager designed for scalable and reproducible data analysis in bioinformatics.
 
-There are two ways to register Nextflow runs with a LaminDB instance:
+LaminDB integrates with Nextflow runs through:
 
-1. The `nf-lamin` Nextflow plugin
-2. A postrun Python script
+1. With the `nf-lamin` Nextflow plugin
+2. Using a post-run Python script
 
 ## Plugin
 
 The `nf-lamin` Nextflow plugin automatically tracks your Nextflow workflow executions, including parameters, code versions, and input/output files as structured metadata in LaminDB.
-For detailed instructions, please see the [**full documentation**](https://docs.lamin.ai/nextflow-plugin).
+For detailed instructions, please see the [plugin documentation](https://docs.lamin.ai/nextflow-plugin).
 
 ### Usage
 
@@ -47,19 +47,19 @@ nextflow run <your-pipeline>
     Transform XXXYYYZZZABC0001 (https://lamin.ai/your-organization/your-instance/transform/XXXYYYZZZABC0001)
     Run abcdefghijklmnopqrst (https://staging.laminhub.com/laminlabs/lamindata/transform/XXXYYYZZZABC0001/abcdefghijklmnopqrst)
 
-## Postrun script
+## Post-run script
 
 We generally recommend using the `nf-lamin` plugin.
 However, if lower level LaminDB usage is required, it might be worthwhile writing a custom Python script.
 
 ### Usage
 
-We show an example of such a script [here](https://docs.lamin.ai/nextflow-postrun).
+For an example, please see the [post-run documentation](https://docs.lamin.ai/nextflow-plugin).
 
 Such a script could be deployed via:
 
-1. a serverless environment trigger (e.g., AWS Lambda)
-2. a [post-run script](https://docs.seqera.io/platform/23.4.0/launch/advanced#pre-and-post-run-scripts) on the Seqera Platform
+1. A serverless environment trigger (e.g., AWS Lambda)
+2. A [post-run script](https://docs.seqera.io/platform/23.4.0/launch/advanced#pre-and-post-run-scripts) on the Seqera Platform
 
 ## Contributing
 

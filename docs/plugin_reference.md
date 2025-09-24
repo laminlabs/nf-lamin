@@ -1,4 +1,4 @@
-# Reference
+# Plugin Reference
 
 ## Configuration
 
