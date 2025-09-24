@@ -1,9 +1,10 @@
-import nox
 import os
 import shutil
 from pathlib import Path
+
+import nox
 from laminci import upload_docs_artifact
-from laminci.nox import build_docs, login_testuser1, run_pre_commit, run_pytest, run
+from laminci.nox import build_docs, login_testuser1, run, run_pre_commit, run_pytest
 
 # we'd like to aggregate coverage information across sessions
 # and for this the code needs to be located in the same
@@ -16,6 +17,7 @@ IS_PR = os.getenv("GITHUB_EVENT_NAME") != "push"
 GROUPS = {}
 GROUPS["postrun"] = ["postrun.ipynb"]
 GROUPS["plugin"] = ["plugin.ipynb"]
+
 
 @nox.session
 def lint(session: nox.Session) -> None:

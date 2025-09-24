@@ -70,7 +70,7 @@ def register_pipeline_metadata(output_dir: str, run: ln.Run) -> None:
 args = parse_arguments()
 scrnaseq_transform = ln.Transform(
     key="scrna-seq",
-    version="2.7.1",
+    version="4.0.0",
     type="pipeline",
     reference="https://github.com/nf-core/scrnaseq",
 ).save()
