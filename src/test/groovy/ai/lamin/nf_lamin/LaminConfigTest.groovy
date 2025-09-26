@@ -168,6 +168,32 @@ class LaminConfigTest extends Specification {
         config.supabaseAnonKey == 'custom-anon-key'
     }
 
+    def "should handle manual transform and run UID configuration"() {
+        when:
+        def config = new LaminConfig([
+            instance: 'owner/repo',
+            api_key: 'test-key',
+            transform_uid: 'transform-123',
+            run_uid: 'run-456'
+        ])
+
+        then:
+        config.transformUid == 'transform-123'
+        config.runUid == 'run-456'
+    }
+
+    def "should handle null transform and run UID configuration"() {
+        when:
+        def config = new LaminConfig([
+            instance: 'owner/repo',
+            api_key: 'test-key'
+        ])
+
+        then:
+        config.transformUid == null
+        config.runUid == null
+    }
+
     def "should mask sensitive data in toString"() {
         when:
         def config = new LaminConfig([
