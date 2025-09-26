@@ -50,6 +50,10 @@ lamin {
   max_retries = 3
   // The delay between retries in milliseconds
   retry_delay = 100
+  // Manually specify a transform UID if known (advanced users only)
+  transform_uid = "your-transform-uid"
+  // Manually specify a run UID if known (advanced users only)
+  run_uid = "your-run-uid"
 }
 ```
 
@@ -61,4 +65,6 @@ export SUPABASE_API_URL="https://your-supabase-api-url.supabase.co"
 export SUPABASE_ANON_KEY="your-supabase-anon-key"
 export LAMIN_MAX_RETRIES=3
 export LAMIN_RETRY_DELAY=100
+export LAMIN_TRANSFORM_UID="your-transform-uid"
+export LAMIN_RUN_UID="your-run-uid"
 ```
