@@ -161,9 +161,9 @@ class LaminObserver implements TraceObserver {
         String instanceString = "${this.instance.getOwner()}/${this.instance.getName()}"
         try {
             Map account = this.instance.getAccount()
-            log.info "✅ Connected to LaminDB instance '${instanceString}' as '${account.handle}'"
+            log.info "→ connected lamindb: '${instanceString}' as '${account.handle}'"
         } catch (ApiException e) {
-            log.error "❌ Could not connect to LaminDB instance '${instanceString}'!"
+            log.error "✗ Could not connect lamindb: '${instanceString}'!"
             log.error 'API call failed: ' + e.getMessage()
         }
     }
