@@ -1,6 +1,6 @@
 # Roadmap
 
-We have several features planned for future releases of `nf-lamin`:
+We have several features planned for future releases of the `nf-lamin` plugin:
 
 - **Input Artifact Registration**: Automatically register input files as artifacts and link them to the run.
 - **Enhanced Reporting**: Generate more detailed reports and visualizations of workflow runs.
