@@ -32,13 +32,17 @@ test.ipynb
 
 # Ignore python-related files
 __pycache__/
+.ruff_cache
+.mypy_cache
 
 # Ignore nextflow related directories
 .nextflow*
 work
+bin
 
 # Ignore Gradle build output directory
 build
+buildSrc
 
 # Ignore test files
 out
