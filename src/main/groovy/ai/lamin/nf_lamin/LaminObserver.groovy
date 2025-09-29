@@ -99,7 +99,7 @@ class LaminObserver implements TraceObserver {
         this.transform = fetchOrCreateTransform()
 
         // Create Run object with "scheduled" status
-        this.run = createRun()
+        this.run = fetchOrCreateRun()
     }
 
     @Override
@@ -256,7 +256,7 @@ class LaminObserver implements TraceObserver {
         log.info "${message} (${webUrl}/${this.instance.getOwner()}/${this.instance.getName()}/transform/${this.transform.uid}/${run.uid})"
     }
 
-    protected Map createRun() {
+    protected Map fetchOrCreateRun() {
         // Check if run UID is manually specified
         if (config.runUid) {
             log.debug "Using manually specified run UID: ${config.runUid}"
@@ -264,12 +264,16 @@ class LaminObserver implements TraceObserver {
                 Map run = this.instance.getRecord(
                     moduleName: 'core',
                     modelName: 'run',
-                    idOrUid: config.runUid
+                    idOrUid: config.runUid,
+                    includeForeignKeys: true
                 )
 
-                // Check if the run has SCHEDULED status
+                Integer expectedTransformId = this.transform.id as Integer
+                Integer runTransformId = run.transform_id as Integer
                 Integer statusCode = run._status_code as Integer
-                if (statusCode != RunStatus.SCHEDULED.code) {
+                if (expectedTransformId != runTransformId) {
+                    log.warn "Run ${config.runUid} is associated with transform ${runTransformId} (expected ${expectedTransformId}). Creating a new run instead."
+                } else if (statusCode != RunStatus.SCHEDULED.code) {
                     log.warn "Run ${config.runUid} has status code ${statusCode} (expected ${RunStatus.SCHEDULED.code} for SCHEDULED). Creating a new run instead."
                 } else {
                     printRunMessage(run, "Received run ${run.uid} from config")
