@@ -210,6 +210,7 @@ class Instance {
             ) as Map
         }
         log.trace "Response from getRecord: ${response}"
+        return response
     }
 
     /**
