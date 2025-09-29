@@ -64,33 +64,45 @@ class LaminConfig implements ConfigScope {
 
     @ConfigOption
     @Description('''
-        The environment for the Lamin API (default: 'prod').
+        (Advanced) The environment for the Lamin API (default: 'prod').
     ''')
     final String env
 
     @ConfigOption
     @Description('''
-        The Supabase API URL for the Lamin API.
+        (Advanced) The Supabase API URL for the Lamin API.
     ''')
     final String supabaseApiUrl
 
     @ConfigOption
     @Description('''
-        The Supabase Anon Key for the Lamin API.
+        (Advanced) The Supabase Anon Key for the Lamin API.
     ''')
     final String supabaseAnonKey
 
     @ConfigOption
     @Description('''
-        Maximum number of retries for API requests (default: 3).
+        (Advanced) Maximum number of retries for API requests (default: 3).
     ''')
     final Integer maxRetries
 
     @ConfigOption
     @Description('''
-        Delay between retries for API requests in milliseconds (default: 100).
+        (Advanced) Delay between retries for API requests in milliseconds (default: 100).
     ''')
     final Integer retryDelay
+
+    @ConfigOption
+    @Description('''
+        (Advanced) Manually specify a transform UID if known. If provided, the plugin will use this existing transform instead of looking up or creating a new one.
+    ''')
+    final String transformUid
+
+    @ConfigOption
+    @Description('''
+        (Advanced) Manually specify a run UID if known. If provided, the plugin will use this existing run instead of creating a new one. The run must have status SCHEDULED (-3), otherwise a warning will be logged and a new run will be created.
+    ''')
+    final String runUid
 
     /* required by extension point -- do not remove */
     LaminConfig() {}
@@ -110,6 +122,8 @@ class LaminConfig implements ConfigScope {
         this.supabaseAnonKey = opts.containsKey('supabase_anon_key') ? opts.supabase_anon_key : System.getenv('SUPABASE_ANON_KEY')
         this.maxRetries = opts.containsKey('max_retries') ? (opts.max_retries as Integer) : ((System.getenv('LAMIN_MAX_RETRIES') as Integer) ?: 3)
         this.retryDelay = opts.containsKey('retry_delay') ? (opts.retry_delay as Integer) : ((System.getenv('LAMIN_RETRY_DELAY') as Integer) ?: 100)
+        this.transformUid = opts.containsKey('transform_uid') ? opts.transform_uid : System.getenv('LAMIN_TRANSFORM_UID')
+        this.runUid = opts.containsKey('run_uid') ? opts.run_uid : System.getenv('LAMIN_RUN_UID')
 
         validateConfiguration()
     }
@@ -230,6 +244,22 @@ class LaminConfig implements ConfigScope {
     }
 
     /**
+     * Get the manually specified transform UID
+     * @return the transform UID, or null if not specified
+     */
+    String getTransformUid() {
+        return this.transformUid
+    }
+
+    /**
+     * Get the manually specified run UID
+     * @return the run UID, or null if not specified
+     */
+    String getRunUid() {
+        return this.runUid
+    }
+
+    /**
      * Parse configuration from a Nextflow session
      * @param session the Nextflow session
      * @return the parsed LaminConfig
@@ -270,7 +300,9 @@ class LaminConfig implements ConfigScope {
             "supabaseApiUrl='${supabaseApiUrl}', " +
             "supabaseAnonKey='${maskedAnonKey}', " +
             "maxRetries=${maxRetries}, " +
-            "retryDelay=${retryDelay}" +
+            "retryDelay=${retryDelay}, " +
+            "transformUid='${transformUid}', " +
+            "runUid='${runUid}'" +
             "}"
     }
 }

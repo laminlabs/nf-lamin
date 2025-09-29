@@ -99,7 +99,7 @@ class LaminObserver implements TraceObserver {
         this.transform = fetchOrCreateTransform()
 
         // Create Run object with "scheduled" status
-        this.run = createRun()
+        this.run = fetchOrCreateRun()
     }
 
     @Override
@@ -168,7 +168,29 @@ class LaminObserver implements TraceObserver {
         }
     }
 
+    protected void printTransformMessage(Map transform, String message) {
+        String webUrl = resolvedConfig.webUrl as String
+        log.info "${message} (${webUrl}/${this.instance.getOwner()}/${this.instance.getName()}/transform/${transform.uid})"
+    }
+
     protected Map fetchOrCreateTransform() {
+        // Check if transform UID is manually specified
+        if (config.transformUid) {
+            log.debug "Using manually specified transform UID: ${config.transformUid}"
+            try {
+                Map transform = this.instance.getRecord(
+                    moduleName: 'core',
+                    modelName: 'transform',
+                    idOrUid: config.transformUid
+                )
+                printTransformMessage(transform, "Received transform ${transform.uid} from config")
+                return transform
+            } catch (Exception e) {
+                log.error "Failed to fetch transform with UID ${config.transformUid}: ${e.getMessage()}"
+                log.warn "Falling back to normal transform lookup/creation process"
+            }
+        }
+
         // Collect information about the workflow run
         WorkflowMetadata wfMetadata = this.session.getWorkflowMetadata()
 
@@ -199,37 +221,71 @@ class LaminObserver implements TraceObserver {
                 log.warn "Found multiple Transform objects with key ${key} and revision ${revision}"
             }
             transform = existingTransforms[0]
-        } else {
-            // Collect info for new Transform object
-            String description = "${wfMetadata.manifest.getName()}: ${wfMetadata.manifest.getDescription()}"
-            String commitId = wfMetadata.commitId
-            Map info = [
-                'repository': repository,
-                'main-script': mainScript,
-                'commit-id': commitId,
-                'revision': revision
-            ]
-            String infoAsJson = groovy.json.JsonOutput.toJson(info)
-
-            // Create Transform object
-            transform = this.instance.createTransform(
-                key: key,
-                source_code: infoAsJson,
-                version: revision,
-                type: 'pipeline',
-                reference: wfMetadata.repository,
-                reference_type: 'url',
-                description: description
-            )
+            printTransformMessage(transform, "Using existing transform ${transform.uid}")
+            return transform
         }
 
-        String webUrl = resolvedConfig.webUrl as String
-        log.info "Transform ${transform.uid} (${webUrl}/${this.instance.getOwner()}/${this.instance.getName()}/transform/${transform.uid})"
+        // Collect info for new Transform object
+        String description = "${wfMetadata.manifest.getName()}: ${wfMetadata.manifest.getDescription()}"
+        String commitId = wfMetadata.commitId
+        Map info = [
+            'repository': repository,
+            'main-script': mainScript,
+            'commit-id': commitId,
+            'revision': revision
+        ]
+        String infoAsJson = groovy.json.JsonOutput.toJson(info)
+
+        // Create Transform object
+        transform = this.instance.createTransform(
+            key: key,
+            source_code: infoAsJson,
+            version: revision,
+            type: 'pipeline',
+            reference: wfMetadata.repository,
+            reference_type: 'url',
+            description: description
+        )
+        printTransformMessage(transform, "Created new transform ${transform.uid}")
         return transform
         // TODO: link to project?
     }
 
-    protected Map createRun() {
+    protected void printRunMessage(Map run, String message) {
+        String webUrl = resolvedConfig.webUrl as String
+        log.info "${message} (${webUrl}/${this.instance.getOwner()}/${this.instance.getName()}/transform/${this.transform.uid}/${run.uid})"
+    }
+
+    protected Map fetchOrCreateRun() {
+        // Check if run UID is manually specified
+        if (config.runUid) {
+            log.debug "Using manually specified run UID: ${config.runUid}"
+            try {
+                Map run = this.instance.getRecord(
+                    moduleName: 'core',
+                    modelName: 'run',
+                    idOrUid: config.runUid,
+                    includeForeignKeys: true
+                )
+
+                Integer expectedTransformId = this.transform.id as Integer
+                Integer runTransformId = run.transform_id as Integer
+                Integer statusCode = run._status_code as Integer
+                if (expectedTransformId != runTransformId) {
+                    log.warn "Run ${config.runUid} is associated with transform ${runTransformId} (expected ${expectedTransformId}). Creating a new run instead."
+                } else if (statusCode != RunStatus.SCHEDULED.code) {
+                    log.warn "Run ${config.runUid} has status code ${statusCode} (expected ${RunStatus.SCHEDULED.code} for SCHEDULED). Creating a new run instead."
+                } else {
+                    printRunMessage(run, "Received run ${run.uid} from config")
+                    return run
+                }
+            } catch (Exception e) {
+                log.error "Failed to fetch run with UID ${config.runUid}: ${e.getMessage()}"
+                log.warn "Creating a new run instead"
+            }
+        }
+
+        // Create new run
         WorkflowMetadata wfMetadata = this.session.getWorkflowMetadata()
         Map run = this.instance.createRecord(
             moduleName: 'core',
@@ -243,8 +299,7 @@ class LaminObserver implements TraceObserver {
             ]
         )
 
-        String webUrl = resolvedConfig.webUrl as String
-        log.info "Run ${run.uid} (${webUrl}/${this.instance.getOwner()}/${this.instance.getName()}/transform/${this.transform.uid}/${run.uid})"
+        printRunMessage(run, "Created new run")
         return run
         // TODO: link to project?
     }
