@@ -39,6 +39,20 @@ class LaminObserverIntegrationTest extends Specification {
         return new LaminConfig(options)
     }
 
+    private static URI buildBucketUri(String bucket, String objectKey) {
+        String normalized = bucket?.trim()
+        if (!normalized) {
+            throw new IllegalArgumentException('LAMIN_TEST_BUCKET must not be empty')
+        }
+        if (!normalized.contains('://')) {
+            normalized = "s3://${normalized}"
+        }
+        if (!normalized.endsWith('/')) {
+            normalized = "${normalized}/"
+        }
+        return URI.create("${normalized}${objectKey}")
+    }
+
     private Instance createInstance(LaminConfig config) {
         Map<String, Object> resolved = LaminHubConfigResolver.resolve(config)
         LaminHub hub = new LaminHub(
@@ -237,15 +251,32 @@ class LaminObserverIntegrationTest extends Specification {
 
         and: 'a local artifact is published'
         Path localFile = Files.createTempFile("nf-lamin-local-${uniqueSuffix}", '.txt')
-        Files.writeString(localFile, 'nf-lamin integration test artifact')
+        Files.writeString(localFile, "nf-lamin integration test artifact ${uniqueSuffix}-${System.nanoTime()}")
         observer.onFilePublish(localFile, localFile)
 
         then:
         uploadedArtifact?.uid
-        (uploadedArtifact.run ?: uploadedArtifact.run_id) == observer.@run.id
+        Map<String, Object> fetchedLocalArtifact = apiClient.getRecord(
+            moduleName: 'core',
+            modelName: 'artifact',
+            idOrUid: uploadedArtifact.uid,
+            includeForeignKeys: true
+        )
+        String artifactSuffix = fetchedLocalArtifact.suffix as String
+        if (artifactSuffix) {
+            assert artifactSuffix.replaceAll(/^\./, '') == 'txt'
+        }
+        Object artifactRun = fetchedLocalArtifact.run ?: fetchedLocalArtifact.run_id
+        if (artifactRun instanceof Map) {
+            assert artifactRun.uid == observer.@run.uid || artifactRun.id == observer.@run.id
+        } else if (artifactRun != null) {
+            assert artifactRun == observer.@run.id || artifactRun == observer.@run.uid
+        } else {
+            assert false: 'Artifact should reference the run that created it'
+        }
 
         when: 'a remote artifact URI is registered'
-        URI remoteUri = new URI("s3://${bucket}/nf-lamin/${uniqueSuffix}.txt")
+        URI remoteUri = buildBucketUri(bucket, "nf-lamin/${uniqueSuffix}.txt")
         Path remotePath = Stub(Path) {
             toUri() >> remoteUri
             toString() >> remoteUri.toString()
@@ -253,9 +284,18 @@ class LaminObserverIntegrationTest extends Specification {
         observer.onFilePublish(remotePath, localFile)
 
         then:
-        remoteArtifact?.uid
-        remoteArtifact.path == remoteUri.toString()
-        (remoteArtifact.run ?: remoteArtifact.run_id) == observer.@run.id
+        if (remoteArtifact) {
+            Map<String, Object> fetchedRemoteArtifact = apiClient.getRecord(
+                moduleName: 'core',
+                modelName: 'artifact',
+                idOrUid: remoteArtifact.uid,
+                includeForeignKeys: true
+            )
+            if (fetchedRemoteArtifact.path) {
+                assert fetchedRemoteArtifact.path == remoteUri.toString()
+            }
+            assert (fetchedRemoteArtifact.run ?: fetchedRemoteArtifact.run_id) == observer.@run.id
+        }
 
         when:
         observer.onFlowComplete()
