@@ -74,6 +74,26 @@ nextflow run hello -plugins nf-lamin@0.2.0
 nextflow run nf-core/hello -plugins nf-lamin@0.2.0
 ```
 
+#### Lamin Observer Integration Tests
+
+The forthcoming LaminObserver integration suite requires real Lamin Hub connectivity. Configure the following environment variables before running those tests; each test will auto-skip if the required values are missing.
+
+| Variable                | Purpose                                                                     |
+| ----------------------- | --------------------------------------------------------------------------- |
+| `LAMIN_API_KEY`         | Lamin production API key (`env = 'prod'`).                                  |
+| `LAMIN_STAGING_API_KEY` | Lamin staging API key (`env = 'staging'`).                                  |
+| `LAMIN_TEST_BUCKET`     | Remote bucket URI (`s3://…` or `gs://…`) used to register remote artifacts. |
+
+The tests will also rely on stable resources that should already exist:
+
+- Lamin instance owner/name (both environments): `laminlabs/lamindata`
+- Production transform UID: `PhX5TXQhj3l6wowA`
+- Production run UID: `G3LlrTKJxNFvlWaSktvD`
+- Staging transform UID: `J49HdErpEFrs0000`
+- Staging run UID: `Bw0tT39K7MaRX1UMTOvo`
+
+> **Note:** Transform and run identifiers created during CI are intentionally left in place to avoid accidental deletion of production/staging data. Future clean-up helpers can be added once if desirable.
+
 #### Documentation Testing
 
 The documentation is tested using Python notebooks:
