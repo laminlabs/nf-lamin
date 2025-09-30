@@ -46,6 +46,7 @@ trace*
 # Ignore Gradle build output directory
 build
 buildSrc
+bin
 
 # Ignore test files
 out
