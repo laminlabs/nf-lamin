@@ -34,10 +34,12 @@ workflow {
   log.info "Wrote metadata to ${metadataFile.absolutePath}"
 
   // create output channel
-  out_ch = Channel.of(metadataFile)
+  ch_out = Channel.of([
+    [id: 'lamin_metadata', path: metadataFile]
+  ])
 
   publish:
-  output = out_ch
+  output = ch_out
 }
 
 output {
