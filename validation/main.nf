@@ -1,28 +1,7 @@
 include { laminRunMetadata; laminRunUid; laminTransformMetadata; laminTransformUid } from 'plugin/nf-lamin'
 
-params.outdir = "${projectDir}/results"
-
-process emit_metadata {
-    tag { meta.runUid }
-    label 'lamin_validation'
-    publishDir "${params.outdir}/validation", mode: 'copy', overwrite: true
-
-    input:
-    tuple val(runUid), val(meta)
-
-    output:
-    path 'lamin-validation.json'
-
-    script:
-    def payload = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(meta))
-    """
-cat <<'EOF' > lamin-validation.json
-${payload}
-EOF
-    """
-}
-
 workflow {
+  main:
   def runMeta = laminRunMetadata()
   if (!runMeta) {
       throw new IllegalStateException('laminRunMetadata() returned null. Ensure the plugin can reach LaminDB and the run was initialised.')
@@ -39,16 +18,28 @@ workflow {
   if (!transformUid) {
       throw new IllegalStateException('laminTransformUid() returned null. Ensure the plugin has created or resolved the transform in LaminDB.')
   }
-
   log.info "Validated Lamin run ${runUid} for transform ${transformUid}"
 
+  // create metadata file
   def metadata = [
     runUid: runUid,
     transformUid: transformUid,
     runMetadata: runMeta,
     transformMetadata: transformMeta
   ]
+  def metadataFile = File.createTempFile('lamin_metadata_', '.json')
+  metadataFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata))
+  log.info "Wrote metadata to ${metadataFile.absolutePath}"
 
-  Channel.of([runUid, metadata])
-    | emit_metadata
+  // create output channel
+  out_ch = Channel.of(metadataFile)
+
+  publish:
+  output = out_ch
+}
+
+output {
+  output {
+    path '.'
+  }
 }
