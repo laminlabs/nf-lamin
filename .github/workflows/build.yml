@@ -70,10 +70,10 @@ jobs:
           distribution: "temurin"
 
       - name: Compile
-        run: ./gradlew assemble
+        run: make assemble
 
       - name: Tests
-        run: ./gradlew check
+        run: make test
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
           LAMIN_API_KEY: ${{ secrets.LAMIN_API_KEY_TESTUSER1 }}
@@ -82,6 +82,15 @@ jobs:
       - uses: nf-core/setup-nextflow@v2
         with:
           version: "latest-stable"
+
+      - name: Validation workflow
+        env:
+          LAMIN_CURRENT_INSTANCE: laminlabs/lamindata
+          LAMIN_API_KEY: ${{ secrets.LAMIN_API_KEY_TESTUSER1 }}
+          LAMIN_ENV: prod
+        run: |
+          make install
+          make validate
 
       - run: nox -s "build(group='${{ matrix.group }}')"
         if: ${{ matrix.java_version == '25' }}
