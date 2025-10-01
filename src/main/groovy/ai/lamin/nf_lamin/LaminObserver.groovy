@@ -16,28 +16,14 @@
 
 package ai.lamin.nf_lamin
 
-import java.net.URI
 import java.nio.file.Path
-import java.nio.file.PathMatcher
-import java.nio.file.Files
-import java.nio.file.attribute.BasicFileAttributes
-import java.util.concurrent.locks.Lock
-import java.util.concurrent.locks.ReentrantLock
-
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import nextflow.Session
 import nextflow.processor.TaskHandler
-import nextflow.processor.TaskRun
-import nextflow.script.WorkflowMetadata
 import nextflow.trace.TraceObserver
 import nextflow.trace.TraceRecord
 
-import ai.lamin.lamin_api_client.ApiException
-import ai.lamin.nf_lamin.instance.Instance
-import ai.lamin.nf_lamin.instance.InstanceSettings
-import ai.lamin.nf_lamin.hub.LaminHub
-import ai.lamin.nf_lamin.hub.LaminHubConfigResolver
 import ai.lamin.nf_lamin.model.RunStatus
 
 /**
@@ -50,75 +36,18 @@ import ai.lamin.nf_lamin.model.RunStatus
 @CompileStatic
 class LaminObserver implements TraceObserver {
 
-    private Session session
-    private LaminConfig config
-    private Map<String, Object> resolvedConfig
-    private LaminHub hub
-    private Instance instance
-    private Map transform
-    private Map run
-    private Lock lock = new ReentrantLock()
+    private final LaminRunManager state = LaminRunManager.instance
 
     @Override
     void onFlowCreate(Session session) {
         log.debug "LaminObserver.onFlowCreate"
-        this.session = session
-
-        // Parse configuration
-        this.config = LaminConfig.parseConfig(session)
-        log.debug "Parsed config: ${config.toString()}"
-
-        // Resolve hub-specific configuration
-        this.resolvedConfig = LaminHubConfigResolver.resolve(config)
-        log.debug "Resolved config with hub settings"
-
-        // Create hub client
-        this.hub = new LaminHub(
-            resolvedConfig.supabaseApiUrl as String,
-            resolvedConfig.supabaseAnonKey as String,
-            config.apiKey
-        )
-        log.debug "Created LaminHub client"
-
-        // Get instance settings
-        InstanceSettings settings = hub.getInstanceSettings(config.instanceOwner, config.instanceName)
-        log.debug "Instance settings: ${settings.toString()}"
-
-        // Create instance
-        this.instance = new Instance(
-            this.hub,
-            settings,
-            config.maxRetries,
-            config.retryDelay
-        )
-
-        // Test connection
-        testConnection()
-
-        // Fetch or create Transform object
-        this.transform = fetchOrCreateTransform()
-
-        // Create Run object with "scheduled" status
-        this.run = fetchOrCreateRun()
+        state.initializeRun(session)
     }
 
     @Override
     void onFlowBegin() {
         log.debug "LaminObserver.onFlowBegin"
-        // Update run status from "scheduled" (-3) to "started" (-1) when workflow execution begins
-        if (this.run) {
-            WorkflowMetadata wfMetadata = this.session.getWorkflowMetadata()
-            this.instance.updateRecord(
-                moduleName: 'core',
-                modelName: 'run',
-                uid: this.run.uid,
-                data: [
-                    started_at: wfMetadata.start,
-                    _status_code: RunStatus.STARTED.code
-                ]
-            )
-            log.info "Run ${this.run.uid} ${RunStatus.STARTED.description}"
-        }
+        state.startRun()
     }
 
     @Override
@@ -142,260 +71,18 @@ class LaminObserver implements TraceObserver {
     @Override
     void onFilePublish(Path destination, Path source) {
         log.debug "LaminObserver.onFilePublish: ${source} -> ${destination}"
-        createOutputArtifact(this.run, source, destination)
+        state.createOutputArtifact(destination)
     }
 
     @Override
     void onFlowComplete() {
         log.debug "LaminObserver.onFlowComplete"
-        finalizeRun(RunStatus.COMPLETED)
+        state.finalizeRun(RunStatus.COMPLETED)
     }
 
     @Override
     void onFlowError(TaskHandler handler, TraceRecord trace) {
         log.debug "LaminObserver.onFlowError"
-        finalizeRun(RunStatus.ERRORED)
-    }
-
-    protected void testConnection() {
-        String instanceString = "${this.instance.getOwner()}/${this.instance.getName()}"
-        try {
-            Map account = this.instance.getAccount()
-            log.info "→ connected lamindb: '${instanceString}' as '${account.handle}'"
-        } catch (ApiException e) {
-            log.error "✗ Could not connect lamindb: '${instanceString}'!"
-            log.error 'API call failed: ' + e.getMessage()
-        }
-    }
-
-    protected void printTransformMessage(Map transform, String message) {
-        String webUrl = resolvedConfig.webUrl as String
-        log.info "${message} (${webUrl}/${this.instance.getOwner()}/${this.instance.getName()}/transform/${transform.uid})"
-    }
-
-    protected Map fetchOrCreateTransform() {
-        // Check if transform UID is manually specified
-        if (config.transformUid) {
-            log.debug "Using manually specified transform UID: ${config.transformUid}"
-            try {
-                Map transform = this.instance.getRecord(
-                    moduleName: 'core',
-                    modelName: 'transform',
-                    idOrUid: config.transformUid
-                )
-                printTransformMessage(transform, "Received transform ${transform.uid} from config")
-                return transform
-            } catch (Exception e) {
-                log.error "Failed to fetch transform with UID ${config.transformUid}: ${e.getMessage()}"
-                log.warn "Falling back to normal transform lookup/creation process"
-            }
-        }
-
-        // Collect information about the workflow run
-        WorkflowMetadata wfMetadata = this.session.getWorkflowMetadata()
-
-        // Collect info about the workflow
-        String repository = wfMetadata.repository ?: wfMetadata.projectName
-        String mainScript = wfMetadata.scriptFile.toString().replaceFirst("${wfMetadata.projectDir}/", '')
-        String revision = wfMetadata.revision
-        String key = mainScript == 'main.nf' ? repository : "${repository}:${mainScript}"
-
-        // Search for existing Transform object
-        log.debug "Searching for existing Transform with key ${key} and revision ${revision}"
-        List<Map> existingTransforms = this.instance.getRecords(
-            moduleName: 'core',
-            modelName: 'transform',
-            filter: [
-                and: [
-                    [key: [eq: key]],
-                    // NOTE: if the user didn't provide a revision, should we use 'latest' or the commit id?
-                    [version: [eq: revision]]
-                ]
-            ]
-        )
-        log.debug "Found ${existingTransforms.size()} existing Transform(s) with key ${key} and revision ${revision}"
-
-        Map transform = null
-        if (existingTransforms) {
-            if (existingTransforms.size() > 1) {
-                log.warn "Found multiple Transform objects with key ${key} and revision ${revision}"
-            }
-            transform = existingTransforms[0]
-            printTransformMessage(transform, "Using existing transform ${transform.uid}")
-            return transform
-        }
-
-        // Collect info for new Transform object
-        String description = "${wfMetadata.manifest.getName()}: ${wfMetadata.manifest.getDescription()}"
-        String commitId = wfMetadata.commitId
-        Map info = [
-            'repository': repository,
-            'main-script': mainScript,
-            'commit-id': commitId,
-            'revision': revision
-        ]
-        String infoAsJson = groovy.json.JsonOutput.toJson(info)
-
-        // Create Transform object
-        transform = this.instance.createTransform(
-            key: key,
-            source_code: infoAsJson,
-            version: revision,
-            type: 'pipeline',
-            reference: wfMetadata.repository,
-            reference_type: 'url',
-            description: description
-        )
-        printTransformMessage(transform, "Created new transform ${transform.uid}")
-        return transform
-        // TODO: link to project?
-    }
-
-    protected void printRunMessage(Map run, String message) {
-        String webUrl = resolvedConfig.webUrl as String
-        log.info "${message} (${webUrl}/${this.instance.getOwner()}/${this.instance.getName()}/transform/${this.transform.uid}/${run.uid})"
-    }
-
-    protected Map fetchOrCreateRun() {
-        // Check if run UID is manually specified
-        if (config.runUid) {
-            log.debug "Using manually specified run UID: ${config.runUid}"
-            try {
-                Map run = this.instance.getRecord(
-                    moduleName: 'core',
-                    modelName: 'run',
-                    idOrUid: config.runUid,
-                    includeForeignKeys: true
-                )
-
-                Integer expectedTransformId = this.transform.id as Integer
-                Integer runTransformId = run.transform_id as Integer
-                Integer statusCode = run._status_code as Integer
-                if (expectedTransformId != runTransformId) {
-                    log.warn "Run ${config.runUid} is associated with transform ${runTransformId} (expected ${expectedTransformId}). Creating a new run instead."
-                } else if (statusCode != RunStatus.SCHEDULED.code) {
-                    log.warn "Run ${config.runUid} has status code ${statusCode} (expected ${RunStatus.SCHEDULED.code} for SCHEDULED). Creating a new run instead."
-                } else {
-                    printRunMessage(run, "Received run ${run.uid} from config")
-                    return run
-                }
-            } catch (Exception e) {
-                log.error "Failed to fetch run with UID ${config.runUid}: ${e.getMessage()}"
-                log.warn "Creating a new run instead"
-            }
-        }
-
-        // Create new run
-        WorkflowMetadata wfMetadata = this.session.getWorkflowMetadata()
-        Map run = this.instance.createRecord(
-            moduleName: 'core',
-            modelName: 'run',
-            data: [
-                transform_id: this.transform.id,
-                name: wfMetadata.runName,
-                created_at: wfMetadata.start,
-                started_at: wfMetadata.start,
-                _status_code: RunStatus.SCHEDULED.code
-            ]
-        )
-
-        printRunMessage(run, "Created new run")
-        return run
-        // TODO: link to project?
-    }
-
-    protected void finalizeRun(RunStatus status) {
-        log.info "Run ${this.run.uid} ${status.description}"
-        WorkflowMetadata wfMetadata = this.session.getWorkflowMetadata()
-        this.instance.updateRecord(
-            moduleName: 'core',
-            modelName: 'run',
-            uid: this.run.uid,
-            data: [
-                finished_at: wfMetadata.complete,
-                _status_code: status.code
-            ]
-        )
-    }
-
-    protected Map fetchOrCreateStorage(Path path) {
-        String root = path.getFileSystem().toString()
-        URI uri = path.toUri()
-        String type = uri.getScheme()
-
-        // Search for existing Storage object
-        List<Map> existingStorage = this.instance.getRecords(
-            moduleName: 'core',
-            modelName: 'storage',
-            filter: [
-                and: [
-                    [root: [eq: root]],
-                    [type: [eq: type]]
-                ]
-            ]
-        )
-        log.debug "Found ${existingStorage.size()} existing Storage(s) with root ${root} and type ${type}"
-
-        Map storage = null
-        if (existingStorage) {
-            if (existingStorage.size() > 1) {
-                log.warn "Found multiple Storage objects with root ${root} and type ${type}"
-            }
-            storage = existingStorage[0]
-        } else {
-            // Create Storage object
-            storage = this.instance.createRecord(
-                moduleName: 'core',
-                modelName: 'storage',
-                data: [
-                    root: root,
-                    type: type
-                ]
-            )
-        }
-        return storage
-    }
-
-    // TODO: implement tracking an input artifact
-    protected Map createOutputArtifact(Map run, Path localPath, Path destPath) {
-        Boolean isLocalFile = destPath.toUri().getScheme() == 'file'
-
-        // Arguments
-        String runUid = run.uid.toString()
-        Integer runId = run.id as Integer
-        String description = "Output artifact for run ${runId}".toString()
-
-        log.debug "Creating output artifact for run ${runId} at ${destPath.toUri()}"
-
-        Map artifact = null
-        lock.lock()
-        try {
-            if (isLocalFile) {
-                File file = destPath.toFile()
-                artifact = this.instance.uploadArtifact(
-                    file: file,
-                    run_id: runId,
-                    description: description
-                )
-            } else {
-                String path = destPath.toUri().toString()
-                artifact = this.instance.createArtifact(
-                    path: path,
-                    run_id: runId,
-                    description: description
-                )
-            }
-        } catch (Exception e) {
-            log.error "Failed to create output artifact for run ${runId} at ${destPath.toUri()}"
-            log.debug "Exception: ${e.getMessage()}", e
-            return null
-        } finally {
-            lock.unlock()
-        }
-
-        String verb = artifact.run != runId ? 'Detected previous' : isLocalFile ? 'Uploaded' : 'Created'
-        String webUrl = resolvedConfig.webUrl as String
-        log.debug "$verb output artifact ${artifact.uid} (${webUrl}/${this.instance.getOwner()}/${this.instance.getName()}/artifact/${artifact.uid})"
-        return artifact
+        state.finalizeRun(RunStatus.ERRORED)
     }
 }
