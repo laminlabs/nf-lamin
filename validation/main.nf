@@ -1,3 +1,5 @@
+nextflow.preview.output = true
+
 include { laminRunMetadata; laminRunUid; laminTransformMetadata; laminTransformUid } from 'plugin/nf-lamin'
 
 workflow {
