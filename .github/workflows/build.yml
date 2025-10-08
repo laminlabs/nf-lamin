@@ -32,6 +32,17 @@ jobs:
           fetch-depth: 1
           submodules: true
 
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.x"
+
+      - uses: actions/cache@v3
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - run: pip install "laminci@git+https://github.com/laminlabs/laminci"
+
       - run: nox -s lint
         if: ${{ matrix.java_version == '25' }}
 
