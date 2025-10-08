@@ -72,8 +72,9 @@ jobs:
           LAMIN_API_KEY: ${{ secrets.LAMIN_API_KEY_TESTUSER1 }}
           LAMIN_ENV: prod
         run: |
+          BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
           make install
-          make validate
+          make validate BRANCH="$BRANCH"
 
   build:
     name: Build docs
