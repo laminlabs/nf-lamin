@@ -33,34 +33,14 @@ class LaminExtension extends PluginExtensionPoint {
     }
 
     /**
-     * Returns the current Lamin run metadata captured by the observer.
-     *
-     * @return a read-only map or {@code null} if the run has not been initialised
-     */
-    @Function
-    Map<String, Object> laminRunMetadata() {
-        return LaminRunManager.instance.run
-    }
-
-    /**
      * Returns the UID of the current Lamin run.
      *
      * @return the run UID or {@code null} if unavailable
      */
     @Function
-    String laminRunUid() {
+    String getRunUid() {
         Map<String, Object> run = LaminRunManager.instance.run
         return run != null ? run.get('uid') as String : null
-    }
-
-    /**
-     * Returns the current Lamin transform metadata captured by the observer.
-     *
-     * @return a read-only map or {@code null} if the transform has not been initialised
-     */
-    @Function
-    Map<String, Object> laminTransformMetadata() {
-        return LaminRunManager.instance.transform
     }
 
     /**
@@ -69,7 +49,7 @@ class LaminExtension extends PluginExtensionPoint {
      * @return the transform UID or {@code null} if unavailable
      */
     @Function
-    String laminTransformUid() {
+    String getTransformUid() {
         Map<String, Object> transform = LaminRunManager.instance.transform
         return transform != null ? transform.get('uid') as String : null
     }

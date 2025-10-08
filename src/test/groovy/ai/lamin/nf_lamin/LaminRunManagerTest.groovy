@@ -23,10 +23,8 @@ class LaminRunManagerTest extends Specification {
 
         and:
         def extension = new LaminExtension()
-        extension.laminTransformUid() == 'T123'
-        extension.laminRunUid() == 'R456'
-        extension.laminTransformMetadata().id == 42
-        extension.laminRunMetadata().id == 99
+        extension.getTransformUid() == 'T123'
+        extension.getRunUid() == 'R456'
     }
 
     def 'reset clears stored state'() {
@@ -38,6 +36,6 @@ class LaminRunManagerTest extends Specification {
 
         then:
         LaminRunManager.instance.run == null
-        new LaminExtension().laminRunUid() == null
+        new LaminExtension().getRunUid() == null
     }
 }
