@@ -16,7 +16,6 @@
 package ai.lamin.nf_lamin
 
 import spock.lang.Specification
-import nextflow.Session
 import org.pf4j.PluginWrapper
 
 /**
@@ -25,18 +24,6 @@ import org.pf4j.PluginWrapper
  * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
 class LaminPluginTest extends Specification {
-
-    def setup() {
-        // Clear static state before each test
-        LaminPlugin.@_session = null
-        LaminPlugin.@_config = null
-    }
-
-    def cleanup() {
-        // Clear static state after each test
-        LaminPlugin.@_session = null
-        LaminPlugin.@_config = null
-    }
 
     def "should create LaminPlugin with wrapper"() {
         given:
@@ -47,103 +34,5 @@ class LaminPluginTest extends Specification {
 
         then:
         plugin != null
-    }
-
-    def "should set and get session correctly"() {
-        given:
-        def session = Mock(Session)
-
-        when:
-        LaminPlugin.setSession(session)
-        def retrievedSession = LaminPlugin.getSession()
-
-        then:
-        retrievedSession == session
-    }
-
-    def "should throw IllegalArgumentException for null session"() {
-        when:
-        LaminPlugin.setSession(null)
-
-        then:
-        def e = thrown(IllegalArgumentException)
-        e.message == 'Session cannot be null'
-    }
-
-    def "should throw IllegalStateException when getting session without setting it"() {
-        when:
-        LaminPlugin.getSession()
-
-        then:
-        def e = thrown(IllegalStateException)
-        e.message.contains('LaminPlugin requires a valid Nextflow session')
-    }
-
-    def "should throw IllegalStateException when setting different session"() {
-        given:
-        def session1 = Mock(Session)
-        def session2 = Mock(Session)
-
-        when:
-        LaminPlugin.setSession(session1)
-        LaminPlugin.setSession(session2)
-
-        then:
-        def e = thrown(IllegalStateException)
-        e.message == 'Session already set to a different instance'
-    }
-
-    def "should allow setting the same session multiple times"() {
-        given:
-        def session = Mock(Session)
-
-        when:
-        LaminPlugin.setSession(session)
-        LaminPlugin.setSession(session)
-
-        then:
-        noExceptionThrown()
-        LaminPlugin.getSession() == session
-    }
-
-    def "should get config from session"() {
-        given:
-        def session = Mock(Session) {
-            config >> [
-                lamin: [
-                    instance: 'testowner/testinstance',
-                    api_key: 'test-api-key'
-                ]
-            ]
-        }
-
-        when:
-        LaminPlugin.setSession(session)
-        def config = LaminPlugin.getConfig()
-
-        then:
-        config != null
-        config.getInstance() == 'testowner/testinstance'
-        config.getApiKey() == 'test-api-key'
-    }
-
-    def "should cache config after first access"() {
-        given:
-        def session = Mock(Session) {
-            config >> [
-                lamin: [
-                    instance: 'testowner/testinstance',
-                    api_key: 'test-api-key'
-                ]
-            ]
-        }
-
-        when:
-        LaminPlugin.setSession(session)
-        def config1 = LaminPlugin.getConfig()
-        def config2 = LaminPlugin.getConfig()
-
-        then:
-        config1 == config2
     }
 }
