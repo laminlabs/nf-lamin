@@ -100,8 +100,8 @@ final class LaminRunManager {
         laminInstance = instance
     }
 
-    void initializeRun(Session session) {
-        log.debug 'LaminRunManager.initializeRun'
+    void initializeRunManager(Session session) {
+        log.debug 'LaminRunManager.initializeRunManager'
         reset()
         this.session = session
 
@@ -133,7 +133,10 @@ final class LaminRunManager {
         laminInstance = instance
 
         testConnection()
+    }
 
+    void initializeRun() {
+        log.debug 'LaminRunManager.initializeRun'
         fetchOrCreateTransform()
         fetchOrCreateRun()
     }
