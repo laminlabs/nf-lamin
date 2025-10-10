@@ -61,6 +61,7 @@ jobs:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
           LAMIN_API_KEY: ${{ secrets.LAMIN_API_KEY_TESTUSER1 }}
           LAMIN_STAGING_API_KEY: ${{ secrets.LAMIN_API_KEY_TESTUSER1_STAGING }}
+          LAMIN_TEST_BUCKET: ${{ secrets.LAMIN_TEST_BUCKET }}
 
       - uses: nf-core/setup-nextflow@v2
         with:
@@ -70,6 +71,7 @@ jobs:
         env:
           LAMIN_CURRENT_INSTANCE: laminlabs/lamindata
           LAMIN_API_KEY: ${{ secrets.LAMIN_API_KEY_TESTUSER1 }}
+          LAMIN_TEST_BUCKET: ${{ secrets.LAMIN_TEST_BUCKET }}
           LAMIN_ENV: prod
         run: |
           BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
