@@ -52,24 +52,6 @@ class LaminObserver implements TraceObserver {
     }
 
     @Override
-    void onProcessComplete(TaskHandler handler, TraceRecord trace) {
-        log.debug "LaminObserver.onProcessComplete: ${handler.task.name}"
-        // TODO: Implement input artifact tracking
-        // handler.task.getInputFilesMap().each { name, path ->
-        //     createInputArtifact(path)
-        // }
-    }
-
-    @Override
-    void onProcessCached(TaskHandler handler, TraceRecord trace) {
-        log.debug "LaminObserver.onProcessCached: ${handler.task.name}"
-        // TODO: Implement input artifact tracking
-        // handler.task.getInputFilesMap().each { name, path ->
-        //     createInputArtifact(path)
-        // }
-    }
-
-    @Override
     void onFilePublish(Path destination, Path source) {
         log.debug "LaminObserver.onFilePublish: ${source} -> ${destination}"
         state.createOutputArtifact(destination)
