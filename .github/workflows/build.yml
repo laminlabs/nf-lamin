@@ -52,6 +52,10 @@ jobs:
           architecture: x64
           distribution: "temurin"
 
+      - uses: nf-core/setup-nextflow@v2
+        with:
+          version: "latest-stable"
+
       - name: Compile
         run: make assemble
 
@@ -62,10 +66,6 @@ jobs:
           LAMIN_API_KEY: ${{ secrets.LAMIN_API_KEY_TESTUSER1 }}
           LAMIN_STAGING_API_KEY: ${{ secrets.LAMIN_API_KEY_TESTUSER1_STAGING }}
           LAMIN_TEST_BUCKET: ${{ secrets.LAMIN_TEST_BUCKET }}
-
-      - uses: nf-core/setup-nextflow@v2
-        with:
-          version: "latest-stable"
 
       - name: Validation workflow
         env:
@@ -107,6 +107,10 @@ jobs:
         with:
           python-version: "3.x"
 
+      - uses: nf-core/setup-nextflow@v2
+        with:
+          version: "latest-stable"
+
       - uses: actions/cache@v3
         with:
           path: ~/.cache/pre-commit
@@ -133,6 +137,8 @@ jobs:
         run: make assemble
 
       - run: nox -s "build(group='${{ matrix.group }}')"
+        env:
+          LAMIN_API_KEY: ${{ secrets.LAMIN_API_KEY_TESTUSER1 }}
 
       - name: upload docs
         uses: actions/upload-artifact@v4
