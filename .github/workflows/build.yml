@@ -107,10 +107,6 @@ jobs:
         with:
           python-version: "3.x"
 
-      - uses: nf-core/setup-nextflow@v2
-        with:
-          version: "latest-stable"
-
       - uses: actions/cache@v3
         with:
           path: ~/.cache/pre-commit
@@ -132,6 +128,10 @@ jobs:
           java-version: 25
           architecture: x64
           distribution: "temurin"
+
+      - uses: nf-core/setup-nextflow@v2
+        with:
+          version: "latest-stable"
 
       - name: Compile
         run: make assemble
