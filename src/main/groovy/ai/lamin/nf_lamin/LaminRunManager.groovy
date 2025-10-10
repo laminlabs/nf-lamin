@@ -92,6 +92,14 @@ final class LaminRunManager {
         return run
     }
 
+    Instance getLaminInstance() {
+        return laminInstance
+    }
+
+    synchronized void setLaminInstance(Instance instance) {
+        laminInstance = instance
+    }
+
     void initializeRun(Session session) {
         log.debug 'LaminRunManager.initializeRun'
         reset()
