@@ -137,8 +137,13 @@ final class LaminRunManager {
 
     void initializeRun() {
         log.debug 'LaminRunManager.initializeRun'
-        fetchOrCreateTransform()
-        fetchOrCreateRun()
+        try {
+            fetchOrCreateTransform()
+            fetchOrCreateRun()
+        } catch (Exception e) {
+            log.error 'Failed to initialize run', e
+            throw e
+        }
     }
 
     void startRun() {

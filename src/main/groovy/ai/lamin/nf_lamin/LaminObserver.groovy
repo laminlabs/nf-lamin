@@ -41,8 +41,13 @@ class LaminObserver implements TraceObserver {
     @Override
     void onFlowCreate(Session session) {
         log.debug "LaminObserver.onFlowCreate"
-        state.initializeRunManager(session)
-        state.initializeRun()
+        try {
+            state.initializeRunManager(session)
+            state.initializeRun()
+        } catch (Exception e) {
+            log.error "Failed to initialize Lamin run", e
+            throw e
+        }
     }
 
     @Override
