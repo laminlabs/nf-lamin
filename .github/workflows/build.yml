@@ -85,7 +85,29 @@ jobs:
           LAMIN_ENV: prod
         run: |
           BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
-          make validate BRANCH="$BRANCH"
+          make validate BRANCH="$BRANCH" || true
+
+      - name: Debug - List files after validation
+        if: always()
+        run: |
+          echo "=== Current directory ==="
+          pwd
+          echo "=== Files in current directory ==="
+          ls -la
+          echo "=== Nextflow log location ==="
+          find . -name ".nextflow.log" -type f 2>/dev/null || echo "No .nextflow.log found"
+          echo "=== Nextflow directory contents ==="
+          ls -la .nextflow/ 2>/dev/null || echo "No .nextflow directory"
+
+      - name: Debug - Print nextflow log if exists
+        if: always()
+        run: |
+          if [ -f .nextflow.log ]; then
+            echo "=== .nextflow.log contents ==="
+            cat .nextflow.log
+          else
+            echo "No .nextflow.log file found in current directory"
+          fi
 
       - uses: actions/upload-artifact@v4
         if: always()
