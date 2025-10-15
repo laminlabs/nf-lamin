@@ -154,7 +154,7 @@ final class LaminRunManager {
         }
 
         WorkflowMetadata wfMetadata = session.getWorkflowMetadata()
-        laminInstance.updateRecord(
+        Map<String, Object> updatedRun = laminInstance.updateRecord(
             moduleName: 'core',
             modelName: 'run',
             uid: currentRun.get('uid') as String,
@@ -163,10 +163,10 @@ final class LaminRunManager {
                 _status_code: RunStatus.STARTED.code
             ]
         )
+        if (run.uid != updatedRun.uid) {
+            log.warn "Run UID changed from ${run.uid} to ${updatedRun.uid} on start update!"
+        }
 
-        Map<String, Object> updatedRun = new LinkedHashMap<String, Object>(currentRun)
-        updatedRun.put('started_at', wfMetadata.start)
-        updatedRun.put('_status_code', RunStatus.STARTED.code)
         updateRun(updatedRun)
         log.info "Run ${updatedRun.get('uid')} ${RunStatus.STARTED.description}"
     }
@@ -312,9 +312,10 @@ final class LaminRunManager {
         if (run == null || laminInstance == null || session == null) {
             return
         }
+
         log.info "Run ${run.get('uid')} ${status.description}"
         WorkflowMetadata wfMetadata = session.getWorkflowMetadata()
-        laminInstance.updateRecord(
+        Map<String, Object> updatedRun = laminInstance.updateRecord(
             moduleName: 'core',
             modelName: 'run',
             uid: run.get('uid') as String,
@@ -323,10 +324,9 @@ final class LaminRunManager {
                 _status_code: status.code
             ]
         )
-
-        Map<String, Object> updatedRun = new LinkedHashMap<String, Object>(run)
-        updatedRun.put('finished_at', wfMetadata.complete)
-        updatedRun.put('_status_code', status.code)
+        if (run.uid != updatedRun.uid) {
+            log.warn "Run UID changed from ${run.uid} to ${updatedRun.uid} on final update!"
+        }
         updateRun(updatedRun)
     }
 
