@@ -18,6 +18,7 @@ package ai.lamin.nf_lamin
 
 import java.io.File
 import java.net.URI
+import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Collections
 import java.util.LinkedHashMap
@@ -28,6 +29,7 @@ import groovy.json.JsonOutput
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import nextflow.Session
+import nextflow.file.FileHelper
 import nextflow.script.WorkflowMetadata
 
 import ai.lamin.lamin_api_client.ApiException
@@ -171,7 +173,6 @@ final class LaminRunManager {
         if (run.uid != updatedRun.uid) {
             log.warn "Run UID changed from ${run.uid} to ${updatedRun.uid} on start update!"
         }
-
         updateRun(updatedRun)
         log.info "Run ${updatedRun.get('uid')} ${RunStatus.STARTED.description}"
     }
@@ -344,14 +345,24 @@ final class LaminRunManager {
 
         log.info "Run ${run.get('uid')} ${status.description}"
         WorkflowMetadata wfMetadata = session.getWorkflowMetadata()
+
+        // Update run with finish time, status, and report artifact
+        Map<String, Object> updateData = [
+            finished_at: wfMetadata.complete,
+            _status_code: status.code
+        ]
+
+        // Handle report artifact
+        Integer reportArtifactId = createReportArtifact()
+        if (reportArtifactId != null) {
+            updateData.put('report_id', reportArtifactId)
+        }
+
         Map<String, Object> updatedRun = laminInstance.updateRecord(
             moduleName: 'core',
             modelName: 'run',
             uid: run.get('uid') as String,
-            data: [
-                finished_at: wfMetadata.complete,
-                _status_code: status.code
-            ]
+            data: updateData
         )
         if (run.uid != updatedRun.uid) {
             log.warn "Run UID changed from ${run.uid} to ${updatedRun.uid} on final update!"
@@ -412,6 +423,96 @@ final class LaminRunManager {
             log.debug "${verb} output artifact ${artifactUid}"
         }
         return artifact
+    }
+
+    private Integer createReportArtifact() {
+        Map reportConfig = session.config.navigate("report") as Map
+        log.debug "Report config: ${reportConfig}"
+
+        // Determine the report path (either existing file or generate placeholder)
+        boolean reportEnabled = reportConfig?.get('enabled') as Boolean ?: false
+        boolean hasReportFile = reportEnabled && reportConfig?.get('file')
+
+        Path reportPath = null
+        Path tempReportPath = null
+        boolean isPlaceholder = false
+
+        if (hasReportFile) {
+            // Use existing report file
+            reportPath = FileHelper.asPath(reportConfig.get('file') as String)
+            log.debug "Report enabled, using file: ${reportPath}"
+        } else {
+            // Generate placeholder HTML
+            log.debug "Report not enabled, generating placeholder HTML"
+            tempReportPath = Files.createTempFile("nextflow-report-", ".html")
+            reportPath = tempReportPath
+            isPlaceholder = true
+
+            String placeholderHtml = """<!DOCTYPE html>
+<html>
+<head>
+    <title>Nextflow Report Not Generated</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
+        .info-box { background: #f0f0f0; border-left: 4px solid #007acc; padding: 20px; }
+        code { background: #e8e8e8; padding: 2px 6px; border-radius: 3px; }
+        pre { background: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Nextflow Execution Report Not Generated</h1>
+    <div class="info-box">
+        <p>To generate an execution report for your Nextflow workflow, enable the report in your <code>nextflow.config</code>:</p>
+        <pre>report {
+    enabled = true
+}</pre>
+        <p>For more information, see the <a href="https://www.nextflow.io/docs/latest/reports.html#execution-report" target="_blank">Nextflow documentation</a>.</p>
+    </div>
+</body>
+</html>"""
+            Files.write(reportPath, placeholderHtml.getBytes('UTF-8'))
+        }
+
+        // Create artifact from the report path
+        try {
+            Map<String, Object> artifact = createOutputArtifact(reportPath)
+            if (artifact) {
+                Integer artifactId = (artifact.get('id') as Number)?.intValue()
+                String artifactUid = artifact.get('uid') as String
+
+                // If id is missing, fetch it using the uid
+                if (artifactId == null && artifactUid != null) {
+                    log.debug "Artifact ID missing from API response, looking up artifact by UID: ${artifactUid}"
+                    try {
+                        Map<String, Object> fetchedArtifact = laminInstance.getRecord(
+                            moduleName: 'core',
+                            modelName: 'artifact',
+                            idOrUid: artifactUid
+                        )
+                        artifactId = (fetchedArtifact.get('id') as Number)?.intValue()
+                    } catch (Exception e) {
+                        log.warn "Failed to fetch artifact ID for UID ${artifactUid}: ${e.getMessage()}"
+                    }
+                }
+
+                if (isPlaceholder) {
+                    log.debug "Created placeholder report artifact ${artifactUid}"
+                } else {
+                    log.info "Created report artifact ${artifactUid}"
+                }
+                return artifactId
+            }
+            return null
+        } finally {
+            // Clean up temp file if we created one
+            if (tempReportPath != null) {
+                try {
+                    Files.delete(tempReportPath)
+                } catch (Exception e) {
+                    log.debug "Failed to delete temporary report file: ${e.getMessage()}"
+                }
+            }
+        }
     }
 
     private void printTransformMessage(Map transformRecord, String message) {
