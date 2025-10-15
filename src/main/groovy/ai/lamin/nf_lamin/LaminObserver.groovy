@@ -45,7 +45,7 @@ class LaminObserver implements TraceObserver {
             state.initializeRunManager(session)
             state.initializeRun()
         } catch (Exception e) {
-            log.error "Failed to initialize Lamin run", e
+            log.error "Could not initialize Lamin run: ${e.message}"
             throw e
         }
     }
