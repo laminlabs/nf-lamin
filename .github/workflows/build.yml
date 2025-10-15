@@ -68,6 +68,7 @@ jobs:
           LAMIN_TEST_BUCKET: ${{ secrets.LAMIN_TEST_BUCKET }}
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: test-report-java${{ matrix.java_version }}
           path: build/reports
@@ -87,6 +88,7 @@ jobs:
           make validate BRANCH="$BRANCH"
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: validation-logs-java${{ matrix.java_version }}
           path: .nextflow.log
