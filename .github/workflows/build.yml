@@ -67,7 +67,11 @@ jobs:
           LAMIN_STAGING_API_KEY: ${{ secrets.LAMIN_API_KEY_TESTUSER1_STAGING }}
           LAMIN_TEST_BUCKET: ${{ secrets.LAMIN_TEST_BUCKET }}
 
-      - name: Validation workflow
+      - name: Build plugin
+        run: |
+          make install
+
+      - name: Run validation workflow
         env:
           LAMIN_CURRENT_INSTANCE: laminlabs/lamindata
           LAMIN_API_KEY: ${{ secrets.LAMIN_API_KEY_TESTUSER1 }}
@@ -75,8 +79,14 @@ jobs:
           LAMIN_ENV: prod
         run: |
           BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
-          make install
           make validate BRANCH="$BRANCH"
+
+      # if failed, upload logs
+      - if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-logs
+          path: ./.nextflow.log
 
   build:
     name: Build docs
