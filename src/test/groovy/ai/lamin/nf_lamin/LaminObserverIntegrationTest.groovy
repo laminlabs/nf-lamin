@@ -191,7 +191,8 @@ class LaminObserverIntegrationTest extends Specification {
         String apiKey = System.getenv('LAMIN_STAGING_API_KEY')
         String bucket = System.getenv('LAMIN_TEST_BUCKET')
         String uniqueSuffix = UUID.randomUUID().toString().substring(0, 8)
-        String revision = "integration-${uniqueSuffix}"
+        String timestamp = new java.text.SimpleDateFormat('yyyyMMdd-HHmmss-SSS').format(new Date())
+        String revision = "integration-${timestamp}-${uniqueSuffix}"
         String runName = "nf-lamin-auto-${uniqueSuffix}"
         Path projectDir = Paths.get("/opt/workflows/integration-${uniqueSuffix}")
         Path scriptPath = projectDir.resolve('custom.nf')

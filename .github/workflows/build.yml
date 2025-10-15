@@ -67,6 +67,11 @@ jobs:
           LAMIN_STAGING_API_KEY: ${{ secrets.LAMIN_API_KEY_TESTUSER1_STAGING }}
           LAMIN_TEST_BUCKET: ${{ secrets.LAMIN_TEST_BUCKET }}
 
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-report-java${{ matrix.java_version }}
+          path: build/reports
+
       - name: Build plugin
         run: |
           make install
@@ -81,12 +86,10 @@ jobs:
           BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
           make validate BRANCH="$BRANCH"
 
-      # if failed, upload logs
-      - if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: validation-logs
-          path: ./.nextflow.log
+          name: validation-logs-java${{ matrix.java_version }}
+          path: .nextflow.log
 
   build:
     name: Build docs
