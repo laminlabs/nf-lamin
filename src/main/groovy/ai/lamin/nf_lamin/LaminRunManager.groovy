@@ -375,35 +375,92 @@ final class LaminRunManager {
             return null
         }
 
-        boolean isLocalFile = (path.toUri().getScheme() ?: 'file') == 'file'
         Integer runId = (run.get('id') as Number)?.intValue()
         if (runId == null) {
             return null
         }
-        String description = "Output artifact for run ${runId}"
 
-        log.debug "Creating output artifact for run ${runId} at ${path.toUri()}"
+        String description = "Output artifact for run ${runId}"
+        return createOrUploadArtifact(
+            path: path,
+            run_id: runId,
+            description: description
+        )
+    }
+
+    Map<String, Object> createOrUploadArtifact(Map<String, Object> params) {
+        if (laminInstance == null || config.dryRun) {
+            return null
+        }
+
+        // Validate and extract required parameter
+        if (!params.get('path')) {
+            throw new IllegalArgumentException("Required parameter 'path' is missing")
+        }
+
+        Path path = params.get('path') as Path
+        if (path == null) {
+            throw new IllegalArgumentException("Parameter 'path' must be a valid Path object")
+        }
+
+        // Validate and extract optional parameters
+        Integer runId = null
+        if (params.containsKey('run_id')) {
+            Object runIdValue = params.get('run_id')
+            if (runIdValue != null && !(runIdValue instanceof Integer)) {
+                throw new IllegalArgumentException("Parameter 'run_id' must be an Integer or null")
+            }
+            runId = runIdValue as Integer
+        }
+
+        String description = null
+        if (params.containsKey('description')) {
+            Object descValue = params.get('description')
+            if (descValue != null && !(descValue instanceof String)) {
+                throw new IllegalArgumentException("Parameter 'description' must be a String or null")
+            }
+            description = descValue as String
+        }
+
+        String kind = null
+        if (params.containsKey('kind')) {
+            Object kindValue = params.get('kind')
+            if (kindValue != null && !(kindValue instanceof String)) {
+                throw new IllegalArgumentException("Parameter 'kind' must be a String or null")
+            }
+            kind = kindValue as String
+        }
+
+        boolean isLocalFile = (path.toUri().getScheme() ?: 'file') == 'file'
+
+        String logContext = runId != null ? "for run ${runId}" : "without run association"
+        log.debug "Creating artifact ${logContext} at ${path.toUri()}"
 
         Map<String, Object> artifact = null
         artifactLock.lock()
         try {
+            Map<String, Object> apiParams = [:]
+            if (runId != null) {
+                apiParams.put('run_id', runId)
+            }
+            if (description != null) {
+                apiParams.put('description', description)
+            }
+            if (kind != null) {
+                apiParams.put('kind', kind)
+            }
+
             if (isLocalFile) {
                 File file = path.toFile()
-                artifact = laminInstance.uploadArtifact(
-                    file: file,
-                    run_id: runId,
-                    description: description
-                )
+                apiParams.put('file', file)
+                artifact = laminInstance.uploadArtifact(apiParams)
             } else {
                 String remotePath = path.toUri().toString()
-                artifact = laminInstance.createArtifact(
-                    path: remotePath,
-                    run_id: runId,
-                    description: description
-                )
+                apiParams.put('path', remotePath)
+                artifact = laminInstance.createArtifact(apiParams)
             }
         } catch (Exception e) {
-            log.error "Failed to create output artifact for run ${runId} at ${path.toUri()}"
+            log.error "Failed to create artifact ${logContext} at ${path.toUri()}"
             log.debug "Exception: ${e.getMessage()}", e
             return null
         } finally {
@@ -411,16 +468,16 @@ final class LaminRunManager {
         }
 
         Number artifactRunNumber = ((artifact.get('run') ?: artifact.get('run_id')) as Number)
-        boolean isNewArtifact = artifactRunNumber != null && artifactRunNumber.intValue() == runId
+        boolean isNewArtifact = runId == null || (artifactRunNumber != null && artifactRunNumber.intValue() == runId)
         String verb = isNewArtifact ? (isLocalFile ? 'Uploaded' : 'Created') : 'Detected previous'
         String webUrl = resolvedConfig != null ? resolvedConfig.get('webUrl') as String : null
         String owner = laminInstance.getOwner()
         String name = laminInstance.getName()
         String artifactUid = artifact.get('uid') as String
         if (webUrl) {
-            log.debug "${verb} output artifact ${artifactUid} (${webUrl}/${owner}/${name}/artifact/${artifactUid})"
+            log.debug "${verb} artifact ${artifactUid} (${webUrl}/${owner}/${name}/artifact/${artifactUid})"
         } else {
-            log.debug "${verb} output artifact ${artifactUid}"
+            log.debug "${verb} artifact ${artifactUid}"
         }
         return artifact
     }
@@ -462,10 +519,14 @@ final class LaminRunManager {
 <body>
     <h1>Nextflow Execution Report Not Generated</h1>
     <div class="info-box">
-        <p>To generate an execution report for your Nextflow workflow, enable the report in your <code>nextflow.config</code>:</p>
+        <p>To generate an execution report for your Nextflow workflow, you can either:</p>
+        <p><strong>Option 1:</strong> Enable the report in your <code>nextflow.config</code>:</p>
         <pre>report {
     enabled = true
+    file = "path/to/lamin_report-\${new Date().format('yyyyMMdd-HHmmss')}.html"
 }</pre>
+        <p><strong>Option 2:</strong> Add the <code>-with-report</code> flag to your nextflow run command:</p>
+        <pre>nextflow run your_pipeline.nf -with-report report.html</pre>
         <p>For more information, see the <a href="https://www.nextflow.io/docs/latest/reports.html#execution-report" target="_blank">Nextflow documentation</a>.</p>
     </div>
 </body>
@@ -475,7 +536,15 @@ final class LaminRunManager {
 
         // Create artifact from the report path
         try {
-            Map<String, Object> artifact = createOutputArtifact(reportPath)
+            String description = "Nextflow execution report for run ${run?.get('uid')}"
+
+            Map<String, Object> artifact = createOrUploadArtifact(
+                path: reportPath,
+                run_id: null,
+                description: description,
+                kind: "__lamindb_run__"
+            )
+
             if (artifact) {
                 Integer artifactId = (artifact.get('id') as Number)?.intValue()
                 String artifactUid = artifact.get('uid') as String
