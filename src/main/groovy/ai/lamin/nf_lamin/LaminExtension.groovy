@@ -33,13 +33,25 @@ class LaminExtension extends PluginExtensionPoint {
     }
 
     /**
-     * Say hello to the given target.
+     * Returns the UID of the current Lamin run.
      *
-     * @param target
+     * @return the run UID or {@code null} if unavailable
      */
     @Function
-    void sayHello(String target) {
-        println "Hello, ${target}!"
+    String getRunUid() {
+        Map<String, Object> run = LaminRunManager.instance.run
+        return run != null ? run.get('uid') as String : null
+    }
+
+    /**
+     * Returns the UID of the current Lamin transform.
+     *
+     * @return the transform UID or {@code null} if unavailable
+     */
+    @Function
+    String getTransformUid() {
+        Map<String, Object> transform = LaminRunManager.instance.transform
+        return transform != null ? transform.get('uid') as String : null
     }
 
 }

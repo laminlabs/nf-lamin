@@ -190,7 +190,7 @@ class LaminHub {
                     log.warn "Warning: Received HTTP 200 but empty response body from ${requestUrl}"
                     return ''
                 }
-                log.trace "Received response from ${requestUrl} for ${callingMethod}: ${responseBody}"
+                log.trace "Received response from ${requestUrl} for ${callingMethod}: ${redactSensitiveFields(responseBody)}"
                 return responseBody
             } else if (allowRetry && (responseCode == HttpURLConnection.HTTP_UNAUTHORIZED || responseCode == HttpURLConnection.HTTP_FORBIDDEN)) {
                 // --- Authorization Error & Retry Allowed ---
@@ -275,6 +275,49 @@ class LaminHub {
             log.error("Failed to refresh access token: ${e.message}", e)
             throw new RuntimeException('Failed to refresh access token.', e)
         }
+    }
+
+    /**
+     * Redacts sensitive fields from a JSON response string for safe logging.
+     *
+     * @param jsonString The JSON response string
+     * @return The JSON string with sensitive fields redacted
+     */
+    private String redactSensitiveFields(String jsonString) {
+        if (!jsonString?.trim()) {
+            return jsonString
+        }
+
+        // List of sensitive field names to redact
+        List<String> sensitiveFields = [
+            'accessToken',
+            'access_token',
+            'api_key',
+            'apiKey',
+            'password',
+            'db_user_password',
+            'db_password',
+            'secret',
+            'token',
+            'bearer',
+            'authorization'
+        ]
+
+        String result = jsonString
+        for (String field : sensitiveFields) {
+            // Match patterns like "field":"value" or "field": "value"
+            result = result.replaceAll(
+                /"${field}"\s*:\s*"([^"]+)"/,
+                "\"${field}\":\"***REDACTED***\""
+            )
+            // Match patterns without quotes around value (for non-string values, though less common for secrets)
+            result = result.replaceAll(
+                /"${field}"\s*:\s*([^,}\]]+)/,
+                "\"${field}\":\"***REDACTED***\""
+            )
+        }
+
+        return result
     }
 
 }

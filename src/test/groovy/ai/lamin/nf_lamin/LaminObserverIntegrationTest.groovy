@@ -156,13 +156,14 @@ class LaminObserverIntegrationTest extends Specification {
         }
 
         LaminObserver observer = new LaminObserver()
+        LaminRunManager manager = LaminRunManager.instance
 
         when:
         observer.onFlowCreate(session)
 
         then:
-        observer.@transform.uid == transform.uid
-        observer.@run.uid == manualRun.uid
+        manager.transform.uid == transform.uid
+        manager.run.uid == manualRun.uid
         apiClient.getRecord(
             moduleName: 'core',
             modelName: 'run',
@@ -190,9 +191,10 @@ class LaminObserverIntegrationTest extends Specification {
         String apiKey = System.getenv('LAMIN_STAGING_API_KEY')
         String bucket = System.getenv('LAMIN_TEST_BUCKET')
         String uniqueSuffix = UUID.randomUUID().toString().substring(0, 8)
-        String revision = "integration-${uniqueSuffix}"
-        String runName = "nf-lamin-auto-${uniqueSuffix}"
-        Path projectDir = Paths.get("/opt/workflows/integration-${uniqueSuffix}")
+        String timestamp = new java.text.SimpleDateFormat('yyyyMMdd-HHmmss-SSSS').format(new Date())
+        String revision = "${timestamp}-${uniqueSuffix}"
+        String runName = "nf-lamin-auto-${revision}"
+        Path projectDir = Paths.get("/opt/workflows/integration-${revision}")
         Path scriptPath = projectDir.resolve('custom.nf')
         OffsetDateTime runStart = OffsetDateTime.now().minusMinutes(3)
 
@@ -222,17 +224,18 @@ class LaminObserverIntegrationTest extends Specification {
         }
 
         LaminObserver observer = new LaminObserver()
+        LaminRunManager manager = LaminRunManager.instance
 
         when:
         observer.onFlowCreate(session)
 
         then:
-        observer.@transform.uid
-        observer.@run.uid
-        waitForRunStatus(apiClient, observer.@run.uid as String, RunStatus.SCHEDULED.code)
+        manager.transform.uid
+        manager.run.uid
+        waitForRunStatus(apiClient, manager.run.uid as String, RunStatus.SCHEDULED.code)
 
         when: 'we spy on the instance to capture artifact creation and start the run'
-        Instance instanceSpy = Spy(observer.@instance)
+        Instance instanceSpy = Spy(manager.laminInstance)
         Map<String, Object> uploadedArtifact = null
         Map<String, Object> remoteArtifact = null
         instanceSpy.uploadArtifact(_ as Map) >> { Map<String, Object> args ->
@@ -245,9 +248,9 @@ class LaminObserverIntegrationTest extends Specification {
             remoteArtifact = result
             return result
         }
-        observer.@instance = instanceSpy
+        manager.laminInstance = instanceSpy
         observer.onFlowBegin()
-        waitForRunStatus(apiClient, observer.@run.uid as String, RunStatus.STARTED.code)
+        waitForRunStatus(apiClient, manager.run.uid as String, RunStatus.STARTED.code)
 
         and: 'a local artifact is published'
         Path localFile = Files.createTempFile("nf-lamin-local-${uniqueSuffix}", '.txt')
@@ -268,9 +271,9 @@ class LaminObserverIntegrationTest extends Specification {
         }
         Object artifactRun = fetchedLocalArtifact.run ?: fetchedLocalArtifact.run_id
         if (artifactRun instanceof Map) {
-            assert artifactRun.uid == observer.@run.uid || artifactRun.id == observer.@run.id
+            assert artifactRun.uid == manager.run.uid || artifactRun.id == manager.run.id
         } else if (artifactRun != null) {
-            assert artifactRun == observer.@run.id || artifactRun == observer.@run.uid
+            assert artifactRun == manager.run.id || artifactRun == manager.run.uid
         } else {
             assert false: 'Artifact should reference the run that created it'
         }
@@ -294,12 +297,12 @@ class LaminObserverIntegrationTest extends Specification {
             if (fetchedRemoteArtifact.path) {
                 assert fetchedRemoteArtifact.path == remoteUri.toString()
             }
-            assert (fetchedRemoteArtifact.run ?: fetchedRemoteArtifact.run_id) == observer.@run.id
+            assert (fetchedRemoteArtifact.run ?: fetchedRemoteArtifact.run_id) == manager.run.id
         }
 
         when:
         observer.onFlowComplete()
-        Map<String, Object> completed = waitForRunStatus(apiClient, observer.@run.uid as String, RunStatus.COMPLETED.code)
+        Map<String, Object> completed = waitForRunStatus(apiClient, manager.run.uid as String, RunStatus.COMPLETED.code)
 
         then:
         completed.finished_at != null
