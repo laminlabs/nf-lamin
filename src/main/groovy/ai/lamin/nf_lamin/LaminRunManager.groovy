@@ -526,7 +526,7 @@ final class LaminRunManager {
     file = "path/to/lamin_report-\${new Date().format('yyyyMMdd-HHmmss')}.html"
 }</pre>
         <p><strong>Option 2:</strong> Add the <code>-with-report</code> flag to your nextflow run command:</p>
-        <pre>nextflow run your_pipeline.nf -with-report report.html</pre>
+        <pre>nextflow run your_pipeline.nf -with-report</pre>
         <p>For more information, see the <a href="https://www.nextflow.io/docs/latest/reports.html#execution-report" target="_blank">Nextflow documentation</a>.</p>
     </div>
 </body>
