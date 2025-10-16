@@ -63,6 +63,9 @@ lamin {
 
   // Optional: Environment selector - 'prod' or 'staging' (default: 'prod')
   env = "prod"
+
+  // Optional: Dry-run mode - test configuration without creating records (default: false)
+  dry_run = false
 }
 ```
 

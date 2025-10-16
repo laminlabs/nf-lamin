@@ -137,6 +137,12 @@ final class LaminRunManager {
 
     void initializeRun() {
         log.debug 'LaminRunManager.initializeRun'
+
+        if (config.dryRun) {
+            log.info 'nf-lamin: Dry-run mode enabled'
+            return
+        }
+
         try {
             fetchOrCreateTransform()
             fetchOrCreateRun()
@@ -148,8 +154,7 @@ final class LaminRunManager {
 
     void startRun() {
         log.debug 'LaminRunManager.startRun'
-        Map<String, Object> currentRun = getRun()
-        if (!currentRun || laminInstance == null || session == null) {
+        if (run == null || laminInstance == null || session == null || config.dryRun) {
             return
         }
 
@@ -157,7 +162,7 @@ final class LaminRunManager {
         Map<String, Object> updatedRun = laminInstance.updateRecord(
             moduleName: 'core',
             modelName: 'run',
-            uid: currentRun.get('uid') as String,
+            uid: run.get('uid') as String,
             data: [
                 started_at: wfMetadata.start,
                 _status_code: RunStatus.STARTED.code
@@ -235,6 +240,19 @@ final class LaminRunManager {
             return transformRecord
         }
 
+        if (config.dryRun) {
+            // return a dummy object and print a message
+            transformRecord = [
+                uid: 'DrYrUnTrAuId',
+                id: -1,
+                key: key,
+                version: revision
+            ] as Map<String, Object>
+            updateTransform(transformRecord)
+            log.info "Dry-run mode: using dummy transform ${transformRecord.get('uid')}"
+            return transformRecord
+        }
+
         String description = "${wfMetadata.manifest.getName()}: ${wfMetadata.manifest.getDescription()}"
         String commitId = wfMetadata.commitId
         Map info = [
@@ -290,9 +308,20 @@ final class LaminRunManager {
             }
         }
 
+        if (config.dryRun) {
+            Map<String, Object> dummyRunRecord = [
+                uid: 'DrYrUnRuNuId',
+                id: -1,
+                transform_id: (transform?.get('id') as Number)?.intValue(),
+                _status_code: RunStatus.SCHEDULED.code
+            ] as Map<String, Object>
+            updateRun(dummyRunRecord)
+            log.info "Dry-run mode: created dummy run ${dummyRunRecord.get('uid')}"
+        }
+
         WorkflowMetadata wfMetadata = session.getWorkflowMetadata()
         Integer transformId = (transform?.get('id') as Number)?.intValue()
-        Map runRecord = laminInstance.createRecord(
+        Map<String, Object> runRecord = laminInstance.createRecord(
             moduleName: 'core',
             modelName: 'run',
             data: [
@@ -309,7 +338,7 @@ final class LaminRunManager {
     }
 
     void finalizeRun(RunStatus status) {
-        if (run == null || laminInstance == null || session == null) {
+        if (run == null || laminInstance == null || session == null || config.dryRun) {
             return
         }
 
@@ -330,53 +359,13 @@ final class LaminRunManager {
         updateRun(updatedRun)
     }
 
-    Map<String, Object> fetchOrCreateStorage(Path path) {
-        if (laminInstance == null) {
-            return null
-        }
-        String root = path.getFileSystem().toString()
-        URI uri = path.toUri()
-        String type = uri.getScheme()
-
-        List<Map> existingStorage = laminInstance.getRecords(
-            moduleName: 'core',
-            modelName: 'storage',
-            filter: [
-                and: [
-                    [root: [eq: root]],
-                    [type: [eq: type]]
-                ]
-            ]
-        )
-        log.debug "Found ${existingStorage.size()} existing Storage(s) with root ${root} and type ${type}"
-
-        Map storage = null
-        if (existingStorage) {
-            if (existingStorage.size() > 1) {
-                log.warn "Found multiple Storage objects with root ${root} and type ${type}"
-            }
-            storage = existingStorage[0]
-        } else {
-            storage = laminInstance.createRecord(
-                moduleName: 'core',
-                modelName: 'storage',
-                data: [
-                    root: root,
-                    type: type
-                ]
-            )
-        }
-        return storage
-    }
-
     Map<String, Object> createOutputArtifact(Path path) {
-        Map<String, Object> currentRun = run
-        if (currentRun == null || laminInstance == null) {
+        if (run == null || laminInstance == null || config.dryRun) {
             return null
         }
 
         boolean isLocalFile = (path.toUri().getScheme() ?: 'file') == 'file'
-        Integer runId = (currentRun.get('id') as Number)?.intValue()
+        Integer runId = (run.get('id') as Number)?.intValue()
         if (runId == null) {
             return null
         }

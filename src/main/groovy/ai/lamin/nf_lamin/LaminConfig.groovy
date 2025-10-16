@@ -33,6 +33,7 @@ import nextflow.script.dsl.Description
  *   api_key = System.getenv('LAMIN_API_KEY')
  *   project = System.getenv('LAMIN_CURRENT_PROJECT')
  *   env = 'prod'
+ *   dry_run = false
  * }
  *
  * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
@@ -104,6 +105,12 @@ class LaminConfig implements ConfigScope {
     ''')
     final String runUid
 
+    @ConfigOption
+    @Description('''
+        (Advanced) Enable dry-run mode. When true, the plugin will not create any transforms, runs, or artifacts in LaminDB. Useful for testing configuration without modifying the database (default: false).
+    ''')
+    final Boolean dryRun
+
     /* required by extension point -- do not remove */
     LaminConfig() {}
 
@@ -124,6 +131,7 @@ class LaminConfig implements ConfigScope {
         this.retryDelay = opts.containsKey('retry_delay') ? (opts.retry_delay as Integer) : ((System.getenv('LAMIN_RETRY_DELAY') as Integer) ?: 100)
         this.transformUid = opts.containsKey('transform_uid') ? opts.transform_uid : System.getenv('LAMIN_TRANSFORM_UID')
         this.runUid = opts.containsKey('run_uid') ? opts.run_uid : System.getenv('LAMIN_RUN_UID')
+        this.dryRun = opts.containsKey('dry_run') ? (opts.dry_run as Boolean) : ((System.getenv('LAMIN_DRY_RUN') as Boolean) ?: false)
 
         validateConfiguration()
     }
