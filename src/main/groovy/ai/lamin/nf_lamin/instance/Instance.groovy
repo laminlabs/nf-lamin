@@ -440,13 +440,12 @@ class Instance {
      * Create an artifact in the Lamin API.
      * @param args A map containing the following keys:
      *    - path: The path to the artifact (required)
-     *    - description: The description of the artifact (optional)
-     *    - run_id: The run ID associated with the artifact (optional)
+     *    - Any other fields will be passed as kwargs to the API
      * @return a map containing the created artifact data
      * @throws IllegalStateException if the path is null or empty
      * @throws ApiException if an error occurs while creating the artifact
      */
-    Map createArtifact(Map args) {
+    Map createArtifact(Map<String, Object> args) {
         // Required args
         String path = args.path as String
         if (!path) { throw new IllegalStateException('Path is null or empty. Please check the path.') }
@@ -456,77 +455,76 @@ class Instance {
             path: path
         )
 
-        // Process optional args
-        for (field in ["description", "run_id"]) {
-            if (args.containsKey(field)) {
-                body.putKwargsItem(field, args[field])
+        // Pass all other args as kwargs (excluding 'path')
+        args.each { String key, Object value ->
+            if (key != 'path') {
+                body.putKwargsItem(key, value)
             }
         }
 
         // Do call
         log.trace "POST /instances/{instance_id}/artifacts/create: ${body.toJson()}"
 
-        Map response = callApi { String accessToken ->
+        Map<String, Object> response = callApi { String accessToken ->
             this.apiInstance.createArtifactInstancesInstanceIdArtifactsCreatePost(
                 this.settings.id(),
                 body,
                 accessToken
-            ) as Map
+            ) as Map<String, Object>
         }
 
         log.trace "Response from createArtifact: ${response}"
 
-        Map responseBody = response?.body as Map
+        Map<String, Object> responseBody = response?.body as Map<String, Object>
         if (!responseBody?.artifact) {
             throw new IllegalStateException("Failed to create artifact. Response: ${response}")
         }
 
-        return responseBody?.artifact as Map
+        return responseBody?.artifact as Map<String, Object>
     }
 
     /**
      * Upload an artifact to the Lamin API.
      * @param args A map containing the following keys:
      *    - file: The file to upload (required)
-     *    - description: The description of the artifact (optional)
-     *    - run_id: The run ID associated with the artifact (optional)
+     *    - Any other fields will be passed as kwargs to the API
      * @return a map containing the uploaded artifact data
      * @throws IllegalStateException if the file is null or does not exist
      * @throws ApiException if an error occurs while uploading the artifact
      */
-    Map uploadArtifact(Map args) {
+    Map uploadArtifact(Map<String, Object> args) {
         // Required args
         File file = args.file as File
         if (!file || !file.exists()) {
             throw new IllegalStateException('File is null or does not exist. Please check the file.')
         }
 
-        // Create kwargs string
-        Map kwargs = [:]
-        for (field in ["description", "run_id"]) {
-            if (args.containsKey(field)) {
-                kwargs[field] = args[field]
+        // Create kwargs from all args (excluding 'file')
+        Map<String, Object> kwargs = [:]
+        args.each { String key, Object value ->
+            if (key != 'file') {
+                kwargs[key] = value
             }
         }
         String kwargsString = kwargs ? groovy.json.JsonOutput.toJson(kwargs) : '{}'
 
         // Do call
         log.trace "POST /instances/{instance_id}/artifacts/upload: file=${file}, kwargs=${kwargsString}"
-        Map response = callApi { String accessToken ->
+        Map<String, Object> response = callApi { String accessToken ->
             this.apiInstance.uploadArtifactInstancesInstanceIdArtifactsUploadPost(
                 this.settings.id(),
                 file,
                 accessToken,
                 kwargsString
-            ) as Map
+            ) as Map<String, Object>
         }
         log.trace "Response from uploadArtifact: ${response}"
 
-        Map responseBody = response?.body as Map
+        Map<String, Object> responseBody = response?.body as Map<String, Object>
         if (!responseBody?.artifact) {
             throw new IllegalStateException("Failed to upload artifact. Response: ${response}")
         }
-        return responseBody?.artifact as Map
+        return responseBody?.artifact as Map<String, Object>
     }
 
     // ------------------- PRIVATE METHODS -------------------
