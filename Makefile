@@ -21,7 +21,8 @@ release:
 	./gradlew releasePlugin
 
 # Run the validation Nextflow workflow
-# Usage: make validate [BRANCH=branch-name] [VERSION=x.y.z]
+# Usage: make validate [BRANCH=branch-name] [VERSION=x.y.z] [ARGS="extra args"]
+# Example: make validate ARGS="-with-report"
 validate:
 	BRANCH=$${BRANCH:-$$(git symbolic-ref --short HEAD 2>/dev/null || echo "main")}; \
 	VERSION=$${VERSION:-$$(awk -F"'" '/^version =/{print $$2}' build.gradle)}; \
@@ -33,4 +34,5 @@ validate:
 		-main-script validation/main.nf \
 		-config validation/nextflow.config \
 		-plugins "nf-lamin@$$VERSION" \
-		-output-dir results
+		-output-dir results \
+		$(ARGS)
