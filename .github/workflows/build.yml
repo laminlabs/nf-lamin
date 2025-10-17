@@ -21,7 +21,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        java_version: [21, 25]
+        include:
+          - java_version: 21
+            args: ""
+          - java_version: 25
+            args: "-with-report"
     steps:
       - name: Environment
         run: env | sort
@@ -85,7 +89,7 @@ jobs:
           LAMIN_ENV: prod
         run: |
           BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
-          make validate BRANCH="$BRANCH"
+          make validate BRANCH="$BRANCH" ARGS="${{ matrix.args }}"
 
       - name: Print Nextflow log
         if: always()
