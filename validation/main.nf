@@ -1,6 +1,6 @@
 nextflow.preview.output = true
 
-include { getRunUid; getTransformUid } from 'plugin/nf-lamin'
+include { getRunUid; getTransformUid; getArtifactUrlByUid } from 'plugin/nf-lamin'
 
 workflow {
   main:
@@ -22,6 +22,10 @@ workflow {
   def metadataFile = File.createTempFile('lamin_metadata_', '.json')
   metadataFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata))
   log.info "Wrote metadata to ${metadataFile.absolutePath}"
+
+  // test artifact fetching
+  def artPath = getArtifactUrlByUid('s3rtK8wIzJNKvg5Q')
+  log.info "Artifact URL for UID 's3rtK8wIzJNKvg5Q': ${artPath}"
 
   // create output channel
   ch_out = Channel.of([

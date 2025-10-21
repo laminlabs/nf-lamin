@@ -16,6 +16,7 @@ import spock.lang.IgnoreIf
 import spock.lang.Specification
 import spock.lang.Shared
 import java.util.UUID
+import java.nio.file.Path
 
 /**
  * Tests the Instance class with real staging environment API calls
@@ -213,14 +214,27 @@ class InstanceArtifactTest extends Specification {
     // }
 
     @IgnoreIf({ !env.LAMIN_API_KEY })
-    def "should be able to retrieve artifact remote URL"() {
+    def "should be able to retrieve artifact remote URL using non-versioned uid"() {
         when:
-        def remoteUrl = instance.getArtifactUrl("s3rtK8wIzJNKvg5Q")
+        def remoteUrl = instance.getArtifactUrlByUid("s3rtK8wIzJNKvg5Q")
 
         then:
         remoteUrl != null
-        remoteUrl instanceof String
-        remoteUrl.startsWith('s3:/lamindata/.lamindb/s3rtK8wIzJNKvg5Q')
-        remoteUrl.endsWith('.txt')
+        remoteUrl instanceof Path
+        def remoteUrlStr = remoteUrl.toString()
+        remoteUrlStr.startsWith('s3:/lamindata/.lamindb/s3rtK8wIzJNKvg5Q')
+        remoteUrlStr.endsWith('.txt')
+    }
+
+    @IgnoreIf({ !env.LAMIN_API_KEY })
+    def "should be able to retrieve artifact remote URL using versioned but not recent uid"() {
+        when:
+        def remoteUrl = instance.getArtifactUrlByUid("s3rtK8wIzJNKvg5Q0000")
+
+        then:
+        remoteUrl != null
+        remoteUrl instanceof Path
+        def remoteUrlStr = remoteUrl.toString()
+        remoteUrlStr == 's3:/lamindata/.lamindb/s3rtK8wIzJNKvg5Q0000.txt'
     }
 }

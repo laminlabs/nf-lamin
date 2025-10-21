@@ -11,6 +11,7 @@ import ai.lamin.lamin_api_client.api.DefaultApi
 
 import ai.lamin.nf_lamin.hub.LaminHub
 
+import java.nio.file.Path
 import java.nio.file.Paths
 
 /**
@@ -529,7 +530,7 @@ class Instance {
         return responseBody?.artifact as Map<String, Object>
     }
 
-    String getArtifactUrl(String uid) throws ApiException {
+    Path getArtifactUrlByUid(String uid) throws ApiException {
 
         if (!uid) {
             throw new IllegalStateException('UID is null or empty. Please check the UID.')
@@ -555,6 +556,7 @@ class Instance {
             modelName: 'artifact',
             limit: 1,
             offset: 0,
+            includeForeignKeys: true,
             orderBy: [['field': 'updated_at', 'descending': true]],
             filter: [
                 'uid': ['startswith': uid]
@@ -567,10 +569,11 @@ class Instance {
         }
         log.info "Found ${records.size()} artifacts with uid starting with '${uid}'"
         Map artifact = records[0]
-
-        log.warn 'WARNING: getArtifactUrl() currently returns a hardcoded URL for testing purposes. Implement proper URL retrieval logic.'
-        String instancePath = 's3:/lamindata/.lamindb/'
         log.info "Using artifact: ${artifact}"
+
+        Map storage = getStorage(artifact.storage_id as Integer)
+        log.info "Storage details: ${storage}"
+        String storageRoot = storage.root as String
 
         String versioned_uid = artifact.uid as String
         if (versioned_uid.length() != 20) {
@@ -581,7 +584,9 @@ class Instance {
             throw new IllegalStateException("Artifact suffix is null. Please check the artifact data.")
         }
 
-        String combined = Paths.get(instancePath).resolve("${versioned_uid}${suffix}").toString()
+        log.warn 'WARNING: getArtifactUrl() currently returns a hardcoded URL for testing purposes. Implement proper URL retrieval logic.'
+        String hardcodedPart = '.lamindb'
+        Path combined = Paths.get(storageRoot).resolve(hardcodedPart).resolve("${versioned_uid}${suffix}")
         log.info "Constructed artifact URL: ${combined}"
 
         return combined
@@ -623,6 +628,19 @@ class Instance {
 
             throw e
         }
+    }
+
+    protected Map getStorage(Integer id) throws ApiException {
+        log.trace "GET getStorage: id=${id}"
+
+        Map response = getRecord([
+            moduleName: 'core',
+            modelName: 'storage',
+            idOrUid: id,
+            includeForeignKeys: false
+        ])
+        log.trace "Response from getStorage: ${response}"
+        return response
     }
 
 }
