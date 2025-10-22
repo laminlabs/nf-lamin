@@ -579,6 +579,7 @@ class Instance {
         if (versioned_uid.length() != 20) {
             throw new IllegalStateException("Artifact UID '${versioned_uid}' is not valid. It should be 20 characters long.")
         }
+        String key = artifact.key as String
         String suffix = artifact.suffix as String
         if (suffix == null) {
             throw new IllegalStateException("Artifact suffix is null. Please check the artifact data.")
@@ -586,7 +587,8 @@ class Instance {
 
         log.warn 'WARNING: getArtifactUrl() currently returns a hardcoded URL for testing purposes. Implement proper URL retrieval logic.'
         String hardcodedPart = '.lamindb'
-        Path combined = Paths.get(storageRoot).resolve(hardcodedPart).resolve("${versioned_uid}${suffix}")
+        // Path combined = Paths.get(storageRoot).resolve(hardcodedPart).resolve("${versioned_uid}${suffix}")
+        Path combined = Paths.get(storageRoot).resolve(key)
         log.info "Constructed artifact URL: ${combined}"
 
         return combined

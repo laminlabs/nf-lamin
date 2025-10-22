@@ -27,6 +27,9 @@ workflow {
   def artPath = getArtifactUrlByUid('s3rtK8wIzJNKvg5Q')
   log.info "Artifact URL for UID 's3rtK8wIzJNKvg5Q': ${artPath}"
 
+  def artPath2 = getArtifactUrlByUid('HOpnASIDDLx3pFYD0000')
+  log.info "Artifact URL for UID 'HOpnASIDDLx3pFYD0000': ${artPath2}"
+
   // create output channel
   ch_out = Channel.of([
     [id: 'lamin_metadata', path: metadataFile]

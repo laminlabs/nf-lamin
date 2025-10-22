@@ -20,6 +20,10 @@ import groovy.transform.CompileStatic
 import nextflow.Session
 import nextflow.plugin.extension.Function
 import nextflow.plugin.extension.PluginExtensionPoint
+import java.nio.file.Path
+import ai.lamin.nf_lamin.hub.LaminHub
+import ai.lamin.nf_lamin.instance.Instance
+import ai.lamin.nf_lamin.instance.InstanceSettings
 
 /**
  * Implements a custom function which can be imported by
@@ -52,6 +56,15 @@ class LaminExtension extends PluginExtensionPoint {
     String getTransformUid() {
         Map<String, Object> transform = LaminRunManager.instance.transform
         return transform != null ? transform.get('uid') as String : null
+    }
+
+    @Function
+    Path getArtifactUrlByUid(String artifactUid) {
+        LaminHub hub = LaminRunManager.instance.getHub()
+        LaminConfig config = LaminRunManager.instance.getConfig()
+        InstanceSettings instanceSettings = hub.getInstanceSettings('laminlabs', 'lamindata')
+        Instance instance = new Instance(hub, instanceSettings, config.getMaxRetries(), config.getRetryDelay())
+        return instance.getArtifactUrlByUid(artifactUid)
     }
 
 }

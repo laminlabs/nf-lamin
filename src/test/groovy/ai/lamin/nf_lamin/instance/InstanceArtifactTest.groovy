@@ -222,7 +222,7 @@ class InstanceArtifactTest extends Specification {
         remoteUrl != null
         remoteUrl instanceof Path
         def remoteUrlStr = remoteUrl.toString()
-        remoteUrlStr.startsWith('s3:/lamindata/.lamindb/s3rtK8wIzJNKvg5Q')
+        remoteUrlStr.startsWith('s3:/lamindata/tests/randomfile.txt')
         remoteUrlStr.endsWith('.txt')
     }
 
@@ -235,6 +235,20 @@ class InstanceArtifactTest extends Specification {
         remoteUrl != null
         remoteUrl instanceof Path
         def remoteUrlStr = remoteUrl.toString()
-        remoteUrlStr == 's3:/lamindata/.lamindb/s3rtK8wIzJNKvg5Q0000.txt'
+        remoteUrlStr == 's3:/lamindata/tests/randomfile.txt'
     }
+
+    @IgnoreIf({ !env.LAMIN_API_KEY })
+    def "should be able to retrieve artifact remote URL with gs service"() {
+        when:
+        def remoteUrl = instance.getArtifactUrlByUid("HOpnASIDDLx3pFYD0000")
+
+        then:
+        remoteUrl != null
+        remoteUrl instanceof Path
+        def remoteUrlStr = remoteUrl.toString()
+        remoteUrlStr == 'gs:/di-temporary-public/scratch/temp-bgzip/run_20251015_120418/run.bgzip.state.yaml'
+    }
+
+    
 }

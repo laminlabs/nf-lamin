@@ -77,6 +77,14 @@ final class LaminRunManager {
         transform = null
         run = null
     }
+    
+    protected LaminHub getHub() {
+        return hub
+    }
+
+    protected LaminConfig getConfig() {
+        return config
+    }
 
     synchronized void updateTransform(Map<String, Object> data) {
         transform = data != null ? Collections.unmodifiableMap(new LinkedHashMap<String, Object>(data)) : null
