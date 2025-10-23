@@ -19,6 +19,8 @@ package ai.lamin.nf_lamin
 import groovy.transform.CompileStatic
 import nextflow.plugin.BasePlugin
 import org.pf4j.PluginWrapper
+import nextflow.file.FileHelper
+import ai.lamin.nf_lamin.nio.LaminFileSystemProvider
 
 /**
  * The plugin entry point
@@ -28,5 +30,11 @@ class LaminPlugin extends BasePlugin {
 
     LaminPlugin(PluginWrapper wrapper) {
         super(wrapper)
+    }
+
+    @Override
+    void start() {
+        super.start()
+        FileHelper.getOrInstallProvider(LaminFileSystemProvider)
     }
 }
