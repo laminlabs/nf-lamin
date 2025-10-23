@@ -573,21 +573,11 @@ class Instance {
 
         Map storage = getStorage(artifact.storage_id as Integer)
         log.info "Storage details: ${storage}"
+
         String storageRoot = storage.root as String
-
-        String versioned_uid = artifact.uid as String
-        if (versioned_uid.length() != 20) {
-            throw new IllegalStateException("Artifact UID '${versioned_uid}' is not valid. It should be 20 characters long.")
-        }
         String key = artifact.key as String
-        String suffix = artifact.suffix as String
-        if (suffix == null) {
-            throw new IllegalStateException("Artifact suffix is null. Please check the artifact data.")
-        }
-
-        log.warn 'WARNING: getArtifactUrl() currently returns a hardcoded URL for testing purposes. Implement proper URL retrieval logic.'
-        String hardcodedPart = '.lamindb'
-        // Path combined = Paths.get(storageRoot).resolve(hardcodedPart).resolve("${versioned_uid}${suffix}")
+        log.debug "Storage root: ${storageRoot}, Artifact key: ${key}"
+        
         Path combined = Paths.get(storageRoot).resolve(key)
         log.info "Constructed artifact URL: ${combined}"
 

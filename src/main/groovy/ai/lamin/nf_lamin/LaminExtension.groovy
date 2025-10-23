@@ -59,10 +59,10 @@ class LaminExtension extends PluginExtensionPoint {
     }
 
     @Function
-    Path getArtifactUrlByUid(String artifactUid) {
+    Path getArtifactUrlByUid(String instanceOwner, String instanceName, String artifactUid) {
         LaminHub hub = LaminRunManager.instance.getHub()
         LaminConfig config = LaminRunManager.instance.getConfig()
-        InstanceSettings instanceSettings = hub.getInstanceSettings('laminlabs', 'lamindata')
+        InstanceSettings instanceSettings = hub.getInstanceSettings(instanceOwner, instanceName)
         Instance instance = new Instance(hub, instanceSettings, config.getMaxRetries(), config.getRetryDelay())
         return instance.getArtifactUrlByUid(artifactUid)
     }
