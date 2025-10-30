@@ -585,7 +585,7 @@ class Instance {
         return combined
     }
 
-    // straight translation from lamindb/core/storage/paths.py
+    // straight translation from https://github.com/laminlabs/lamindb/blob/2f6be06614a7e567fc8db3ebaa0b3c370368105f/lamindb/core/storage/paths.py#L27-L47
     private String autoStorageKeyFromArtifact(Map artifact) {
         if (artifact.containsKey('_real_key') && artifact._real_key != null) {
             return artifact._real_key as String
@@ -608,7 +608,7 @@ class Instance {
     private String autoStorageKeyFromArtifactUid(
         String uid, String suffix, Boolean overwriteVersions
     ) {
-        assert suffix // instanceof String  // Suffix cannot be null.
+        assert suffix // Suffix cannot be null.
         String uidStorage
         if (overwriteVersions) {
             uidStorage = uid.substring(0, 16)  // 16 chars, leave 4 chars for versioning
