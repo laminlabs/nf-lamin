@@ -1,6 +1,6 @@
 nextflow.preview.output = true
 
-include { getRunUid; getTransformUid; getArtifactUrlByUid } from 'plugin/nf-lamin'
+include { getRunUid; getTransformUid; getArtifactUrlFromUid } from 'plugin/nf-lamin'
 
 workflow {
   main:
@@ -24,10 +24,10 @@ workflow {
   log.info "Wrote metadata to ${metadataFile.absolutePath}"
 
   // test artifact fetching
-  def artPath = getArtifactUrlByUid('laminlabs', 'lamindata', 's3rtK8wIzJNKvg5Q')
+  def artPath = getArtifactUrlFromUid('laminlabs', 'lamindata', 's3rtK8wIzJNKvg5Q')
   log.info "Artifact URL for UID 's3rtK8wIzJNKvg5Q': ${artPath}"
 
-  def artPath2 = getArtifactUrlByUid('laminlabs', 'lamindata', 'HOpnASIDDLx3pFYD0000')
+  def artPath2 = getArtifactUrlFromUid('laminlabs', 'lamindata', 'HOpnASIDDLx3pFYD0000')
   log.info "Artifact URL for UID 'HOpnASIDDLx3pFYD0000': ${artPath2}"
 
   // create output channel

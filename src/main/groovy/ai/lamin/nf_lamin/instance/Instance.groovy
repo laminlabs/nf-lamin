@@ -530,7 +530,7 @@ class Instance {
         return responseBody?.artifact as Map<String, Object>
     }
 
-    Path getArtifactUrlByUid(String uid) throws ApiException {
+    Path getArtifactUrlFromUid(String uid) throws ApiException {
 
         if (!uid) {
             throw new IllegalStateException('UID is null or empty. Please check the UID.')
@@ -575,13 +575,48 @@ class Instance {
         log.info "Storage details: ${storage}"
 
         String storageRoot = storage.root as String
-        String key = artifact.key as String
+
+        String key = autoStorageKeyFromArtifact(artifact)
         log.debug "Storage root: ${storageRoot}, Artifact key: ${key}"
         
         Path combined = Paths.get(storageRoot).resolve(key)
         log.info "Constructed artifact URL: ${combined}"
 
         return combined
+    }
+
+    // straight translation from lamindb/core/storage/paths.py
+    private String autoStorageKeyFromArtifact(Map artifact) {
+        if (artifact.containsKey('_real_key') && artifact._real_key != null) {
+            return artifact._real_key as String
+        }
+        String key = artifact.key as String
+        Boolean keyIsVirtual = artifact.containsKey('_key_is_virtual') ? artifact._key_is_virtual as Boolean : false
+        String uid = artifact.uid as String
+        String suffix = artifact.suffix as String
+        Boolean overwriteVersions = artifact.containsKey('_overwrite_versions') ? artifact.overwrite_versions as Boolean : false
+        if (key == null || keyIsVirtual) {
+            return autoStorageKeyFromArtifactUid(
+                uid, suffix, overwriteVersions
+            )
+        }
+        return key
+    }
+
+    private String AUTO_KEY_PREFIX = '.lamindb/'
+
+    private String autoStorageKeyFromArtifactUid(
+        String uid, String suffix, Boolean overwriteVersions
+    ) {
+        assert suffix // instanceof String  // Suffix cannot be null.
+        String uidStorage
+        if (overwriteVersions) {
+            uidStorage = uid.substring(0, 16)  // 16 chars, leave 4 chars for versioning
+        } else {
+            uidStorage = uid
+        }
+        String storageKey = "${AUTO_KEY_PREFIX}${uidStorage}${suffix}"
+        return storageKey
     }
 
     // ------------------- PRIVATE METHODS -------------------

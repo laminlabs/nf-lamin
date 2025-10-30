@@ -216,32 +216,32 @@ class InstanceArtifactTest extends Specification {
     @IgnoreIf({ !env.LAMIN_API_KEY })
     def "should be able to retrieve artifact remote URL using non-versioned uid"() {
         when:
-        def remoteUrl = instance.getArtifactUrlByUid("s3rtK8wIzJNKvg5Q")
+        def remoteUrl = instance.getArtifactUrlFromUid("s3rtK8wIzJNKvg5Q")
 
         then:
         remoteUrl != null
         remoteUrl instanceof Path
         def remoteUrlStr = remoteUrl.toString()
-        remoteUrlStr.startsWith('s3:/lamindata/tests/randomfile.txt')
+        remoteUrlStr.startsWith('s3:/lamindata/.lamindb/s3rtK8wIzJNKvg5Q')
         remoteUrlStr.endsWith('.txt')
     }
 
     @IgnoreIf({ !env.LAMIN_API_KEY })
     def "should be able to retrieve artifact remote URL using versioned but not recent uid"() {
         when:
-        def remoteUrl = instance.getArtifactUrlByUid("s3rtK8wIzJNKvg5Q0000")
+        def remoteUrl = instance.getArtifactUrlFromUid("s3rtK8wIzJNKvg5Q0000")
 
         then:
         remoteUrl != null
         remoteUrl instanceof Path
         def remoteUrlStr = remoteUrl.toString()
-        remoteUrlStr == 's3:/lamindata/tests/randomfile.txt'
+        remoteUrlStr == 's3:/lamindata/.lamindb/s3rtK8wIzJNKvg5Q0000.txt'
     }
 
     @IgnoreIf({ !env.LAMIN_API_KEY })
     def "should be able to retrieve artifact remote URL with gs service"() {
         when:
-        def remoteUrl = instance.getArtifactUrlByUid("HOpnASIDDLx3pFYD0000")
+        def remoteUrl = instance.getArtifactUrlFromUid("HOpnASIDDLx3pFYD0000")
 
         then:
         remoteUrl != null
