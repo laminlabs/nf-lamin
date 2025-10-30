@@ -34,6 +34,9 @@ import java.nio.file.attribute.FileAttributeView
 import java.nio.file.LinkOption
 import java.nio.file.attribute.BasicFileAttributes
 
+import java.net.URI
+import nextflow.file.FileHelper
+
 @Slf4j
 @CompileStatic
 class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTransferAware {
@@ -45,15 +48,26 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
 
     FileSystem newFileSystem(URI uri, Map<String,?> env)
         throws IOException {
-        throw new UnsupportedOperationException("Not implemented yet (LaminFileSystemProvider newFileSystem)")
+        log.info("LaminFileSystemProvider.newFileSystem, uri {} env {}", uri, env)
+        // throw new UnsupportedOperationException("Not implemented yet (LaminFileSystemProvider newFileSystem)")
+        URI newUri = new URI('s3://lamindata/.lamindb/s3rtK8wIzJNKvg5Q0001.txt')
+        FileSystem fs = FileHelper.getProviderFor(newUri.getScheme()).newFileSystem(newUri, env)
+        return new LaminFileSystem(this, uri.toString(), newUri.toString(), fs)
     }
 
     FileSystem getFileSystem(URI uri) {
-        throw new UnsupportedOperationException("Not implemented yet (LaminFileSystemProvider getFileSystem)")
+        log.info("LaminFileSystemProvider.getFileSystem, uri {}", uri)
+        // throw new UnsupportedOperationException("Not implemented yet (LaminFileSystemProvider getFileSystem)")
+        URI newUri = new URI('s3://lamindata/.lamindb/s3rtK8wIzJNKvg5Q0001.txt')
+        FileSystem fs = FileHelper.getProviderFor(newUri.getScheme()).getFileSystem(newUri)
+        return new LaminFileSystem(this, uri.toString(), newUri.toString(), fs)
     }
 
     Path getPath(URI uri) {
-        throw new UnsupportedOperationException("Not implemented yet (LaminFileSystemProvider getPath)")
+        log.info("LaminFileSystemProvider.getPath, uri ${uri}")
+        // throw new UnsupportedOperationException("Not implemented yet (LaminFileSystemProvider getPath)")
+        URI newUri = new URI('s3://lamindata/.lamindb/s3rtK8wIzJNKvg5Q0001.txt')
+        return getFileSystem(newUri).getPath(newUri.getPath());
     }
 
     SeekableByteChannel newByteChannel(Path path,

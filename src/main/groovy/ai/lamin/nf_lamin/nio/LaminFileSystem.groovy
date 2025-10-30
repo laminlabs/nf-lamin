@@ -31,56 +31,69 @@ import java.nio.file.WatchService
 @CompileStatic
 class LaminFileSystem extends FileSystem {
 
-    LaminFileSystem() {
+    private final LaminFileSystemProvider provider
+    private final String originalUri
+    private final String resolvedUri
+    private final FileSystem underlyingFileSystem
+
+
+
+    LaminFileSystem(LaminFileSystemProvider provider, String originalUri, String resolvedUri, FileSystem underlyingFileSystem) {
+        this.provider = provider
+        this.originalUri = originalUri
+        this.resolvedUri = resolvedUri
+        this.underlyingFileSystem = underlyingFileSystem
     }
 
     FileSystemProvider provider() {
-        throw new UnsupportedOperationException("Not implemented yet (LaminFileSystem provider)")
+        return provider
     }
 
     @Override
     void close() throws IOException {
-        throw new UnsupportedOperationException("Not implemented yet (LaminFileSystem close)")
+        underlyingFileSystem.close()
     }
 
     boolean isOpen() {
-        throw new UnsupportedOperationException("Not implemented yet (LaminFileSystem isOpen)")
+        return underlyingFileSystem.isOpen()
     }
 
     boolean isReadOnly() {
-        throw new UnsupportedOperationException("Not implemented yet (LaminFileSystem isReadOnly)")
+        return underlyingFileSystem.isReadOnly()
     }
 
     String getSeparator() {
-        throw new UnsupportedOperationException("Not implemented yet (LaminFileSystem getSeparator)")
+        return underlyingFileSystem.getSeparator()
     }
 
     Iterable<Path> getRootDirectories() {
-        throw new UnsupportedOperationException("Not implemented yet (LaminFileSystem getRootDirectories)")
+        return underlyingFileSystem.getRootDirectories()
     }
 
     Iterable<FileStore> getFileStores() {
-        throw new UnsupportedOperationException("Not implemented yet (LaminFileSystem getFileStores)")
+        return underlyingFileSystem.getFileStores()
     }
 
     Set<String> supportedFileAttributeViews() {
-        throw new UnsupportedOperationException("Not implemented yet (LaminFileSystem supportedFileAttributeViews)")
+        return underlyingFileSystem.supportedFileAttributeViews()
     }
 
     Path getPath(String first, String... more) {
-        throw new UnsupportedOperationException("Not implemented yet (LaminFileSystem getPath)")
+        // Should we relativize the path here based on originalUri and resolvedUri?
+        return underlyingFileSystem.getPath(first, more)
     }
 
     PathMatcher getPathMatcher(String syntaxAndPattern) {
-        throw new UnsupportedOperationException("Not implemented yet (LaminFileSystem getPathMatcher)")
+        // Should we adjust the pattern here based on originalUri and resolvedUri?
+        return underlyingFileSystem.getPathMatcher(syntaxAndPattern)
     }
 
     UserPrincipalLookupService getUserPrincipalLookupService() {
-        throw new UnsupportedOperationException("Not implemented yet (LaminFileSystem getUserPrincipalLookupService)")
+        return underlyingFileSystem.getUserPrincipalLookupService()
     }
 
     WatchService newWatchService() throws IOException {
-        throw new UnsupportedOperationException("Not implemented yet (LaminFileSystem newWatchService)")
+        return underlyingFileSystem.newWatchService()
     }
 
 }
