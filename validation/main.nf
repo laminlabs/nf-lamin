@@ -1,6 +1,19 @@
-nextflow.preview.output = true
-
 include { getRunUid; getTransformUid } from 'plugin/nf-lamin'
+
+process publishData {
+  publishDir "${params.outputDir}/${id}", mode: 'copy', overwrite: true
+
+  input:
+  tuple val(id), path(x)
+
+  output:
+  tuple val(id), path(x)
+
+  script:
+  """
+  echo "Publishing data for ${id}
+  """
+}
 
 workflow {
   main:
@@ -27,13 +40,15 @@ workflow {
   ch_out = Channel.of([
     [id: 'lamin_metadata', path: metadataFile]
   ])
+    | publishData
 
-  publish:
-  output = ch_out
+  // publish:
+  // output = ch_out
 }
 
-output {
-  output {
-    path '.'
-  }
-}
+// TODO: revert this when workflow outputs are working again
+// output {
+//   output {
+//     path '.'
+//   }
+// }

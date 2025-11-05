@@ -34,5 +34,7 @@ validate:
 		-main-script validation/main.nf \
 		-config validation/nextflow.config \
 		-plugins "nf-lamin@$$VERSION" \
-		-output-dir results \
+		--output-dir results \
 		$(ARGS)
+
+# TODO: revert --output-dir to -output-dir when workflow outputs are working again
