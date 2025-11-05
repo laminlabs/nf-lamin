@@ -37,7 +37,7 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.x"
+          python-version: "3.13" # TODO: switch back to 3.x when pyarrow builds
 
       - uses: actions/cache@v3
         with:
@@ -87,6 +87,7 @@ jobs:
           LAMIN_API_KEY: ${{ secrets.LAMIN_API_KEY_TESTUSER1 }}
           LAMIN_TEST_BUCKET: ${{ secrets.LAMIN_TEST_BUCKET }}
           LAMIN_ENV: prod
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
           make validate BRANCH="$BRANCH" ARGS="${{ matrix.args }}"
@@ -129,7 +130,7 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.x"
+          python-version: "3.13" # TODO: switch back to 3.x when pyarrow builds
 
       - uses: actions/cache@v3
         with:
@@ -191,7 +192,7 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.x"
+          python-version: "3.13" # TODO: switch back to 3.x when pyarrow builds
 
       - run: pip install "laminci@git+https://github.com/laminlabs/laminci"
       - run: sudo apt-get -y install graphviz
