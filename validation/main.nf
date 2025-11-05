@@ -7,7 +7,7 @@ process publishData {
   tuple val(id), path(x)
 
   output:
-  tuple val(id), path(x)
+  tuple val(id), path("$x")
 
   script:
   """
@@ -38,7 +38,8 @@ workflow {
 
   // create output channel
   ch_out = Channel.of([
-    [id: 'lamin_metadata', path: metadataFile]
+    // [id: 'lamin_metadata', path: metadataFile]
+    ["lamin_metadata", metadataFile]
   ])
     | publishData
 
