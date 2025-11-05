@@ -58,7 +58,7 @@ jobs:
 
       - uses: nf-core/setup-nextflow@v2
         with:
-          version: "latest-stable"
+          version: "25.04.8"
 
       - name: Compile
         run: make assemble
