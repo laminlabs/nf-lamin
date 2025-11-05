@@ -11,7 +11,7 @@ process publishData {
 
   script:
   """
-  echo "Publishing data for ${id}
+  echo "Publishing data for ${id}"
   """
 }
 
@@ -32,16 +32,18 @@ workflow {
     runUid: runUid,
     transformUid: transformUid
   ]
-  def metadataFile = File.createTempFile('lamin_metadata_', '.json')
+  def metadataFile = File.createTempFile('lamin_metadata_', '.json').toPath()
   metadataFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata))
-  log.info "Wrote metadata to ${metadataFile.absolutePath}"
+  log.info "Wrote metadata to ${metadataFile}"
 
   // create output channel
-  ch_out = Channel.of([
+  ch_out = Channel.fromList([
     // [id: 'lamin_metadata', path: metadataFile]
     ["lamin_metadata", metadataFile]
   ])
+    | view{("Before publish: $it")}
     | publishData
+    | view{("After publish: $it")}
 
   // publish:
   // output = ch_out
