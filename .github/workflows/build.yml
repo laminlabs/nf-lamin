@@ -37,7 +37,7 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.x"
+          python-version: "3.13"
 
       - uses: actions/cache@v3
         with:
