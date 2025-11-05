@@ -578,45 +578,11 @@ class Instance {
 
         String key = autoStorageKeyFromArtifact(artifact)
         log.debug "Storage root: ${storageRoot}, Artifact key: ${key}"
-        
+
         Path combined = Paths.get(storageRoot).resolve(key)
         log.info "Constructed artifact URL: ${combined}"
 
         return combined
-    }
-
-    // straight translation from https://github.com/laminlabs/lamindb/blob/2f6be06614a7e567fc8db3ebaa0b3c370368105f/lamindb/core/storage/paths.py#L27-L47
-    private String autoStorageKeyFromArtifact(Map artifact) {
-        if (artifact.containsKey('_real_key') && artifact._real_key != null) {
-            return artifact._real_key as String
-        }
-        String key = artifact.key as String
-        Boolean keyIsVirtual = artifact.containsKey('_key_is_virtual') ? artifact._key_is_virtual as Boolean : false
-        String uid = artifact.uid as String
-        String suffix = artifact.suffix as String
-        Boolean overwriteVersions = artifact.containsKey('_overwrite_versions') ? artifact.overwrite_versions as Boolean : false
-        if (key == null || keyIsVirtual) {
-            return autoStorageKeyFromArtifactUid(
-                uid, suffix, overwriteVersions
-            )
-        }
-        return key
-    }
-
-    private String AUTO_KEY_PREFIX = '.lamindb/'
-
-    private String autoStorageKeyFromArtifactUid(
-        String uid, String suffix, Boolean overwriteVersions
-    ) {
-        assert suffix // Suffix cannot be null.
-        String uidStorage
-        if (overwriteVersions) {
-            uidStorage = uid.substring(0, 16)  // 16 chars, leave 4 chars for versioning
-        } else {
-            uidStorage = uid
-        }
-        String storageKey = "${AUTO_KEY_PREFIX}${uidStorage}${suffix}"
-        return storageKey
     }
 
     // ------------------- PRIVATE METHODS -------------------
@@ -668,6 +634,40 @@ class Instance {
         ])
         log.trace "Response from getStorage: ${response}"
         return response
+    }
+
+    // straight translation from https://github.com/laminlabs/lamindb/blob/2f6be06614a7e567fc8db3ebaa0b3c370368105f/lamindb/core/storage/paths.py#L27-L47
+    private String autoStorageKeyFromArtifact(Map artifact) {
+        if (artifact.containsKey('_real_key') && artifact._real_key != null) {
+            return artifact._real_key as String
+        }
+        String key = artifact.key as String
+        Boolean keyIsVirtual = artifact.containsKey('_key_is_virtual') ? artifact._key_is_virtual as Boolean : false
+        String uid = artifact.uid as String
+        String suffix = artifact.suffix as String
+        Boolean overwriteVersions = artifact.containsKey('_overwrite_versions') ? artifact.overwrite_versions as Boolean : false
+        if (key == null || keyIsVirtual) {
+            return autoStorageKeyFromArtifactUid(
+                uid, suffix, overwriteVersions
+            )
+        }
+        return key
+    }
+
+    private String AUTO_KEY_PREFIX = '.lamindb/'
+
+    private String autoStorageKeyFromArtifactUid(
+        String uid, String suffix, Boolean overwriteVersions
+    ) {
+        assert suffix // Suffix cannot be null.
+        String uidStorage
+        if (overwriteVersions) {
+            uidStorage = uid.substring(0, 16)  // 16 chars, leave 4 chars for versioning
+        } else {
+            uidStorage = uid
+        }
+        String storageKey = "${AUTO_KEY_PREFIX}${uidStorage}${suffix}"
+        return storageKey
     }
 
 }

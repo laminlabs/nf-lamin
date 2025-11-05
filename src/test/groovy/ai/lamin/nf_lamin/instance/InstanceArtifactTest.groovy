@@ -250,5 +250,5 @@ class InstanceArtifactTest extends Specification {
         remoteUrlStr == 'gs:/di-temporary-public/scratch/temp-bgzip/run_20251015_120418/run.bgzip.state.yaml'
     }
 
-    
+
 }

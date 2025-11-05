@@ -77,7 +77,7 @@ final class LaminRunManager {
         transform = null
         run = null
     }
-    
+
     protected LaminHub getHub() {
         return hub
     }
