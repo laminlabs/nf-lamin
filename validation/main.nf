@@ -1,6 +1,19 @@
-nextflow.preview.output = true
-
 include { getRunUid; getTransformUid; getArtifactUrlFromUid } from 'plugin/nf-lamin'
+
+process publishData {
+  publishDir "${params.outputDir}/${id}", mode: 'copy', overwrite: true
+
+  input:
+  tuple val(id), path(x)
+
+  output:
+  tuple val(id), path("$x")
+
+  script:
+  """
+  echo "Publishing data for ${id}"
+  """
+}
 
 workflow {
   main:
@@ -19,9 +32,9 @@ workflow {
     runUid: runUid,
     transformUid: transformUid
   ]
-  def metadataFile = File.createTempFile('lamin_metadata_', '.json')
+  def metadataFile = File.createTempFile('lamin_metadata_', '.json').toPath()
   metadataFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata))
-  log.info "Wrote metadata to ${metadataFile.absolutePath}"
+  log.info "Wrote metadata to ${metadataFile}"
 
   // test artifact fetching
   def artPath = getArtifactUrlFromUid('laminlabs', 'lamindata', 's3rtK8wIzJNKvg5Q')
@@ -31,16 +44,21 @@ workflow {
   log.info "Artifact URL for UID 'HOpnASIDDLx3pFYD0000': ${artPath2}"
 
   // create output channel
-  ch_out = Channel.of([
-    [id: 'lamin_metadata', path: metadataFile]
+  ch_out = Channel.fromList([
+    // [id: 'lamin_metadata', path: metadataFile]
+    ["lamin_metadata", metadataFile]
   ])
+    | view{("Before publish: $it")}
+    | publishData
+    | view{("After publish: $it")}
 
-  publish:
-  output = ch_out
+  // publish:
+  // output = ch_out
 }
 
-output {
-  output {
-    path '.'
-  }
-}
+// TODO: revert this when workflow outputs are working again
+// output {
+//   output {
+//     path '.'
+//   }
+// }
