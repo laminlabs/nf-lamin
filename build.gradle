@@ -17,7 +17,7 @@ nextflowPlugin {
     nextflowVersion = '25.04.0'
 
     description = 'Nextflow plugin for integrating with Lamin Hub'
-    provider = 'Lamin Labs / Data Intuitive'
+    provider = 'Lamin Labs'
     className = 'ai.lamin.nf_lamin.LaminPlugin'
     extensionPoints = [
         'ai.lamin.nf_lamin.LaminExtension',
