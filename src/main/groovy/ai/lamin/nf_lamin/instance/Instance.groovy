@@ -648,7 +648,7 @@ class Instance {
         Boolean keyIsVirtual = artifact.containsKey('_key_is_virtual') ? artifact._key_is_virtual as Boolean : false
         String uid = artifact.uid as String
         String suffix = artifact.suffix as String
-        Boolean overwriteVersions = artifact.containsKey('_overwrite_versions') ? artifact.overwrite_versions as Boolean : false
+        Boolean overwriteVersions = artifact.containsKey('_overwrite_versions') ? artifact._overwrite_versions as Boolean : false
         if (key == null || keyIsVirtual) {
             return autoStorageKeyFromArtifactUid(
                 uid, suffix, overwriteVersions
@@ -657,7 +657,7 @@ class Instance {
         return key
     }
 
-    private String AUTO_KEY_PREFIX = '.lamindb/'
+    private static final String AUTO_KEY_PREFIX = '.lamindb/'
 
     private String autoStorageKeyFromArtifactUid(
         String uid, String suffix, Boolean overwriteVersions
