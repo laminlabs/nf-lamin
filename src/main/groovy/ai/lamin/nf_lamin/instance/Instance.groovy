@@ -530,6 +530,21 @@ class Instance {
         return responseBody?.artifact as Map<String, Object>
     }
 
+    /**
+     * Retrieves the storage path for an artifact from LaminDB by its UID.
+     *
+     * This method queries the LaminDB instance to find an artifact matching the given UID
+     * (using a startswith match to support both base UIDs and versioned UIDs), retrieves
+     * its storage information, and constructs the full storage path.
+     *
+     * If multiple artifacts match (e.g., multiple versions), the most recently updated
+     * artifact is selected.
+     *
+     * @param uid The artifact UID (must be 16 or 20 characters long)
+     * @return A Path object representing the storage location (e.g., s3://bucket/path, gs://bucket/path)
+     * @throws IllegalStateException if the UID is null, empty, or has invalid length
+     * @throws ApiException if no artifact is found or if the API call fails
+     */
     Path getArtifactFromUid(String uid) throws ApiException {
 
         if (!uid) {
@@ -539,18 +554,6 @@ class Instance {
             throw new IllegalStateException("UID '${uid}' is not valid. It should be 16 or 20 characters long.")
         }
 
-    /*
-     *    - moduleName: The name of the module (required)
-     *    - modelName: The name of the model (required)
-     *    - limit: The limit for the number of records (optional, default: 50)
-     *    - offset: The offset for pagination (optional, default: 0)
-     *    - limitToMany: The limit for many records (optional, default: 10)
-     *    - includeForeignKeys: Whether to include foreign keys in the response (optional, default: false)
-     *    - search: The search term (optional)
-     *    - orderBy: The order by clause (optional)
-     *    - filter: The filter clause (optional)
-     *    - select: A list of fields to select (optional)
-     */
         Map args = [
             moduleName: 'core',
             modelName: 'artifact',
@@ -567,12 +570,12 @@ class Instance {
         if (records.size() == 0) {
             throw new ApiException("No artifact found with uid starting with '${uid}'")
         }
-        log.info "Found ${records.size()} artifacts with uid starting with '${uid}'"
+        log.debug "Found ${records.size()} artifact(s) with uid starting with '${uid}'"
         Map artifact = records[0]
-        log.info "Using artifact: ${artifact}"
+        log.debug "Using artifact: ${artifact.uid}"
 
         Map storage = getStorage(artifact.storage_id as Integer)
-        log.info "Storage details: ${storage}"
+        log.debug "Storage details: ${storage.root}"
 
         String storageRoot = storage.root as String
 
@@ -580,7 +583,7 @@ class Instance {
         log.debug "Storage root: ${storageRoot}, Artifact key: ${key}"
 
         Path combined = Paths.get(storageRoot).resolve(key)
-        log.info "Constructed artifact URL: ${combined}"
+        log.info "Retrieved artifact ${uid} from storage: ${combined}"
 
         return combined
     }

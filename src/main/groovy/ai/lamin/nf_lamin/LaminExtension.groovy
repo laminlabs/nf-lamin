@@ -59,14 +59,16 @@ class LaminExtension extends PluginExtensionPoint {
     }
 
     /**
-     * Returns the URL of an artifact stored in LaminDB
-     * given its UID.
+     * Fetches the storage path of an artifact from LaminDB by its UID.
      *
-     * @param instanceOwner The owner of the LaminDB instance
+     * This function retrieves an artifact's storage location (e.g., s3://, gs://, or local path)
+     * from a specified LaminDB instance. If a 16-character base UID is provided and multiple
+     * versions exist, the most recently updated artifact will be returned.
+     *
+     * @param instanceOwner The owner (user or organization) of the LaminDB instance
      * @param instanceName The name of the LaminDB instance
-     * @param artifactUid The UID of the artifact
-     *
-     * @return The URL of the artifact
+     * @param artifactUid The UID of the artifact (16 or 20 characters)
+     * @return A Path object pointing to the artifact's storage location
      */
     @Function
     Path getArtifactFromUid(String instanceOwner, String instanceName, String artifactUid) {

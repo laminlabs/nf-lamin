@@ -71,7 +71,7 @@ lamin {
 
 ### Advanced usage: Accessing run metadata
 
-For advanced use cases where you need to access Lamin run information from within your Nextflow workflow, the plugin provides two helper functions:
+For advanced use cases where you need to access Lamin run information from within your Nextflow workflow, the plugin provides helper functions:
 
 ```groovy
 include { getRunUid; getTransformUid } from 'plugin/nf-lamin'
@@ -97,6 +97,48 @@ workflow {
 ```
 
 These functions return `null` if the plugin hasn't initialized the run yet, so they're best used in workflow body (not in process definitions).
+
+### Advanced usage: Fetching artifacts from LaminDB
+
+You can fetch artifacts stored in LaminDB directly within your Nextflow workflow using the `getArtifactFromUid` function. This returns a `Path` object pointing to the artifact's storage location (e.g., `s3://`, `gs://`, or local paths).
+
+```groovy
+include { getArtifactFromUid } from 'plugin/nf-lamin'
+
+workflow {
+  // Fetch an artifact by its UID from a specific LaminDB instance
+  def artifactPath = getArtifactFromUid(
+    'your-organization',  // Instance owner
+    'your-instance',      // Instance name
+    'abcd1234efgh5678'    // Artifact UID (16 or 20 characters)
+  )
+
+  log.info "Artifact located at: ${artifactPath}"
+
+  // Use the artifact as input to your pipeline
+  Channel
+    .fromPath(artifactPath)
+    .set { input_ch }
+
+  input_ch | myProcess
+}
+
+process myProcess {
+  input:
+  path artifact
+
+  output:
+  path 'result.txt'
+
+  script:
+  """
+  # Process the artifact
+  cat ${artifact} > result.txt
+  """
+}
+```
+
+**Note:** This is a first step towards implementing native `lamin://` URL support. In future versions, you'll be able to use `lamin://<owner>/<name>/artifact/<uid>` URLs directly in Nextflow channels and processes without explicitly calling `getArtifactFromUid`.
 
 ## Post-run script
 
