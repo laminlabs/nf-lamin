@@ -530,7 +530,7 @@ class Instance {
         return responseBody?.artifact as Map<String, Object>
     }
 
-    Path getArtifactUrlFromUid(String uid) throws ApiException {
+    Path getArtifactFromUid(String uid) throws ApiException {
 
         if (!uid) {
             throw new IllegalStateException('UID is null or empty. Please check the UID.')

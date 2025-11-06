@@ -1,4 +1,4 @@
-include { getRunUid; getTransformUid; getArtifactUrlFromUid } from 'plugin/nf-lamin'
+include { getRunUid; getTransformUid; getArtifactFromUid } from 'plugin/nf-lamin'
 
 process publishData {
   publishDir "${params.outputDir}/${id}", mode: 'copy', overwrite: true
@@ -37,10 +37,10 @@ workflow {
   log.info "Wrote metadata to ${metadataFile}"
 
   // test artifact fetching
-  def artPath = getArtifactUrlFromUid('laminlabs', 'lamindata', 's3rtK8wIzJNKvg5Q')
+  def artPath = getArtifactFromUid('laminlabs', 'lamindata', 's3rtK8wIzJNKvg5Q')
   log.info "Artifact URL for UID 's3rtK8wIzJNKvg5Q': ${artPath}"
 
-  def artPath2 = getArtifactUrlFromUid('laminlabs', 'lamindata', 'HOpnASIDDLx3pFYD0000')
+  def artPath2 = getArtifactFromUid('laminlabs', 'lamindata', 'HOpnASIDDLx3pFYD0000')
   log.info "Artifact URL for UID 'HOpnASIDDLx3pFYD0000': ${artPath2}"
 
   // create output channel

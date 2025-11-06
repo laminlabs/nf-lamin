@@ -69,9 +69,9 @@ class LaminExtension extends PluginExtensionPoint {
      * @return The URL of the artifact
      */
     @Function
-    Path getArtifactUrlFromUid(String instanceOwner, String instanceName, String artifactUid) {
+    Path getArtifactFromUid(String instanceOwner, String instanceName, String artifactUid) {
         Instance instance = LaminRunManager.instance.getInstance(instanceOwner, instanceName)
-        return instance.getArtifactUrlFromUid(artifactUid)
+        return instance.getArtifactFromUid(artifactUid)
     }
 
 }

@@ -216,7 +216,7 @@ class InstanceArtifactTest extends Specification {
     @IgnoreIf({ !env.LAMIN_API_KEY })
     def "should be able to retrieve artifact remote URL using non-versioned uid"() {
         when:
-        def remoteUrl = instance.getArtifactUrlFromUid("s3rtK8wIzJNKvg5Q")
+        def remoteUrl = instance.getArtifactFromUid("s3rtK8wIzJNKvg5Q")
 
         then:
         remoteUrl != null
@@ -229,7 +229,7 @@ class InstanceArtifactTest extends Specification {
     @IgnoreIf({ !env.LAMIN_API_KEY })
     def "should be able to retrieve artifact remote URL using versioned but not recent uid"() {
         when:
-        def remoteUrl = instance.getArtifactUrlFromUid("s3rtK8wIzJNKvg5Q0000")
+        def remoteUrl = instance.getArtifactFromUid("s3rtK8wIzJNKvg5Q0000")
 
         then:
         remoteUrl != null
@@ -241,7 +241,7 @@ class InstanceArtifactTest extends Specification {
     @IgnoreIf({ !env.LAMIN_API_KEY })
     def "should be able to retrieve artifact remote URL with gs service"() {
         when:
-        def remoteUrl = instance.getArtifactUrlFromUid("HOpnASIDDLx3pFYD0000")
+        def remoteUrl = instance.getArtifactFromUid("HOpnASIDDLx3pFYD0000")
 
         then:
         remoteUrl != null
