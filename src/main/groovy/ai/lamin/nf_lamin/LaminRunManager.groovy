@@ -61,6 +61,9 @@ final class LaminRunManager {
     private volatile Map<String, Object> transform
     private volatile Map<String, Object> run
 
+    // Cache for Instance objects keyed by "owner/name"
+    private final Map<String, Instance> instanceCache = Collections.synchronizedMap(new LinkedHashMap<String, Instance>())
+
     private LaminRunManager() {
     }
 
@@ -76,6 +79,29 @@ final class LaminRunManager {
         laminInstance = null
         transform = null
         run = null
+        instanceCache.clear()
+    }
+
+    /**
+     * Get or create a cached Instance object for the specified LaminDB instance.
+     *
+     * @param instanceOwner The owner (user or organization) of the instance
+     * @param instanceName The name of the instance
+     * @return An Instance object, either from cache or newly created
+     */
+    Instance getInstance(String instanceOwner, String instanceName) {
+        String cacheKey = "${instanceOwner}/${instanceName}"
+
+        return instanceCache.computeIfAbsent(cacheKey) { key ->
+            log.debug("Creating new Instance for ${key}")
+            InstanceSettings settings = hub.getInstanceSettings(instanceOwner, instanceName)
+            return new Instance(
+                hub,
+                settings,
+                config.maxRetries,
+                config.retryDelay
+            )
+        }
     }
 
     protected LaminHub getHub() {
@@ -102,11 +128,11 @@ final class LaminRunManager {
         return run
     }
 
-    Instance getLaminInstance() {
+    Instance getCurrentInstance() {
         return laminInstance
     }
 
-    synchronized void setLaminInstance(Instance instance) {
+    synchronized void setCurrentInstance(Instance instance) {
         laminInstance = instance
     }
 
@@ -115,33 +141,24 @@ final class LaminRunManager {
         reset()
         this.session = session
 
-        LaminConfig parsedConfig = LaminConfig.parseConfig(session)
-        log.debug "Parsed config: ${parsedConfig.toString()}"
-        config = parsedConfig
+        log.debug 'Parsing Lamin configuration from session'
+        this.config = LaminConfig.parseConfig(session)
+        log.debug "Parsed config: ${config.toString()}"
 
-        Map<String, Object> resolved = LaminHubConfigResolver.resolve(parsedConfig)
-        log.debug 'Resolved config with hub settings'
-        resolvedConfig = resolved
+        log.debug 'Resolving Lamin configuration with hub settings'
+        this.resolvedConfig = LaminHubConfigResolver.resolve(config)
 
-        LaminHub newHub = new LaminHub(
-            resolved.supabaseApiUrl as String,
-            resolved.supabaseAnonKey as String,
-            parsedConfig.apiKey
+        log.debug 'Creating LaminHub client'
+        this.hub = new LaminHub(
+            resolvedConfig.supabaseApiUrl as String,
+            resolvedConfig.supabaseAnonKey as String,
+            config.apiKey
         )
-        log.debug 'Created LaminHub client'
-        hub = newHub
 
-        InstanceSettings settings = newHub.getInstanceSettings(parsedConfig.instanceOwner, parsedConfig.instanceName)
-        log.debug "Instance settings: ${settings.toString()}"
+        log.debug 'Creating Lamin Instance client'
+        this.laminInstance = getInstance(config.instanceOwner, config.instanceName)
 
-        Instance instance = new Instance(
-            newHub,
-            settings,
-            parsedConfig.maxRetries,
-            parsedConfig.retryDelay
-        )
-        laminInstance = instance
-
+        log.debug 'Testing connection to LaminDB instance'
         testConnection()
     }
 

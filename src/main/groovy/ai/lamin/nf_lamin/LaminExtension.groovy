@@ -58,12 +58,19 @@ class LaminExtension extends PluginExtensionPoint {
         return transform != null ? transform.get('uid') as String : null
     }
 
+    /**
+     * Returns the URL of an artifact stored in LaminDB
+     * given its UID.
+     *
+     * @param instanceOwner The owner of the LaminDB instance
+     * @param instanceName The name of the LaminDB instance
+     * @param artifactUid The UID of the artifact
+     *
+     * @return The URL of the artifact
+     */
     @Function
     Path getArtifactUrlFromUid(String instanceOwner, String instanceName, String artifactUid) {
-        LaminHub hub = LaminRunManager.instance.getHub()
-        LaminConfig config = LaminRunManager.instance.getConfig()
-        InstanceSettings instanceSettings = hub.getInstanceSettings(instanceOwner, instanceName)
-        Instance instance = new Instance(hub, instanceSettings, config.getMaxRetries(), config.getRetryDelay())
+        Instance instance = LaminRunManager.instance.getInstance(instanceOwner, instanceName)
         return instance.getArtifactUrlFromUid(artifactUid)
     }
 
