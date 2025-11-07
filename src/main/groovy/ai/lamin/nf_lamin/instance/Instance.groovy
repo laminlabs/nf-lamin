@@ -13,8 +13,6 @@ import ai.lamin.nf_lamin.hub.LaminHub
 
 import java.nio.file.Path
 import java.nio.file.Paths
-import java.nio.file.FileSystem
-import nextflow.file.FileHelper
 
 /**
  * Represents a Lamin instance.
@@ -583,35 +581,8 @@ class Instance {
         // get artifact key
         String key = autoStorageKeyFromArtifact(artifact)
 
-        // create artifact uri
-        String fullPath = "${storageRoot.replaceAll(/\/+$/, '')}/${key.replaceAll(/^\/+/, '')}"
-        URI uri = new URI(fullPath)
-
-        // trigger plugin loading
-        Path artifactPath = FileHelper.asPath(fullPath)
-
-        // TODO: Handle credentials if needed
-        // // fetch credentials (may be empty)
-        // Map<String, Object> credentialsResponse = hub.getCloudAccess(storageRoot)
-
-        // // Build env map with credentials
-        // Map<String, Object> env = [:]
-
-        // // if credentials are present, add them to env
-        // if (credentialsResponse.containsKey('Credentials') && credentialsResponse.Credentials) {
-        //     Map credentials = credentialsResponse.Credentials as Map
-        //     // Assuming AWS style credentials for now
-        //     env = [
-        //         accessKey: credentials.AccessKeyId,
-        //         secretKey: credentials.SecretAccessKey,
-        //         sessionToken: credentials.SessionToken
-        //     ]
-        //     log.debug "Using temporary credentials for storage access"
-        // }
-
-        // // get or create file system for artifact
-        // FileSystem fs = FileHelper.getOrCreateFileSystemFor(uri, env)
-        // Path artifactPath = fs.getPath(uri.getPath())
+        // resolve full path
+        Path artifactPath = Paths.get(storageRoot).resolve(key)
 
         log.info "Artifact ${uid} resolved to path: ${artifactPath}"
 
