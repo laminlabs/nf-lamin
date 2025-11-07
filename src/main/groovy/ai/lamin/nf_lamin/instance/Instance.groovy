@@ -13,6 +13,8 @@ import ai.lamin.nf_lamin.hub.LaminHub
 
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.FileSystem
+import nextflow.file.FileHelper
 
 /**
  * Represents a Lamin instance.
@@ -554,6 +556,7 @@ class Instance {
             throw new IllegalStateException("UID '${uid}' is not valid. It should be 16 or 20 characters long.")
         }
 
+        // look up artifact by uid
         Map args = [
             moduleName: 'core',
             modelName: 'artifact',
@@ -574,18 +577,49 @@ class Instance {
         Map artifact = records[0]
         log.debug "Using artifact: ${artifact.uid}"
 
+        // get storage info
         Map storage = getStorage(artifact.storage_id as Integer)
-        log.debug "Storage details: ${storage.root}"
-
         String storageRoot = storage.root as String
+        log.debug "Storage details: ${storageRoot}"
 
+        // create artifact uri
         String key = autoStorageKeyFromArtifact(artifact)
-        log.debug "Storage root: ${storageRoot}, Artifact key: ${key}"
+        log.debug "Artifact key: ${key}"
+        String fullPath = "${storageRoot.replaceAll(/\/+$/, '')}/${key.replaceAll(/^\/+/, '')}"
+        log.debug "Full artifact path: ${fullPath}"
+        URI uri = new URI(fullPath)
+        log.debug "Artifact URI: ${uri}"
 
-        Path combined = Paths.get(storageRoot).resolve(key)
-        log.info "Retrieved artifact ${uid} from storage: ${combined}"
+        // trigger plugin loading
+        Path artPath = FileHelper.asPath(fullPath)
+        log.debug "Artifact Path: ${artPath}"
+        log.debug "Using file system provider: ${artPath.getFileSystem().provider().getClass().getName()}"
 
-        return combined
+        // fetch credentials (may be empty)
+        Map<String, Object> credentialsResponse = hub.getCloudAccess(storageRoot)
+
+        // Build env map with credentials
+        Map<String, Object> env = [:]
+
+        // if credentials are present, add them to env
+        if (credentialsResponse.containsKey('Credentials') && credentialsResponse.Credentials) {
+            Map credentials = credentialsResponse.Credentials as Map
+            // Assuming AWS style credentials for now
+            env = [
+                accessKey: credentials.AccessKeyId,
+                secretKey: credentials.SecretAccessKey,
+                sessionToken: credentials.SessionToken
+            ]
+            log.debug "Using temporary credentials for storage access"
+        }
+
+        // get or create file system for artifact
+        FileSystem fs = FileHelper.getOrCreateFileSystemFor(uri, env)
+        Path artifactPath = fs.getPath(uri.getPath())
+
+        log.info "Retrieved artifact ${uid} from storage: ${artifactPath}"
+
+        return artifactPath
     }
 
     // ------------------- PRIVATE METHODS -------------------
