@@ -29,7 +29,6 @@ import nextflow.trace.event.TaskEvent
 import nextflow.trace.event.FilePublishEvent
 
 import ai.lamin.nf_lamin.model.RunStatus
-import ai.lamin.nf_lamin.util.ProvHelper
 
 /**
  * Implements workflow events observer for Lamin provenance tracking
