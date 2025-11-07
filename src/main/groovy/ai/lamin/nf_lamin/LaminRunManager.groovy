@@ -214,7 +214,7 @@ final class LaminRunManager {
         WorkflowMetadata wfMetadata = session.getWorkflowMetadata()
         String repository = wfMetadata.repository ?: wfMetadata.projectName
         String mainScript = wfMetadata.scriptFile.toString().replaceFirst("${wfMetadata.projectDir}/", '')
-        String revision = wfMetadata.revision
+        String revision = wfMetadata.revision ?: 'local-development'
         String key = mainScript == 'main.nf' ? repository : "${repository}:${mainScript}"
 
         log.debug "Searching for existing Transform with key ${key} and revision ${revision}"
@@ -254,7 +254,9 @@ final class LaminRunManager {
             return transformRecord
         }
 
-        String description = "${wfMetadata.manifest.getName()}: ${wfMetadata.manifest.getDescription()}"
+        String manifestName = wfMetadata.manifest.getName() ?: '<No name in manifest>'
+        String manifestDescription = wfMetadata.manifest.getDescription() ?: '<No description in manifest>'
+        String description = "${manifestName}: ${manifestDescription}"
         String commitId = wfMetadata.commitId
         Map info = [
             'repository': repository,
@@ -338,10 +340,12 @@ final class LaminRunManager {
         return runRecord
     }
 
-    void finalizeRun(RunStatus status) {
+    void finalizeRun() {
         if (run == null || laminInstance == null || session == null || config.dryRun) {
             return
         }
+
+        RunStatus status = session.isSuccess() ? RunStatus.COMPLETED : RunStatus.ERRORED
 
         log.info "Run ${run.get('uid')} ${status.description}"
         WorkflowMetadata wfMetadata = session.getWorkflowMetadata()
@@ -368,6 +372,32 @@ final class LaminRunManager {
             log.warn "Run UID changed from ${run.uid} to ${updatedRun.uid} on final update!"
         }
         updateRun(updatedRun)
+    }
+
+    // todo: how link to current run
+    Map<String, Object> createInputArtifact(Path path) {
+        if (laminInstance == null || config.dryRun) {
+            return null
+        }
+
+        // if path is a local file, skip creating input artifact
+        boolean isLocalFile = (path.toUri().getScheme() ?: 'file') == 'file'
+        if (isLocalFile) {
+            return null
+        }
+
+        String description = "Input artifact at ${path.toUri()}"
+
+        Map<String, Object> artifact = createOrUploadArtifact(
+            path: path,
+            description: description
+        )
+
+        log.info "Created input artifact ${artifact?.get('uid')} for path ${path.toUri()}. Data: ${artifact}"
+
+        // todo: link artifact to current run as an input artifact
+
+        return artifact
     }
 
     Map<String, Object> createOutputArtifact(Path path) {
