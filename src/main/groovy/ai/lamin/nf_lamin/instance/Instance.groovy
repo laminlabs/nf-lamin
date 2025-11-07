@@ -554,6 +554,7 @@ class Instance {
             throw new IllegalStateException("UID '${uid}' is not valid. It should be 16 or 20 characters long.")
         }
 
+        // look up artifact by uid
         Map args = [
             moduleName: 'core',
             modelName: 'artifact',
@@ -570,22 +571,21 @@ class Instance {
         if (records.size() == 0) {
             throw new ApiException("No artifact found with uid starting with '${uid}'")
         }
-        log.debug "Found ${records.size()} artifact(s) with uid starting with '${uid}'"
         Map artifact = records[0]
-        log.debug "Using artifact: ${artifact.uid}"
+        log.debug "Found ${records.size()} artifact(s) with uid starting with '${uid}', using ${artifact.uid}"
 
+        // get storage info
         Map storage = getStorage(artifact.storage_id as Integer)
-        log.debug "Storage details: ${storage.root}"
-
         String storageRoot = storage.root as String
 
+        // get artifact key
         String key = autoStorageKeyFromArtifact(artifact)
-        log.debug "Storage root: ${storageRoot}, Artifact key: ${key}"
 
-        Path combined = Paths.get(storageRoot).resolve(key)
-        log.info "Retrieved artifact ${uid} from storage: ${combined}"
+        // resolve full path
+        Path artifactPath = Paths.get(storageRoot).resolve(key)
+        log.info "Artifact ${uid} resolved to path: ${artifactPath}"
 
-        return combined
+        return artifactPath
     }
 
     // ------------------- PRIVATE METHODS -------------------
@@ -639,7 +639,7 @@ class Instance {
         return response
     }
 
-    // straight translation from https://github.com/laminlabs/lamindb/blob/2f6be06614a7e567fc8db3ebaa0b3c370368105f/lamindb/core/storage/paths.py#L27-L47
+    // Ported from https://github.com/laminlabs/lamindb/blob/2f6be06614a7e567fc8db3ebaa0b3c370368105f/lamindb/core/storage/paths.py#L27-L47
     private String autoStorageKeyFromArtifact(Map artifact) {
         if (artifact.containsKey('_real_key') && artifact._real_key != null) {
             return artifact._real_key as String
