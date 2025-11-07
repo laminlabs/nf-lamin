@@ -583,7 +583,6 @@ class Instance {
 
         // resolve full path
         Path artifactPath = Paths.get(storageRoot).resolve(key)
-
         log.info "Artifact ${uid} resolved to path: ${artifactPath}"
 
         return artifactPath
