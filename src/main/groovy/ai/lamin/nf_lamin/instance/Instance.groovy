@@ -573,51 +573,47 @@ class Instance {
         if (records.size() == 0) {
             throw new ApiException("No artifact found with uid starting with '${uid}'")
         }
-        log.debug "Found ${records.size()} artifact(s) with uid starting with '${uid}'"
         Map artifact = records[0]
-        log.debug "Using artifact: ${artifact.uid}"
+        log.debug "Found ${records.size()} artifact(s) with uid starting with '${uid}', using ${artifact.uid}"
 
         // get storage info
         Map storage = getStorage(artifact.storage_id as Integer)
         String storageRoot = storage.root as String
-        log.debug "Storage details: ${storageRoot}"
+
+        // get artifact key
+        String key = autoStorageKeyFromArtifact(artifact)
 
         // create artifact uri
-        String key = autoStorageKeyFromArtifact(artifact)
-        log.debug "Artifact key: ${key}"
         String fullPath = "${storageRoot.replaceAll(/\/+$/, '')}/${key.replaceAll(/^\/+/, '')}"
-        log.debug "Full artifact path: ${fullPath}"
         URI uri = new URI(fullPath)
-        log.debug "Artifact URI: ${uri}"
 
         // trigger plugin loading
-        Path artPath = FileHelper.asPath(fullPath)
-        log.debug "Artifact Path: ${artPath}"
-        log.debug "Using file system provider: ${artPath.getFileSystem().provider().getClass().getName()}"
+        Path artifactPath = FileHelper.asPath(fullPath)
 
-        // fetch credentials (may be empty)
-        Map<String, Object> credentialsResponse = hub.getCloudAccess(storageRoot)
+        // TODO: Handle credentials if needed
+        // // fetch credentials (may be empty)
+        // Map<String, Object> credentialsResponse = hub.getCloudAccess(storageRoot)
 
-        // Build env map with credentials
-        Map<String, Object> env = [:]
+        // // Build env map with credentials
+        // Map<String, Object> env = [:]
 
-        // if credentials are present, add them to env
-        if (credentialsResponse.containsKey('Credentials') && credentialsResponse.Credentials) {
-            Map credentials = credentialsResponse.Credentials as Map
-            // Assuming AWS style credentials for now
-            env = [
-                accessKey: credentials.AccessKeyId,
-                secretKey: credentials.SecretAccessKey,
-                sessionToken: credentials.SessionToken
-            ]
-            log.debug "Using temporary credentials for storage access"
-        }
+        // // if credentials are present, add them to env
+        // if (credentialsResponse.containsKey('Credentials') && credentialsResponse.Credentials) {
+        //     Map credentials = credentialsResponse.Credentials as Map
+        //     // Assuming AWS style credentials for now
+        //     env = [
+        //         accessKey: credentials.AccessKeyId,
+        //         secretKey: credentials.SecretAccessKey,
+        //         sessionToken: credentials.SessionToken
+        //     ]
+        //     log.debug "Using temporary credentials for storage access"
+        // }
 
-        // get or create file system for artifact
-        FileSystem fs = FileHelper.getOrCreateFileSystemFor(uri, env)
-        Path artifactPath = fs.getPath(uri.getPath())
+        // // get or create file system for artifact
+        // FileSystem fs = FileHelper.getOrCreateFileSystemFor(uri, env)
+        // Path artifactPath = fs.getPath(uri.getPath())
 
-        log.info "Retrieved artifact ${uid} from storage: ${artifactPath}"
+        log.info "Artifact ${uid} resolved to path: ${artifactPath}"
 
         return artifactPath
     }
@@ -673,7 +669,7 @@ class Instance {
         return response
     }
 
-    // straight translation from https://github.com/laminlabs/lamindb/blob/2f6be06614a7e567fc8db3ebaa0b3c370368105f/lamindb/core/storage/paths.py#L27-L47
+    // Ported from https://github.com/laminlabs/lamindb/blob/2f6be06614a7e567fc8db3ebaa0b3c370368105f/lamindb/core/storage/paths.py#L27-L47
     private String autoStorageKeyFromArtifact(Map artifact) {
         if (artifact.containsKey('_real_key') && artifact._real_key != null) {
             return artifact._real_key as String
