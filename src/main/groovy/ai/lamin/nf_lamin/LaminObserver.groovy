@@ -72,4 +72,15 @@ class LaminObserver implements TraceObserverV2 {
         log.debug "LaminObserver.onFlowComplete"
         state.finalizeRun()
     }
+
+    @Override
+    void onTaskComplete(TaskEvent event) {
+        TaskRun task = event.handler.task
+
+        task.getInputFiles().each { FileHolder holder ->
+            Path source = holder.getSourcePath()
+            log.info "LaminObserver.onTaskComplete ${task.name}: '${source.toUri()}' staged as '${holder.getStageName()}'"
+            state.createInputArtifact(source)
+        }
+    }
 }

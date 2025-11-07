@@ -374,6 +374,32 @@ final class LaminRunManager {
         updateRun(updatedRun)
     }
 
+    // todo: how link to current run
+    Map<String, Object> createInputArtifact(Path path) {
+        if (laminInstance == null || config.dryRun) {
+            return null
+        }
+
+        // if path is a local file, skip creating input artifact
+        boolean isLocalFile = (path.toUri().getScheme() ?: 'file') == 'file'
+        if (isLocalFile) {
+            return null
+        }
+
+        String description = "Input artifact at ${path.toUri()}"
+
+        Map<String, Object> artifact = createOrUploadArtifact(
+            path: path,
+            description: description
+        )
+
+        log.info "Created input artifact ${artifact?.get('uid')} for path ${path.toUri()}. Data: ${artifact}"
+
+        // todo: link artifact to current run as an input artifact
+
+        return artifact
+    }
+
     Map<String, Object> createOutputArtifact(Path path) {
         if (run == null || laminInstance == null || config.dryRun) {
             return null
