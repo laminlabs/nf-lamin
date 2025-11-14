@@ -141,6 +141,49 @@ class LaminHub {
         return InstanceSettings.fromMap(instanceSettingsMap)
     }
 
+    /**
+     * Fetches temporary cloud storage credentials for accessing a specific storage root.
+     * This method requires a valid JWT access token.
+     *
+     * For public or non-managed storage, this method may return an empty map, indicating
+     * that no credentials are needed to access the storage. For private or managed storage,
+     * it returns a map containing temporary credentials and storage accessibility information.
+     *
+     * @param storageRoot The storage root path (e.g., "s3://lamin-us-east-1/JwMEKs04D9WJ")
+     * @return A Map containing cloud access credentials and storage metadata if credentials are required,
+     *         or an empty Map if the storage is publicly accessible or no credentials are needed.
+     *         The map may contain keys like 'Credentials', 'StorageAccessibility', etc.
+     * @throws IllegalArgumentException If storageRoot is null or empty
+     * @throws RuntimeException If the API call fails
+     */
+    Map<String, Object> getCloudAccess(String storageRoot) {
+        if (!storageRoot?.trim()) {
+            throw new IllegalArgumentException('Storage root cannot be null or empty.')
+        }
+
+        String accessToken = getAccessToken()
+
+        String url = "${this.apiUrl}/functions/v1/get-cloud-access-v1"
+        String payload = """
+        {
+            "storage_root": "${storageRoot}"
+        }
+        """.stripIndent()
+        String currentMethod = "getCloudAccess(storageRoot='${storageRoot}')"
+
+        String responseJson = makePostRequest(url, payload, accessToken, true, currentMethod)
+
+        Map<String, Object> cloudAccessMap = parseJson(responseJson, currentMethod)
+
+        // Return empty map if no credentials found
+        if (!cloudAccessMap) {
+            log.debug "No credentials found for storage root ${storageRoot}"
+            return Collections.emptyMap()
+        }
+
+        return cloudAccessMap
+    }
+
     // --- Private Helper Methods ---
 
     /**
@@ -300,7 +343,10 @@ class LaminHub {
             'secret',
             'token',
             'bearer',
-            'authorization'
+            'authorization',
+            'AccessKeyId',
+            'SecretAccessKey',
+            'SessionToken'
         ]
 
         String result = jsonString
