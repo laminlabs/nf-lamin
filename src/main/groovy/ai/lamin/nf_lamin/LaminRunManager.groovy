@@ -25,7 +25,6 @@ import java.util.LinkedHashMap
 import java.util.concurrent.locks.Lock
 import java.util.concurrent.locks.ReentrantLock
 
-import groovy.json.JsonOutput
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import nextflow.Session
@@ -38,6 +37,7 @@ import ai.lamin.nf_lamin.hub.LaminHubConfigResolver
 import ai.lamin.nf_lamin.instance.Instance
 import ai.lamin.nf_lamin.instance.InstanceSettings
 import ai.lamin.nf_lamin.model.RunStatus
+import ai.lamin.nf_lamin.util.GitHelper
 
 /**
  * Holds shared state about the currently active Lamin transform and run.
@@ -211,29 +211,29 @@ final class LaminRunManager {
             }
         }
 
-        WorkflowMetadata wfMetadata = session.getWorkflowMetadata()
-        String repository = wfMetadata.repository ?: wfMetadata.projectName
-        String mainScript = wfMetadata.scriptFile.toString().replaceFirst("${wfMetadata.projectDir}/", '')
-        String revision = wfMetadata.revision
-        String key = mainScript == 'main.nf' ? repository : "${repository}:${mainScript}"
-
-        log.debug "Searching for existing Transform with key ${key} and revision ${revision}"
+        // Collect all relevant metadata
+        TransformMetadata metadata = collectTransformMetadata(session)
+        
+        // Generate transform key
+        String key = generateTransformKey(metadata)
+        
+        log.debug "Searching for existing Transform with key ${key} and revision ${metadata.revision}"
         List<Map> existingTransforms = laminInstance.getRecords(
             moduleName: 'core',
             modelName: 'transform',
             filter: [
                 and: [
                     [key: [eq: key]],
-                    [version: [eq: revision]]
+                    [version: [eq: metadata.revision]]
                 ]
             ]
         )
-        log.debug "Found ${existingTransforms.size()} existing Transform(s) with key ${key} and revision ${revision}"
+        log.debug "Found ${existingTransforms.size()} existing Transform(s) with key ${key} and revision ${metadata.revision}"
 
         Map transformRecord = null
         if (existingTransforms) {
             if (existingTransforms.size() > 1) {
-                log.warn "Found multiple Transform objects with key ${key} and revision ${revision}"
+                log.warn "Found multiple Transform objects with key ${key} and revision ${metadata.revision}"
             }
             transformRecord = existingTransforms[0]
             updateTransform(transformRecord)
@@ -247,29 +247,23 @@ final class LaminRunManager {
                 uid: 'DrYrUnTrAuId',
                 id: -1,
                 key: key,
-                version: revision
+                version: metadata.revision
             ] as Map<String, Object>
             updateTransform(transformRecord)
             log.info "Dry-run mode: using dummy transform ${transformRecord.get('uid')}"
             return transformRecord
         }
 
-        String description = "${wfMetadata.manifest.getName()}: ${wfMetadata.manifest.getDescription()}"
-        String commitId = wfMetadata.commitId
-        Map info = [
-            'repository': repository,
-            'main-script': mainScript,
-            'commit-id': commitId,
-            'revision': revision
-        ]
-        String infoAsJson = JsonOutput.toJson(info)
+        // Generate transform fields
+        String sourceCode = generateTransformSourceCode(metadata)
+        String description = generateTransformDescription(metadata)
 
         transformRecord = laminInstance.createTransform(
             key: key,
-            source_code: infoAsJson,
-            version: revision,
+            source_code: sourceCode,
+            version: metadata.revision,
             type: 'pipeline',
-            reference: wfMetadata.repository,
+            reference: metadata.repository,
             reference_type: 'url',
             description: description
         )
@@ -368,6 +362,32 @@ final class LaminRunManager {
             log.warn "Run UID changed from ${run.uid} to ${updatedRun.uid} on final update!"
         }
         updateRun(updatedRun)
+    }
+
+    // todo: how link to current run
+    Map<String, Object> createInputArtifact(Path path) {
+        if (laminInstance == null || config.dryRun) {
+            return null
+        }
+
+        // if path is a local file, skip creating input artifact
+        boolean isLocalFile = (path.toUri().getScheme() ?: 'file') == 'file'
+        if (isLocalFile) {
+            return null
+        }
+
+        String description = "Input artifact at ${path.toUri()}"
+
+        Map<String, Object> artifact = createOrUploadArtifact(
+            path: path,
+            description: description
+        )
+
+        log.info "Created input artifact ${artifact?.get('uid')} for path ${path.toUri()}. Data: ${artifact}"
+
+        // todo: link artifact to current run as an input artifact
+
+        return artifact
     }
 
     Map<String, Object> createOutputArtifact(Path path) {
@@ -607,6 +627,166 @@ final class LaminRunManager {
         } else {
             log.info message
         }
+    }
+
+    /**
+     * Data structure holding all metadata needed for transform creation
+     */
+    @CompileStatic
+    static class TransformMetadata {
+        /** Repository name or project name */
+        String repository
+        
+        /** Main script file path (relative to project directory) */
+        String mainScript
+        
+        /** Revision name (branch/tag/commit) */
+        String revision
+        
+        /** Commit ID (if available) */
+        String commitId
+        
+        /** Entrypoint name (if specified via -entry) */
+        String entrypoint
+        
+        /** Project directory path */
+        Path projectDir
+        
+        /** Workflow manifest name */
+        String manifestName
+        
+        /** Workflow manifest description */
+        String manifestDescription
+        
+        /** Git information extracted from repository */
+        GitHelper.GitInfo gitInfo
+    }
+
+    /**
+     * Collect all metadata needed for transform creation from the session
+     * 
+     * @param session The Nextflow session
+     * @return TransformMetadata containing all relevant information
+     */
+    private static TransformMetadata collectTransformMetadata(Session session) {
+        WorkflowMetadata wfMetadata = session.getWorkflowMetadata()
+        
+        TransformMetadata metadata = new TransformMetadata()
+        
+        // Extract basic workflow metadata
+        metadata.repository = wfMetadata.repository ?: wfMetadata.projectName
+        metadata.mainScript = wfMetadata.scriptFile.toString().replaceFirst("${wfMetadata.projectDir}/", '')
+        metadata.revision = wfMetadata.revision ?: 'local-development'
+        metadata.commitId = wfMetadata.commitId
+        metadata.projectDir = wfMetadata.projectDir
+        
+        // Extract entrypoint from session binding
+        metadata.entrypoint = session?.getBinding()?.getEntryName()
+        
+        // Extract manifest information
+        metadata.manifestName = wfMetadata.manifest.getName() ?: '<No name in manifest>'
+        metadata.manifestDescription = wfMetadata.manifest.getDescription() ?: '<No description in manifest>'
+        
+        // Try to get additional git information from the repository
+        try {
+            metadata.gitInfo = GitHelper.getGitInfo(metadata.projectDir, metadata.revision)
+        } catch (Exception e) {
+            log.debug "Failed to extract git info: ${e.message}"
+            metadata.gitInfo = null
+        }
+        
+        return metadata
+    }
+
+    /**
+     * Generate the transform key from metadata
+     * Format: "repository" or "repository:script" if not main.nf
+     * 
+     * @param metadata Transform metadata
+     * @return The transform key
+     */
+    private static String generateTransformKey(TransformMetadata metadata) {
+        return metadata.mainScript == 'main.nf' 
+            ? metadata.repository 
+            : "${metadata.repository}:${metadata.mainScript}"
+    }
+
+    /**
+     * Generate the transform description from metadata
+     * 
+     * @param metadata Transform metadata
+     * @return The transform description
+     */
+    private static String generateTransformDescription(TransformMetadata metadata) {
+        return "${metadata.manifestName}: ${metadata.manifestDescription}"
+    }
+
+    /**
+     * Generates source_code string in YAML-like format to match Python package.
+     * Format: key: value pairs separated by newlines
+     * See: lamindb/models/transform.py Transform.from_git()
+     * https://github.com/laminlabs/lamindb/blob/734367caa7b4bff5216f4aca1d8e43fe88bb8b0a/lamindb/models/transform.py#L473-L489
+     *
+     * The Python implementation distinguishes between:
+     * - "Sliding transforms": Track a branch (version == branch), code can change over time
+     * - "Pinned transforms": Pin to specific commit/tag, code is immutable
+     *
+     * Uses GitHelper to extract additional information from the git repository
+     * when available, including provider type and revision classification.
+     *
+     * @param metadata Transform metadata containing all necessary information
+     * @return Formatted source code string
+     */
+    private static String generateTransformSourceCode(TransformMetadata metadata) {
+        // Use LinkedHashMap to preserve insertion order
+        Map<String, String> sourceData = new LinkedHashMap<>()
+        
+        // Repository and path are required
+        sourceData.put('repo', metadata.repository)
+        sourceData.put('path', metadata.mainScript)
+        
+        // Add entrypoint if specified (via -entry option)
+        if (metadata.entrypoint) {
+            sourceData.put('entrypoint', metadata.entrypoint)
+        }
+        
+        // Determine whether to use commit or branch
+        // Priority:
+        // 1. If we have gitInfo, use its classification (most accurate)
+        // 2. If commitId exists, prefer commit (git-based project)
+        // 3. Otherwise use branch (local development)
+        
+        boolean useCommit = false
+        if (metadata.gitInfo) {
+            // If git info available, use it to determine if this is a tag
+            // Tags should use commit (immutable), branches use branch (sliding)
+            useCommit = metadata.commitId && (metadata.gitInfo.isTag || metadata.gitInfo.isCommit)
+        } else {
+            // Fallback: if we have a commitId, use it
+            useCommit = metadata.commitId != null
+        }
+        
+        if (useCommit && metadata.commitId) {
+            sourceData.put('commit', metadata.commitId)
+        } else if (metadata.revision) {
+            sourceData.put('branch', metadata.revision)
+        }
+        
+        // Optionally add provider for URL construction
+        if (metadata.gitInfo && metadata.gitInfo.provider != GitHelper.GitProvider.UNKNOWN) {
+            sourceData.put('provider', metadata.gitInfo.provider.name)
+        }
+        
+        // Optionally add source URL if we can construct it
+        if (metadata.gitInfo && metadata.commitId) {
+            String sourceUrl = GitHelper.constructSourceUrl(metadata.gitInfo, metadata.commitId, metadata.mainScript)
+            if (sourceUrl) {
+                sourceData.put('url', sourceUrl)
+            }
+        }
+        
+        // Convert map to YAML-like format: "key: value\n"
+        return sourceData.collect { k, v -> "${k}: ${v}" }.join('\n')
     }
 
     private void ensureInitialized(String message) {
