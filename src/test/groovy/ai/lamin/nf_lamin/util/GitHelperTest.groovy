@@ -161,7 +161,7 @@ class GitHelperTest extends Specification {
     def "should detect custom GitLab instance from SCM config"() {
         given:
         def customUrl = "https://gitlab.example.com/myorg/myrepo.git"
-        
+
         // Note: In real usage, this would come from ~/.nextflow/scm file like:
         // providers {
         //     my-gitlab {
@@ -169,10 +169,10 @@ class GitHelperTest extends Specification {
         //         server = 'https://gitlab.example.com'
         //     }
         // }
-        
+
         when:
         def provider = GitHelper.GitProvider.fromUrl(customUrl)
-        
+
         then:
         // Without SCM config, it won't match
         provider == GitHelper.GitProvider.UNKNOWN

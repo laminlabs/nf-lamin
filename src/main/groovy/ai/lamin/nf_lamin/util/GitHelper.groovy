@@ -26,15 +26,15 @@ import nextflow.scm.ProviderConfig
 /**
  * Utility class to extract git repository information that isn't exposed
  * through Nextflow's WorkflowMetadata API.
- * 
+ *
  * This helper reads the .git directory directly to determine:
  * - Git provider (GitHub, GitLab, Bitbucket, etc.)
  * - Whether a revision is a tag or branch
  * - Remote repository URLs
- * 
+ *
  * It can also leverage Nextflow's ~/.nextflow/scm configuration file to
  * properly identify custom Git providers (self-hosted GitLab, Bitbucket, etc.)
- * 
+ *
  * @author Robrecht Cannoodt
  */
 @Slf4j
@@ -66,14 +66,14 @@ class GitHelper {
 
         /**
          * Detect provider from URL, optionally using Nextflow's SCM configuration
-         * 
+         *
          * @param url The remote URL
          * @param scmProviders Optional list of configured providers from ~/.nextflow/scm
          * @return The detected provider
          */
         static GitProvider fromUrl(String url, List<ProviderConfig> scmProviders) {
             if (!url) return UNKNOWN
-            
+
             // First try to match using Nextflow's SCM config if available
             if (scmProviders) {
                 for (ProviderConfig config : scmProviders) {
@@ -84,7 +84,7 @@ class GitHelper {
                     }
                 }
             }
-            
+
             // Fallback to simple domain matching
             for (GitProvider provider : values()) {
                 if (provider.domain && url.contains(provider.domain)) {
@@ -144,28 +144,28 @@ class GitHelper {
     static class GitInfo {
         /** The git provider (GitHub, GitLab, etc.) */
         GitProvider provider = GitProvider.UNKNOWN
-        
+
         /** Remote repository URL */
         String remoteUrl
-        
+
         /** Whether the revision appears to be a tag */
         boolean isTag = false
-        
+
         /** Whether the revision appears to be a branch */
         boolean isBranch = false
-        
+
         /** Whether the revision appears to be a commit hash */
         boolean isCommit = false
-        
+
         /** List of all tags in the repository */
         List<String> tags = []
-        
+
         /** List of all branches in the repository */
         List<String> branches = []
-        
+
         /** The HEAD reference (current branch or commit) */
         String headRef
-        
+
         @Override
         String toString() {
             return "GitInfo(provider=${provider.name}, remoteUrl=${remoteUrl}, " +
@@ -176,7 +176,7 @@ class GitHelper {
     /**
      * Load SCM provider configurations from Nextflow's config file
      * Reads from ~/.nextflow/scm or $NXF_SCM_FILE
-     * 
+     *
      * @return List of configured providers, or empty list if config doesn't exist
      */
     @groovy.transform.CompileStatic(groovy.transform.TypeCheckingMode.SKIP)
@@ -194,7 +194,7 @@ class GitHelper {
 
     /**
      * Check if a project directory has a git repository
-     * 
+     *
      * @param projectDir The project directory path
      * @return true if .git directory exists
      */
@@ -206,7 +206,7 @@ class GitHelper {
 
     /**
      * Extract git information from a project directory
-     * 
+     *
      * @param projectDir The project directory path
      * @param revisionName The revision name from WorkflowMetadata (optional)
      * @param useScmConfig Whether to load and use Nextflow's SCM configuration
@@ -219,11 +219,11 @@ class GitHelper {
         }
 
         GitInfo info = new GitInfo()
-        
+
         try {
             // Load SCM providers if requested
             List<ProviderConfig> scmProviders = useScmConfig ? loadScmProviders() : []
-            
+
             // Extract remote URL and provider
             String remoteUrl = getRemoteUrl(projectDir)
             if (remoteUrl) {
@@ -259,7 +259,7 @@ class GitHelper {
 
     /**
      * Get the remote URL from git config
-     * 
+     *
      * @param projectDir The project directory
      * @return The remote URL, or null if not found
      */
@@ -271,7 +271,7 @@ class GitHelper {
 
         try {
             String configText = gitConfig.text
-            
+
             // Find [remote "origin"] section and extract URL
             def matcher = configText =~ /\[remote "origin"\][^\[]*?url\s*=\s*(.+)/
             if (matcher.find()) {
@@ -293,7 +293,7 @@ class GitHelper {
 
     /**
      * Get the current HEAD reference (branch name or commit)
-     * 
+     *
      * @param projectDir The project directory
      * @return The HEAD reference, or null if not found
      */
@@ -319,7 +319,7 @@ class GitHelper {
 
     /**
      * Get list of all tags in the repository
-     * 
+     *
      * @param projectDir The project directory
      * @return List of tag names
      */
@@ -342,7 +342,7 @@ class GitHelper {
 
     /**
      * Get list of all local branches in the repository
-     * 
+     *
      * @param projectDir The project directory
      * @return List of branch names
      */
@@ -365,7 +365,7 @@ class GitHelper {
 
     /**
      * Check if a string looks like a git commit hash
-     * 
+     *
      * @param value The value to check
      * @return true if it looks like a commit hash (40 hex chars or shortened)
      */
@@ -376,7 +376,7 @@ class GitHelper {
 
     /**
      * Construct a URL to the source code file for the given provider
-     * 
+     *
      * @param provider The git provider
      * @param repoUrl The repository base URL (e.g., https://github.com/user/repo)
      * @param commitOrRef The commit hash or reference (tag/branch)
@@ -395,7 +395,7 @@ class GitHelper {
 
         // Ensure repoUrl doesn't end with .git
         String baseUrl = repoUrl.replaceFirst(/\.git$/, '')
-        
+
         // Ensure filePath doesn't start with /
         String cleanPath = filePath.startsWith('/') ? filePath.substring(1) : filePath
 
@@ -404,7 +404,7 @@ class GitHelper {
 
     /**
      * Convenience method to construct source URL from GitInfo
-     * 
+     *
      * @param gitInfo The git information
      * @param commitOrRef The commit hash or reference
      * @param filePath The path to the file
