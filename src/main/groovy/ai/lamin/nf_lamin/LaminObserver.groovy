@@ -75,14 +75,14 @@ class LaminObserver implements TraceObserverV2 {
     @Override
     void onTaskComplete(TaskEvent event) {
         TaskRun task = event.handler.task
+        List<FileHolder> inputFiles = task.getInputFiles()
 
-        // iterate over all input files and create artifacts (if need be)
-        task.inputFiles
-            .stream()
-            .map { FileHolder holder ->
-                Path source = holder.getSourcePath()
-                log.info "LaminObserver.onTaskComplete ${task.name}: '${source.toUri()}' staged as '${holder.getStageName()}'"
-                state.createInputArtifact(source)
-            }
+        log.debug "LaminObserver.onTaskComplete: ${task.name} with inputFiles: ${inputFiles}"
+
+        for (FileHolder holder : inputFiles) {
+            Path source = holder.getSourcePath()
+            log.info "LaminObserver.onTaskComplete ${task.name}: '${source.toUri()}' staged as '${holder.getStageName()}'"
+            state.createInputArtifact(source)
+        }
     }
 }
