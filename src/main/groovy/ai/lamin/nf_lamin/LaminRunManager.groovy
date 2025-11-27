@@ -214,7 +214,7 @@ final class LaminRunManager {
         WorkflowMetadata wfMetadata = session.getWorkflowMetadata()
         String repository = wfMetadata.repository ?: wfMetadata.projectName
         String mainScript = wfMetadata.scriptFile.toString().replaceFirst("${wfMetadata.projectDir}/", '')
-        String revision = wfMetadata.revision
+        String revision = wfMetadata.revision ?: 'local-development'
         String key = mainScript == 'main.nf' ? repository : "${repository}:${mainScript}"
 
         log.debug "Searching for existing Transform with key ${key} and revision ${revision}"
@@ -254,7 +254,9 @@ final class LaminRunManager {
             return transformRecord
         }
 
-        String description = "${wfMetadata.manifest.getName()}: ${wfMetadata.manifest.getDescription()}"
+        String manifestName = wfMetadata.manifest.getName() ?: '<No name in manifest>'
+        String manifestDescription = wfMetadata.manifest.getDescription() ?: '<No description in manifest>'
+        String description = "${manifestName}: ${manifestDescription}"
         String commitId = wfMetadata.commitId
         Map info = [
             'repository': repository,
