@@ -20,9 +20,13 @@ import java.nio.file.Path
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import nextflow.Session
+import nextflow.file.FileHolder
 import nextflow.processor.TaskHandler
-import nextflow.trace.TraceObserver
+import nextflow.processor.TaskRun
+import nextflow.trace.TraceObserverV2
 import nextflow.trace.TraceRecord
+import nextflow.trace.event.TaskEvent
+import nextflow.trace.event.FilePublishEvent
 
 import ai.lamin.nf_lamin.model.RunStatus
 
@@ -34,7 +38,7 @@ import ai.lamin.nf_lamin.model.RunStatus
  */
 @Slf4j
 @CompileStatic
-class LaminObserver implements TraceObserver {
+class LaminObserver implements TraceObserverV2 {
 
     private final LaminRunManager state = LaminRunManager.instance
 
@@ -57,20 +61,14 @@ class LaminObserver implements TraceObserver {
     }
 
     @Override
-    void onFilePublish(Path destination, Path source) {
-        log.debug "LaminObserver.onFilePublish: ${source} -> ${destination}"
-        state.createOutputArtifact(destination)
+    void onFilePublish(FilePublishEvent event) {
+        log.debug "LaminObserver.onFilePublish: ${event.source} -> ${event.target}"
+        state.createOutputArtifact(event.target)
     }
 
     @Override
     void onFlowComplete() {
         log.debug "LaminObserver.onFlowComplete"
-        state.finalizeRun(RunStatus.COMPLETED)
-    }
-
-    @Override
-    void onFlowError(TaskHandler handler, TraceRecord trace) {
-        log.debug "LaminObserver.onFlowError"
-        state.finalizeRun(RunStatus.ERRORED)
+        state.finalizeRun()
     }
 }
