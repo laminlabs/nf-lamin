@@ -338,12 +338,21 @@ final class LaminRunManager {
         return runRecord
     }
 
+    RunStatus determineRunStatus() {
+        if (session.isSuccess()) {
+            return RunStatus.COMPLETED
+        } else if (session.isCancelled()) {
+            return RunStatus.ABORTED
+        } else {
+            return RunStatus.ERRORED
+        }
+    }
+
     void finalizeRun() {
         if (run == null || laminInstance == null || session == null || config.dryRun) {
             return
         }
-
-        RunStatus status = session.isSuccess() ? RunStatus.COMPLETED : RunStatus.ERRORED
+        RunStatus status = determineRunStatus()
 
         log.info "Run '${run.get('uid')}' finished with status '${status.description}'"
         WorkflowMetadata wfMetadata = session.getWorkflowMetadata()
