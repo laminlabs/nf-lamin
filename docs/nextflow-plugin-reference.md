@@ -175,3 +175,20 @@ workflow {
     | myProcess
 }
 ```
+
+### `getInstanceSlug()`
+
+Returns the currently configured LaminDB instance identifier.
+
+**Returns:** `String` - The instance slug in the format "owner/name" (e.g., "laminlabs/lamindata"), or `null` if not available.
+
+**Example:**
+
+```groovy
+include { getInstanceSlug } from 'plugin/nf-lamin'
+
+workflow {
+  def instance = getInstanceSlug()
+  log.info "Connected to LaminDB instance: ${instance}"
+}
+```

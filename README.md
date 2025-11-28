@@ -74,7 +74,7 @@ lamin {
 For advanced use cases where you need to access Lamin run information from within your Nextflow workflow, the plugin provides helper functions:
 
 ```groovy
-include { getRunUid; getTransformUid } from 'plugin/nf-lamin'
+include { getRunUid; getTransformUid; getInstanceSlug } from 'plugin/nf-lamin'
 
 workflow {
   // Get the current Lamin run UID
@@ -84,6 +84,10 @@ workflow {
   // Get the current Lamin transform UID
   def transformUid = getTransformUid()
   log.info "Current Lamin transform UID: ${transformUid}"
+
+  // Get the configured LaminDB instance (e.g., "laminlabs/lamindata")
+  def instance = getInstanceSlug()
+  log.info "Connected to LaminDB instance: ${instance}"
 
   // Use these UIDs in your workflow logic
   Channel
