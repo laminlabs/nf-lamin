@@ -95,4 +95,17 @@ class LaminExtension extends PluginExtensionPoint {
         return instance.getArtifactFromUid(artifactUid)
     }
 
+    /**
+     * Returns the currently configured LaminDB instance identifier.
+     *
+     * This function returns the instance slug in the format "owner/name" (e.g., "laminlabs/lamindata")
+     * as configured in the lamin config block.
+     *
+     * @return the instance slug (e.g., "laminlabs/lamindata") or {@code null} if not available
+     */
+    @Function
+    String getInstanceSlug() {
+        return LaminRunManager.instance.getInstanceSlug()
+    }
+
 }

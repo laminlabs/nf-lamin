@@ -136,6 +136,23 @@ final class LaminRunManager {
         laminInstance = instance
     }
 
+    /**
+     * Returns the instance slug in the format "owner/name".
+     *
+     * @return the instance slug (e.g., "laminlabs/lamindata") or {@code null} if not available
+     */
+    String getInstanceSlug() {
+        Instance inst = laminInstance
+        if (inst == null) {
+            return null
+        }
+        InstanceSettings settings = inst.getSettings()
+        if (settings == null) {
+            return null
+        }
+        return "${settings.owner}/${settings.name}"
+    }
+
     void initializeRunManager(Session session) {
         log.debug 'LaminRunManager.initializeRunManager'
         reset()
