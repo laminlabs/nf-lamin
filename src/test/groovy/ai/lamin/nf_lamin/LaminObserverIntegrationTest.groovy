@@ -153,6 +153,9 @@ class LaminObserverIntegrationTest extends Specification {
         Session session = Stub(Session) {
             getConfig() >> [lamin: sessionConfig]
             getWorkflowMetadata() >> metadata
+            isSuccess() >> true
+            isAborted() >> false
+            isCancelled() >> false
         }
 
         LaminObserver observer = new LaminObserver()
@@ -221,6 +224,9 @@ class LaminObserverIntegrationTest extends Specification {
         Session session = Stub(Session) {
             getConfig() >> [lamin: sessionConfig]
             getWorkflowMetadata() >> metadata
+            isSuccess() >> true
+            isAborted() >> false
+            isCancelled() >> false
         }
 
         LaminObserver observer = new LaminObserver()

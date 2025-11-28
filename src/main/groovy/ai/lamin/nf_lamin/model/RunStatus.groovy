@@ -10,9 +10,9 @@ import groovy.transform.CompileStatic
  * SCHEDULED: When workflow is created (onFlowCreate)
  * RESTARTED: For workflow restarts (future use)
  * STARTED: When workflow begins execution (onFlowBegin)
- * COMPLETED: When workflow completes successfully (onFlowComplete)
- * ERRORED: When workflow encounters an error (onFlowError)
- * ABORTED: When workflow is aborted/cancelled (future use)
+ * COMPLETED: When workflow completes successfully (after onFlowComplete, and session.isSuccess())
+ * ERRORED: When workflow encounters an error (after onFlowError, and !session.isSuccess() && !session.isCancelled())
+ * ABORTED: When workflow is aborted/cancelled (after onFlowError, and !session.isSuccess() && session.isCancelled())
  */
 @CompileStatic
 enum RunStatus {
