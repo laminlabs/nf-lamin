@@ -40,7 +40,8 @@ workflow {
   def artPath = getArtifactFromUid('laminlabs', 'lamindata', 's3rtK8wIzJNKvg5Q')
   log.info "Artifact URL for UID 's3rtK8wIzJNKvg5Q': ${artPath}"
 
-  def artPath2 = getArtifactFromUid('laminlabs', 'lamindata', 'HOpnASIDDLx3pFYD0000')
+  // assumes the current instance is indeed laminlabs/lamindata
+  def artPath2 = getArtifactFromUid('HOpnASIDDLx3pFYD0000')
   log.info "Artifact URL for UID 'HOpnASIDDLx3pFYD0000': ${artPath2}"
 
   // create output channel

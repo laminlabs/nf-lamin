@@ -76,4 +76,23 @@ class LaminExtension extends PluginExtensionPoint {
         return instance.getArtifactFromUid(artifactUid)
     }
 
+    /**
+     * Fetches the storage path of an artifact from the current LaminDB instance by its UID.
+     *
+     * This function retrieves an artifact's storage location from the currently configured
+     * LaminDB instance (as specified in the lamin config block). If a 16-character base UID
+     * is provided and multiple versions exist, the most recently updated artifact will be returned.
+     *
+     * @param artifactUid The UID of the artifact (16 or 20 characters)
+     * @return A Path object pointing to the artifact's storage location
+     */
+    @Function
+    Path getArtifactFromUid(String artifactUid) {
+        Instance instance = LaminRunManager.instance.getCurrentInstance()
+        if (instance == null) {
+            throw new IllegalStateException("No current LaminDB instance available. Ensure the plugin is properly configured.")
+        }
+        return instance.getArtifactFromUid(artifactUid)
+    }
+
 }
