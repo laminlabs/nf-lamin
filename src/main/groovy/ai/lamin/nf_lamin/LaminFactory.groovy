@@ -18,19 +18,19 @@ package ai.lamin.nf_lamin
 
 import groovy.transform.CompileStatic
 import nextflow.Session
-import nextflow.trace.TraceObserver
-import nextflow.trace.TraceObserverFactory
+import nextflow.trace.TraceObserverV2
+import nextflow.trace.TraceObserverFactoryV2
 
 /**
  * Implements a factory object required to create
  * the {@link LaminObserver} instance.
  */
 @CompileStatic
-class LaminFactory implements TraceObserverFactory {
+class LaminFactory implements TraceObserverFactoryV2 {
 
     @Override
-    Collection<TraceObserver> create(Session session) {
-        return List.<TraceObserver>of(new LaminObserver())
+    Collection<TraceObserverV2> create(Session session) {
+        return [new LaminObserver()]
     }
 
 }
