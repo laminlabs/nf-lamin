@@ -41,6 +41,7 @@ import ai.lamin.nf_lamin.model.RunStatus
 class LaminObserver implements TraceObserverV2 {
 
     private final LaminRunManager state = LaminRunManager.instance
+    private volatile boolean runFinalized = false
 
     @Override
     void onFlowCreate(Session session) {
@@ -48,6 +49,7 @@ class LaminObserver implements TraceObserverV2 {
         try {
             state.initializeRunManager(session)
             state.initializeRun()
+            runFinalized = false
         } catch (Exception e) {
             log.error "Could not initialize Lamin run: ${e.message}"
             throw e
@@ -69,6 +71,21 @@ class LaminObserver implements TraceObserverV2 {
     @Override
     void onFlowComplete() {
         log.debug "LaminObserver.onFlowComplete"
+        finalizeRunOnce()
+    }
+
+    @Override
+    void onFlowError(TaskEvent event) {
+        log.debug "LaminObserver.onFlowError"
+        finalizeRunOnce()
+    }
+
+    private synchronized void finalizeRunOnce() {
+        if (runFinalized) {
+            log.debug "Run already finalized, skipping duplicate finalization"
+            return
+        }
+        runFinalized = true
         state.finalizeRun()
     }
 }
