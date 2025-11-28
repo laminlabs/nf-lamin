@@ -20,11 +20,7 @@ import java.nio.file.Path
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import nextflow.Session
-import nextflow.file.FileHolder
-import nextflow.processor.TaskHandler
-import nextflow.processor.TaskRun
 import nextflow.trace.TraceObserverV2
-import nextflow.trace.TraceRecord
 import nextflow.trace.event.TaskEvent
 import nextflow.trace.event.FilePublishEvent
 
