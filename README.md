@@ -116,11 +116,8 @@ workflow {
   log.info "Artifact located at: ${artifactPath}"
 
   // Use the artifact as input to your pipeline
-  Channel
-    .fromPath(artifactPath)
-    .set { input_ch }
-
-  input_ch | myProcess
+  Channel.fromPath(artifactPath)
+    | myProcess
 }
 
 process myProcess {
