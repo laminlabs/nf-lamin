@@ -102,11 +102,34 @@ These functions return `null` if the plugin hasn't initialized the run yet, so t
 
 You can fetch artifacts stored in LaminDB directly within your Nextflow workflow using the `getArtifactFromUid` function. This returns a `Path` object pointing to the artifact's storage location (e.g., `s3://`, `gs://`, or local paths).
 
+#### Using the current instance
+
+The simplest way to fetch an artifact is to use the currently configured LaminDB instance:
+
 ```groovy
 include { getArtifactFromUid } from 'plugin/nf-lamin'
 
 workflow {
-  // Fetch an artifact by its UID from a specific LaminDB instance
+  // Fetch an artifact using the instance configured in nextflow.config
+  def artifactPath = getArtifactFromUid('abcd1234efgh5678')  // Just the UID
+
+  log.info "Artifact located at: ${artifactPath}"
+
+  // Use the artifact as input to your pipeline
+  Channel.fromPath(artifactPath)
+    | myProcess
+}
+```
+
+#### Using a different instance
+
+If you need to fetch artifacts from a different LaminDB instance than the one configured for tracking:
+
+```groovy
+include { getArtifactFromUid } from 'plugin/nf-lamin'
+
+workflow {
+  // Fetch an artifact from a specific LaminDB instance
   def artifactPath = getArtifactFromUid(
     'your-organization',  // Instance owner
     'your-instance',      // Instance name
@@ -134,6 +157,11 @@ process myProcess {
   """
 }
 ```
+
+**Artifact UID format:**
+
+- 16-character base UIDs (e.g., `abcd1234efgh5678`) will fetch the most recently updated version
+- 20-character full UIDs (e.g., `abcd1234efgh56780000`) will fetch that specific version
 
 **Note:** This is a first step towards implementing native `lamin://` URL support. In future versions, you'll be able to use `lamin://<owner>/<name>/artifacts/<uid>` URLs directly in Nextflow channels and processes without explicitly calling `getArtifactFromUid`.
 
