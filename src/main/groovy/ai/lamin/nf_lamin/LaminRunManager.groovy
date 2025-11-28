@@ -354,7 +354,7 @@ final class LaminRunManager {
         }
         RunStatus status = determineRunStatus()
 
-        log.info "Run '${run.get('uid')}' finished with status '${status.description}'"
+        log.info "Run '${run.get('uid')}' ${status.description}"
         WorkflowMetadata wfMetadata = session.getWorkflowMetadata()
 
         // Update run with finish time, status, and report artifact
