@@ -79,3 +79,99 @@ export LAMIN_RUN_UID="your-run-uid"
 - `supabase_api_url` & `supabase_anon_key`: Custom Supabase connection details (only needed if `env = "custom"`)
 - `max_retries` & `retry_delay`: Control retry behavior for API requests
 - `transform_uid` & `run_uid`: Manually override transform/run UIDs (advanced usage only)
+
+## Functions
+
+### `getRunUid()`
+
+Returns the UID of the current Lamin run.
+
+**Returns:** `String` - The run UID, or `null` if the plugin hasn't initialized the run yet.
+
+**Example:**
+
+```groovy
+include { getRunUid } from 'plugin/nf-lamin'
+
+workflow {
+  def runUid = getRunUid()
+  log.info "Current run: ${runUid}"
+}
+```
+
+### `getTransformUid()`
+
+Returns the UID of the current Lamin transform.
+
+**Returns:** `String` - The transform UID, or `null` if the plugin hasn't initialized the transform yet.
+
+**Example:**
+
+```groovy
+include { getTransformUid } from 'plugin/nf-lamin'
+
+workflow {
+  def transformUid = getTransformUid()
+  log.info "Current transform: ${transformUid}"
+}
+```
+
+### `getArtifactFromUid(artifactUid)`
+
+Fetches the storage path of an artifact from the currently configured LaminDB instance.
+
+**Parameters:**
+
+- `artifactUid` (String) - The UID of the artifact (16 or 20 characters)
+  - 16-character base UIDs fetch the most recently updated version
+  - 20-character full UIDs fetch that specific version
+
+**Returns:** `Path` - A path object pointing to the artifact's storage location (e.g., `s3://`, `gs://`, or local path)
+
+**Throws:** `IllegalStateException` - If no current LaminDB instance is available (e.g., plugin not configured)
+
+**Example:**
+
+```groovy
+include { getArtifactFromUid } from 'plugin/nf-lamin'
+
+workflow {
+  // Fetch from the instance configured in nextflow.config
+  def inputFile = getArtifactFromUid('abcd1234efgh5678')
+
+  Channel.fromPath(inputFile)
+    | myProcess
+}
+```
+
+### `getArtifactFromUid(instanceOwner, instanceName, artifactUid)`
+
+Fetches the storage path of an artifact from a specific LaminDB instance.
+
+**Parameters:**
+
+- `instanceOwner` (String) - The owner (user or organization) of the LaminDB instance
+- `instanceName` (String) - The name of the LaminDB instance
+- `artifactUid` (String) - The UID of the artifact (16 or 20 characters)
+  - 16-character base UIDs fetch the most recently updated version
+  - 20-character full UIDs fetch that specific version
+
+**Returns:** `Path` - A path object pointing to the artifact's storage location (e.g., `s3://`, `gs://`, or local path)
+
+**Example:**
+
+```groovy
+include { getArtifactFromUid } from 'plugin/nf-lamin'
+
+workflow {
+  // Fetch from a different instance
+  def inputFile = getArtifactFromUid(
+    'other-org',
+    'other-instance',
+    'abcd1234efgh5678'
+  )
+
+  Channel.fromPath(inputFile)
+    | myProcess
+}
+```
