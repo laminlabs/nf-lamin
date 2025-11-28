@@ -135,7 +135,7 @@ process myProcess {
 }
 ```
 
-**Note:** This is a first step towards implementing native `lamin://` URL support. In future versions, you'll be able to use `lamin://<owner>/<name>/artifact/<uid>` URLs directly in Nextflow channels and processes without explicitly calling `getArtifactFromUid`.
+**Note:** This is a first step towards implementing native `lamin://` URL support. In future versions, you'll be able to use `lamin://<owner>/<name>/artifacts/<uid>` URLs directly in Nextflow channels and processes without explicitly calling `getArtifactFromUid`.
 
 ## Post-run script
 
