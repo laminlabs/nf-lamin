@@ -254,8 +254,8 @@ final class LaminRunManager {
             return transformRecord
         }
 
-        String manifestName = wfMetadata.manifest.getName() ?: '<No name in manifest>'
-        String manifestDescription = wfMetadata.manifest.getDescription() ?: '<No description in manifest>'
+        String manifestName = wfMetadata.manifest.getName() ?: '<no name in manifest>'
+        String manifestDescription = wfMetadata.manifest.getDescription() ?: '<no description in manifest>'
         String description = "${manifestName}: ${manifestDescription}"
         String commitId = wfMetadata.commitId
         Map info = [
