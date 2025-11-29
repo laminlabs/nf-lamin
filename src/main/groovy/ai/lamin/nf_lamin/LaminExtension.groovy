@@ -20,6 +20,10 @@ import groovy.transform.CompileStatic
 import nextflow.Session
 import nextflow.plugin.extension.Function
 import nextflow.plugin.extension.PluginExtensionPoint
+import java.nio.file.Path
+import ai.lamin.nf_lamin.hub.LaminHub
+import ai.lamin.nf_lamin.instance.Instance
+import ai.lamin.nf_lamin.instance.InstanceSettings
 
 /**
  * Implements a custom function which can be imported by
@@ -52,6 +56,56 @@ class LaminExtension extends PluginExtensionPoint {
     String getTransformUid() {
         Map<String, Object> transform = LaminRunManager.instance.transform
         return transform != null ? transform.get('uid') as String : null
+    }
+
+    /**
+     * Fetches the storage path of an artifact from LaminDB by its UID.
+     *
+     * This function retrieves an artifact's storage location (e.g., s3://, gs://, or local path)
+     * from a specified LaminDB instance. If a 16-character base UID is provided and multiple
+     * versions exist, the most recently updated artifact will be returned.
+     *
+     * @param instanceOwner The owner (user or organization) of the LaminDB instance
+     * @param instanceName The name of the LaminDB instance
+     * @param artifactUid The UID of the artifact (16 or 20 characters)
+     * @return A Path object pointing to the artifact's storage location
+     */
+    @Function
+    Path getArtifactFromUid(String instanceOwner, String instanceName, String artifactUid) {
+        Instance instance = LaminRunManager.instance.getInstance(instanceOwner, instanceName)
+        return instance.getArtifactFromUid(artifactUid)
+    }
+
+    /**
+     * Fetches the storage path of an artifact from the current LaminDB instance by its UID.
+     *
+     * This function retrieves an artifact's storage location from the currently configured
+     * LaminDB instance (as specified in the lamin config block). If a 16-character base UID
+     * is provided and multiple versions exist, the most recently updated artifact will be returned.
+     *
+     * @param artifactUid The UID of the artifact (16 or 20 characters)
+     * @return A Path object pointing to the artifact's storage location
+     */
+    @Function
+    Path getArtifactFromUid(String artifactUid) {
+        Instance instance = LaminRunManager.instance.getCurrentInstance()
+        if (instance == null) {
+            throw new IllegalStateException("No current LaminDB instance available. Ensure the plugin is properly configured.")
+        }
+        return instance.getArtifactFromUid(artifactUid)
+    }
+
+    /**
+     * Returns the currently configured LaminDB instance identifier.
+     *
+     * This function returns the instance slug in the format "owner/name" (e.g., "laminlabs/lamindata")
+     * as configured in the lamin config block.
+     *
+     * @return the instance slug (e.g., "laminlabs/lamindata") or {@code null} if not available
+     */
+    @Function
+    String getInstanceSlug() {
+        return LaminRunManager.instance.getInstanceSlug()
     }
 
 }

@@ -1,4 +1,4 @@
-include { getRunUid; getTransformUid } from 'plugin/nf-lamin'
+include { getRunUid; getTransformUid; getArtifactFromUid } from 'plugin/nf-lamin'
 
 process publishData {
   publishDir "${params.outputDir}/${id}", mode: 'copy', overwrite: true
@@ -35,6 +35,14 @@ workflow {
   def metadataFile = File.createTempFile('lamin_metadata_', '.json').toPath()
   metadataFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata))
   log.info "Wrote metadata to ${metadataFile}"
+
+  // test artifact fetching
+  def artPath = getArtifactFromUid('laminlabs', 'lamindata', 's3rtK8wIzJNKvg5Q')
+  log.info "Artifact URL for UID 's3rtK8wIzJNKvg5Q': ${artPath}"
+
+  // assumes the current instance is indeed laminlabs/lamindata
+  def artPath2 = getArtifactFromUid('HOpnASIDDLx3pFYD0000')
+  log.info "Artifact URL for UID 'HOpnASIDDLx3pFYD0000': ${artPath2}"
 
   // create output channel
   ch_out = Channel.fromList([
