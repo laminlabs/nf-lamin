@@ -748,7 +748,7 @@ final class LaminRunManager {
      * @param metadata Transform metadata containing all necessary information
      * @return Formatted source code string
      */
-    private static String generateTransformSourceCode(TransformMetadata metadata) {
+    static String generateTransformSourceCode(TransformMetadata metadata) {
         // Use LinkedHashMap to preserve insertion order
         Map<String, String> sourceData = new LinkedHashMap<>()
 
