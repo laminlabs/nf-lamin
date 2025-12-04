@@ -21,10 +21,8 @@ import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import nextflow.Session
 import nextflow.file.FileHolder
-import nextflow.processor.TaskHandler
 import nextflow.processor.TaskRun
 import nextflow.trace.TraceObserverV2
-import nextflow.trace.TraceRecord
 import nextflow.trace.event.TaskEvent
 import nextflow.trace.event.FilePublishEvent
 
@@ -41,6 +39,7 @@ import ai.lamin.nf_lamin.model.RunStatus
 class LaminObserver implements TraceObserverV2 {
 
     private final LaminRunManager state = LaminRunManager.instance
+    private volatile boolean runFinalized = false
 
     @Override
     void onFlowCreate(Session session) {
@@ -48,6 +47,7 @@ class LaminObserver implements TraceObserverV2 {
         try {
             state.initializeRunManager(session)
             state.initializeRun()
+            runFinalized = false
         } catch (Exception e) {
             log.error "Could not initialize Lamin run: ${e.message}"
             throw e
@@ -67,12 +67,6 @@ class LaminObserver implements TraceObserverV2 {
     }
 
     @Override
-    void onFlowComplete() {
-        log.debug "LaminObserver.onFlowComplete"
-        state.finalizeRun()
-    }
-
-    @Override
     void onTaskComplete(TaskEvent event) {
         TaskRun task = event.handler.task
         List<FileHolder> inputFiles = task.getInputFiles()
@@ -84,5 +78,26 @@ class LaminObserver implements TraceObserverV2 {
             log.info "LaminObserver.onTaskComplete ${task.name}: '${source.toUri()}' staged as '${holder.getStageName()}'"
             state.createInputArtifact(source)
         }
+    }
+
+    @Override
+    void onFlowComplete() {
+        log.debug "LaminObserver.onFlowComplete"
+        finalizeRunOnce()
+    }
+
+    @Override
+    void onFlowError(TaskEvent event) {
+        log.debug "LaminObserver.onFlowError"
+        finalizeRunOnce()
+    }
+
+    private synchronized void finalizeRunOnce() {
+        if (runFinalized) {
+            log.debug "Run already finalized, skipping duplicate finalization"
+            return
+        }
+        runFinalized = true
+        state.finalizeRun()
     }
 }

@@ -11,6 +11,9 @@ import ai.lamin.lamin_api_client.api.DefaultApi
 
 import ai.lamin.nf_lamin.hub.LaminHub
 
+import java.nio.file.Path
+import java.nio.file.Paths
+
 /**
  * Represents a Lamin instance.
  * This class is responsible for interacting with the Lamin API.
@@ -527,6 +530,64 @@ class Instance {
         return responseBody?.artifact as Map<String, Object>
     }
 
+    /**
+     * Retrieves the storage path for an artifact from LaminDB by its UID.
+     *
+     * This method queries the LaminDB instance to find an artifact matching the given UID
+     * (using a startswith match to support both base UIDs and versioned UIDs), retrieves
+     * its storage information, and constructs the full storage path.
+     *
+     * If multiple artifacts match (e.g., multiple versions), the most recently updated
+     * artifact is selected.
+     *
+     * @param uid The artifact UID (must be 16 or 20 characters long)
+     * @return A Path object representing the storage location (e.g., s3://bucket/path, gs://bucket/path)
+     * @throws IllegalStateException if the UID is null, empty, or has invalid length
+     * @throws ApiException if no artifact is found or if the API call fails
+     */
+    Path getArtifactFromUid(String uid) throws ApiException {
+
+        if (!uid) {
+            throw new IllegalStateException('UID is null or empty. Please check the UID.')
+        }
+        if (uid.length() != 16 && uid.length() != 20) {
+            throw new IllegalStateException("UID '${uid}' is not valid. It should be 16 or 20 characters long.")
+        }
+
+        // look up artifact by uid
+        Map args = [
+            moduleName: 'core',
+            modelName: 'artifact',
+            limit: 1,
+            offset: 0,
+            includeForeignKeys: true,
+            orderBy: [['field': 'updated_at', 'descending': true]],
+            filter: [
+                'uid': ['startswith': uid]
+            ]
+        ]
+        List<Map> records = getRecords(args)
+
+        if (records.size() == 0) {
+            throw new ApiException("No artifact found with uid starting with '${uid}'")
+        }
+        Map artifact = records[0]
+        log.debug "Found ${records.size()} artifact(s) with uid starting with '${uid}', using ${artifact.uid}"
+
+        // get storage info
+        Map storage = getStorage(artifact.storage_id as Integer)
+        String storageRoot = storage.root as String
+
+        // get artifact key
+        String key = autoStorageKeyFromArtifact(artifact)
+
+        // resolve full path
+        Path artifactPath = Paths.get(storageRoot).resolve(key)
+        log.info "Artifact ${uid} resolved to path: ${artifactPath}"
+
+        return artifactPath
+    }
+
     // ------------------- PRIVATE METHODS -------------------
     /**
      * Get the bearer token for authentication.
@@ -563,6 +624,53 @@ class Instance {
 
             throw e
         }
+    }
+
+    protected Map getStorage(Integer id) throws ApiException {
+        log.trace "GET getStorage: id=${id}"
+
+        Map response = getRecord([
+            moduleName: 'core',
+            modelName: 'storage',
+            idOrUid: id,
+            includeForeignKeys: false
+        ])
+        log.trace "Response from getStorage: ${response}"
+        return response
+    }
+
+    // Ported from https://github.com/laminlabs/lamindb/blob/2f6be06614a7e567fc8db3ebaa0b3c370368105f/lamindb/core/storage/paths.py#L27-L47
+    private String autoStorageKeyFromArtifact(Map artifact) {
+        if (artifact.containsKey('_real_key') && artifact._real_key != null) {
+            return artifact._real_key as String
+        }
+        String key = artifact.key as String
+        Boolean keyIsVirtual = artifact.containsKey('_key_is_virtual') ? artifact._key_is_virtual as Boolean : false
+        String uid = artifact.uid as String
+        String suffix = artifact.suffix as String
+        Boolean overwriteVersions = artifact.containsKey('_overwrite_versions') ? artifact._overwrite_versions as Boolean : false
+        if (key == null || keyIsVirtual) {
+            return autoStorageKeyFromArtifactUid(
+                uid, suffix, overwriteVersions
+            )
+        }
+        return key
+    }
+
+    private static final String AUTO_KEY_PREFIX = '.lamindb/'
+
+    private String autoStorageKeyFromArtifactUid(
+        String uid, String suffix, Boolean overwriteVersions
+    ) {
+        assert suffix // Suffix cannot be null.
+        String uidStorage
+        if (overwriteVersions) {
+            uidStorage = uid.substring(0, 16)  // 16 chars, leave 4 chars for versioning
+        } else {
+            uidStorage = uid
+        }
+        String storageKey = "${AUTO_KEY_PREFIX}${uidStorage}${suffix}"
+        return storageKey
     }
 
 }

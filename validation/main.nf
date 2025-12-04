@@ -1,4 +1,4 @@
-include { getRunUid; getTransformUid } from 'plugin/nf-lamin'
+include { getRunUid; getTransformUid; getArtifactFromUid } from 'plugin/nf-lamin'
 
 process summarizeData {
   publishDir "${params.outputDir}/${id}", mode: 'copy', overwrite: true
@@ -28,6 +28,14 @@ process summarizeData {
 
 workflow {
   main:
+
+  // test artifact fetching
+  def artPath = getArtifactFromUid('laminlabs', 'lamindata', 's3rtK8wIzJNKvg5Q')
+  log.info "Artifact URL for UID 's3rtK8wIzJNKvg5Q': ${artPath}"
+
+  // assumes the current instance is indeed laminlabs/lamindata
+  def artPath2 = getArtifactFromUid('HOpnASIDDLx3pFYD0000')
+  log.info "Artifact URL for UID 'HOpnASIDDLx3pFYD0000': ${artPath2}"
 
   // create output channel
   ch_out = Channel.fromList([
