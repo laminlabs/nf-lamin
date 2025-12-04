@@ -22,7 +22,7 @@ flowchart TB
     end
 
     subgraph LaminDB["LaminDB APIs"]
-        Hub["LaminHub<br/>laminhub.com<br/>JWT auth, instance settings"]
+        Hub["LaminHub<br/>JWT auth, instance settings, storage settings"]
         Instance["Instance API<br/>Transform/Run/Artifact CRUD"]
     end
 
