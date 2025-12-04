@@ -296,8 +296,8 @@ final class LaminRunManager {
             return transformRecord
         }
 
-        String manifestName = wfMetadata.manifest.getName() ?: '<no name in manifest>'
-        String manifestDescription = wfMetadata.manifest.getDescription() ?: '<no description in manifest>'
+        String manifestName = wfMetadata.manifest.getName() ?: '<No name in manifest>'
+        String manifestDescription = wfMetadata.manifest.getDescription() ?: '<No description in manifest>'
         String description = "${manifestName}: ${manifestDescription}"
         String commitId = wfMetadata.commitId
         Map info = [
@@ -423,6 +423,62 @@ final class LaminRunManager {
             log.warn "Run UID changed from ${run.uid} to ${updatedRun.uid} on final update!"
         }
         updateRun(updatedRun)
+    }
+
+    // todo: how link to current run
+    Map<String, Object> createInputArtifact(Path path) {
+        if (laminInstance == null || config.dryRun) {
+            return null
+        }
+
+        // if path is a local file, skip creating input artifact
+        // This will happen quite often so we avoid logging a warning
+        boolean isLocalFile = (path.toUri().getScheme() ?: 'file') == 'file'
+        if (isLocalFile) {
+            // log.debug "Skipping input artifact creation for local file at ${path.toUri()}"
+            return null
+        }
+
+        String description = "Input artifact at ${path.toUri()}"
+
+        Map<String, Object> artifact = createOrUploadArtifact(
+            path: path,
+            description: description
+        )
+
+        if (artifact == null) {
+            log.warn "Failed to create input artifact for path ${path.toUri()}"
+            return null
+        }
+
+        log.debug "Created input artifact ${artifact?.get('uid')} for path ${path.toUri()}"
+
+        // Link artifact to current run as an input artifact
+        Integer artifactId = (artifact.get('id') as Number)?.intValue()
+        Integer runId = (run?.get('id') as Number)?.intValue()
+
+        if (artifactId == null) {
+            log.warn "Artifact ID is null for artifact ${artifact.get('uid')}"
+        } else if (runId == null) {
+            log.warn "Run ID is null; cannot link artifact ${artifact.get('uid')} to run"
+        } else {
+            try {
+                laminInstance.createRecord(
+                    moduleName: 'core',
+                    modelName: 'artifact_input_of_runs',
+                    data: [
+                        artifact_id: artifactId,
+                        run_id: runId
+                    ]
+                )
+                log.debug "Linked artifact ${artifact.get('uid')} as input to run ${run.get('uid')}"
+            } catch (Exception e) {
+                // Link may already exist if artifact was previously used as input
+                log.debug "Could not link artifact ${artifact.get('uid')} to run: ${e.getMessage()}"
+            }
+        }
+
+        return artifact
     }
 
     Map<String, Object> createOutputArtifact(Path path) {
@@ -580,8 +636,8 @@ final class LaminRunManager {
     enabled = true
     file = "path/to/lamin_report-\${new Date().format('yyyyMMdd-HHmmss')}.html"
 }</pre>
-        <p><strong>Option 2:</strong> Add the <code>-with-report</code> flag to your nextflow run command:</p>
-        <pre>nextflow run your_pipeline.nf -with-report</pre>
+        <p><strong>Option 2:</strong> Add the <code>-with-report path/to/report.html</code> flag to your nextflow run command:</p>
+        <pre>nextflow run your_pipeline.nf -with-report path/to/report.html</pre>
         <p>For more information, see the <a href="https://www.nextflow.io/docs/latest/reports.html#execution-report" target="_blank">Nextflow documentation</a>.</p>
     </div>
 </body>
