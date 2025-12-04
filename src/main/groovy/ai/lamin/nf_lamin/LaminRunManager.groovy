@@ -461,7 +461,7 @@ final class LaminRunManager {
             log.warn "Artifact ID is null for artifact ${artifact.get('uid')}"
         } else if (runId == null) {
             log.warn "Run ID is null; cannot link artifact ${artifact.get('uid')} to run"
-        } else
+        } else {
             try {
                 laminInstance.createRecord(
                     moduleName: 'core',
@@ -636,8 +636,8 @@ final class LaminRunManager {
     enabled = true
     file = "path/to/lamin_report-\${new Date().format('yyyyMMdd-HHmmss')}.html"
 }</pre>
-        <p><strong>Option 2:</strong> Add the <code>-with-report</code> flag to your nextflow run command:</p>
-        <pre>nextflow run your_pipeline.nf -with-report</pre>
+        <p><strong>Option 2:</strong> Add the <code>-with-report path/to/report.html</code> flag to your nextflow run command:</p>
+        <pre>nextflow run your_pipeline.nf -with-report path/to/report.html</pre>
         <p>For more information, see the <a href="https://www.nextflow.io/docs/latest/reports.html#execution-report" target="_blank">Nextflow documentation</a>.</p>
     </div>
 </body>
