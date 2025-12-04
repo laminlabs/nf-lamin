@@ -117,12 +117,14 @@ NXF_VER=25.10.0 nextflow \
 ```
 
 **Tips:**
+
 - Always use `-trace ai.lamin` to capture debug logs without re-running
 - Use unreleased version number in `build.gradle` during development
 
 ### Integration Tests
 
 Tests in `LaminObserverIntegrationTest.groovy` require environment variables:
+
 - `LAMIN_API_KEY` – Production API key
 - `LAMIN_STAGING_API_KEY` – Staging API key
 - `LAMIN_TEST_BUCKET` – Remote bucket (s3:// or gs://) for artifact tests
@@ -187,12 +189,12 @@ nextflowPlugin {
 **Run**: Single execution (linked to Transform, tracks status + timing)
 **Artifact**: Input/output files (tracks storage path, linked to Run)
 
-
 ## Research Strategy
 
 ### Nextflow APIs
 
 Search `github_repo` with "nextflow-io/nextflow":
+
 - `TraceObserverV2` implementation patterns
 - `Session`, `WorkflowMetadata` API usage
 - `FilePublishEvent` for tracking outputs
@@ -202,6 +204,7 @@ Reference plugins: `nf-prov` (provenance), `nf-quilt` (package tracking)
 ### LaminDB Integration
 
 Search `github_repo` with "laminlabs/lamindb":
+
 - Transform/Run creation patterns in Python SDK
 - REST API endpoints in `lamindb-setup`
 - Artifact linking logic
