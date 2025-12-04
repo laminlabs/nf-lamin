@@ -112,8 +112,7 @@ NXF_VER=25.10.0 nextflow \
   -main-script target/nextflow/yq/main.nf \
   -profile docker \
   --input input.txt \
-  --eval '.name = "foo"' \
-  -plugins 'nf-lamin@0.2.2'
+  --eval '.name = "foo"'
 ```
 
 **Tips:**
