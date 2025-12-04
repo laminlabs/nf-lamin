@@ -44,15 +44,15 @@ flowchart TB
 
 ### Core Files
 
-| File | Purpose |
-|------|---------|
-| `LaminPlugin.groovy` | Entry point, extends `BasePlugin` |
-| `LaminFactory.groovy` | Creates `LaminObserver` via `TraceObserverFactory` |
-| `LaminObserver.groovy` | Implements `TraceObserverV2` lifecycle hooks |
-| `LaminRunManager.groovy` | Singleton managing state (transform, run, artifacts) |
-| `LaminConfig.groovy` | Config scope with `@ScopeName('lamin')` |
-| `hub/LaminHub.groovy` | JWT auth + instance settings from laminhub.com |
-| `instance/Instance.groovy` | REST API client for LaminDB instance |
+| File                       | Purpose                                              |
+| -------------------------- | ---------------------------------------------------- |
+| `LaminPlugin.groovy`       | Entry point, extends `BasePlugin`                    |
+| `LaminFactory.groovy`      | Creates `LaminObserver` via `TraceObserverFactory`   |
+| `LaminObserver.groovy`     | Implements `TraceObserverV2` lifecycle hooks         |
+| `LaminRunManager.groovy`   | Singleton managing state (transform, run, artifacts) |
+| `LaminConfig.groovy`       | Config scope with `@ScopeName('lamin')`              |
+| `hub/LaminHub.groovy`      | JWT auth + instance settings from laminhub.com       |
+| `instance/Instance.groovy` | REST API client for LaminDB instance                 |
 
 ### Observer Lifecycle
 
@@ -144,10 +144,10 @@ Tests use `@Requires({ hasEnvVars(['LAMIN_API_KEY']) })` to auto-skip.
 def "should create run with correct metadata"() {
     given:
     def config = new LaminConfig([instance: 'org/test', api_key: 'key'])
-    
+
     when:
     def run = manager.initializeRun()
-    
+
     then:
     run.uid != null
 }
@@ -231,7 +231,7 @@ lamin {
 include { getRunUid; getTransformUid; getInstanceSlug; getArtifactFromUid } from 'plugin/nf-lamin'
 
 def runUid = getRunUid()                                    // Current run UID
-def transformUid = getTransformUid()                        // Current transform UID  
+def transformUid = getTransformUid()                        // Current transform UID
 def slug = getInstanceSlug()                                // "org/instance"
 def path = getArtifactFromUid('uid16chars1234')             // Fetch from current instance
 def path2 = getArtifactFromUid('org', 'inst', 'uid1234')    // Fetch from specific instance
