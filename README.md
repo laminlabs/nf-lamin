@@ -9,6 +9,15 @@ LaminDB integrates with Nextflow through:
 1. The `nf-lamin` Nextflow plugin (recommended)
 2. A post-run Python script (for custom solutions)
 
+## Version Compatibility
+
+| Version   | Min Nextflow | Status         | Key Features                                                                                                                            |
+| --------- | ------------ | -------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **0.3.x** | 25.10.0      | 🚧 Development | Input artifact tracking                                                                                                                 |
+| **0.2.x** | 25.04.0      | ✅ Supported   | `getArtifactFromUid()`, `getInstanceSlug()`, report upload, `getRunUid()`, `getTransformUid()`, dry-run mode, specify transform/run UID |
+| 0.1.0     | 24.04.0      | ❌ Unsupported | Transform & Run tracking, output artifact registration                                                                                  |
+| 0.0.1     | 24.04.0      | ❌ Unsupported | Initial release                                                                                                                         |
+
 ## Plugin
 
 ### Basic usage
