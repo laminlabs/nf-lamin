@@ -100,9 +100,13 @@ class TransformInfoHelper {
         // Extract basic workflow metadata
         metadata.repository = wfMetadata.repository ?: wfMetadata.projectName
         metadata.mainScript = wfMetadata.scriptFile.toString().replaceFirst("${wfMetadata.projectDir}/", '')
-        metadata.revision = wfMetadata.revision ?: 'local-development'
         metadata.commitId = wfMetadata.commitId
         metadata.projectDir = wfMetadata.projectDir
+
+        // Revision: can be a branch name, tag name, or null
+        // Nextflow only populates revision for branches/tags, NOT when running with a commit SHA directly
+        // We preserve null here - the commitId is stored separately and can be used when revision is null
+        metadata.revision = wfMetadata.revision
 
         // Extract entrypoint from session binding
         metadata.entrypoint = session?.getBinding()?.getEntryName()
@@ -112,6 +116,7 @@ class TransformInfoHelper {
         metadata.manifestDescription = wfMetadata.manifest.getDescription() ?: '<No description in manifest>'
 
         // Detect revision type from git repository
+        // When revision is null (running with commit SHA), we can still detect type from commitId
         if (metadata.commitId && metadata.projectDir) {
             metadata.revisionType = detectRevisionType(metadata.projectDir, metadata.revision, metadata.commitId)
         }
@@ -126,13 +131,31 @@ class TransformInfoHelper {
      * but not the revision type. The ScriptFile.revisionInfo has this information, but it's not
      * accessible to plugins through the WorkflowMetadata API.
      *
+     * Nextflow behavior:
+     * - When running with `-r <branch>` or `-r <tag>`: revision = branch/tag name, commitId = resolved commit
+     * - When running with `-r <commit-sha>`: revision = null, commitId = the commit SHA
+     * - Local scripts without git: revision = null, commitId = null
+     *
      * @param projectDir The project directory containing the .git folder
-     * @param revision The revision name (branch name, tag name, or commit hash)
+     * @param revision The revision name (branch name or tag name) - null when running with commit SHA
      * @param commitId The full commit hash
      * @return The detected RevisionType, or null if detection fails
      */
     static RevisionType detectRevisionType(Path projectDir, String revision, String commitId) {
-        if (!projectDir || !revision) {
+        // No revision name but we have a commitId means user ran with `-r <commit-sha>`
+        // Nextflow doesn't populate revision when running with just a commit hash
+        if (!revision && commitId) {
+            log.debug "No revision name, but commitId present - treating as COMMIT"
+            return RevisionType.COMMIT
+        }
+
+        // No revision and no commitId - local script without git
+        if (!revision) {
+            return null
+        }
+
+        // No project directory to inspect
+        if (!projectDir) {
             return null
         }
 
@@ -143,61 +166,46 @@ class TransformInfoHelper {
                 return null
             }
 
-            // Check if revision is a tag
+            // Read packed-refs once if it exists (git packs refs for efficiency)
+            Path packedRefs = gitDir.resolve('packed-refs')
+            String packedContent = Files.exists(packedRefs) ? packedRefs.text : null
+
+            // Check if revision is a tag (unpacked ref file)
             Path tagRef = gitDir.resolve("refs/tags/${revision}")
             if (Files.exists(tagRef)) {
                 log.debug "Revision '${revision}' is a tag"
                 return RevisionType.TAG
             }
 
-            // Check packed-refs for tags (git may pack refs for efficiency)
-            Path packedRefs = gitDir.resolve('packed-refs')
-            String packedContent = null
-            if (Files.exists(packedRefs)) {
-                packedContent = packedRefs.text
-                if (packedContent.contains("refs/tags/${revision}")) {
-                    log.debug "Revision '${revision}' is a tag (found in packed-refs)"
-                    return RevisionType.TAG
-                }
+            // Check if revision is a tag (packed refs)
+            if (packedContent?.contains("refs/tags/${revision}")) {
+                log.debug "Revision '${revision}' is a tag (found in packed-refs)"
+                return RevisionType.TAG
             }
 
-            // Check if revision is a branch
+            // Check if revision is a local branch (unpacked ref file)
             Path branchRef = gitDir.resolve("refs/heads/${revision}")
             if (Files.exists(branchRef)) {
                 log.debug "Revision '${revision}' is a branch"
                 return RevisionType.BRANCH
             }
 
-            // Check packed-refs for branches
+            // Check if revision is a local branch (packed refs)
             if (packedContent?.contains("refs/heads/${revision}")) {
                 log.debug "Revision '${revision}' is a branch (found in packed-refs)"
                 return RevisionType.BRANCH
             }
 
-            // Check for remote branches (origin/branch-name)
+            // Check if revision is a remote branch
             Path remoteBranchRef = gitDir.resolve("refs/remotes/origin/${revision}")
             if (Files.exists(remoteBranchRef)) {
                 log.debug "Revision '${revision}' is a remote branch"
                 return RevisionType.BRANCH
             }
 
-            // If revision looks like a commit hash (40 hex chars or abbreviated)
-            if (revision ==~ /^[0-9a-fA-F]{7,40}$/) {
-                log.debug "Revision '${revision}' appears to be a commit hash"
-                return RevisionType.COMMIT
-            }
-
-            // If revision contains git revision notation (^ or ~), it's a detached HEAD
-            // pointing to a specific commit (e.g., "4.1.0^2^2" means "2 commits before 4.1.0")
-            if (revision.contains('^') || revision.contains('~')) {
-                log.debug "Revision '${revision}' contains git ancestry notation, treating as COMMIT"
-                return RevisionType.COMMIT
-            }
-
-            // Default: if we have a commitId but can't identify as tag/branch, treat as COMMIT
-            // This is safer than assuming BRANCH, because unknown revisions with a commitId
-            // are more likely to be pinned to a specific commit (e.g., PR refs, detached HEAD)
-            log.debug "Could not determine revision type for '${revision}', defaulting to COMMIT (has commitId)"
+            // If we get here, revision is set but we couldn't identify it as tag or branch
+            // This shouldn't normally happen with Nextflow, but default to COMMIT as safer option
+            log.debug "Could not determine revision type for '${revision}', defaulting to COMMIT"
             return RevisionType.COMMIT
 
         } catch (Exception e) {
@@ -227,6 +235,27 @@ class TransformInfoHelper {
      */
     static String generateTransformDescription(TransformMetadata metadata) {
         return "${metadata.manifestName}: ${metadata.manifestDescription}"
+    }
+
+    /**
+     * Determine the effective version string to use for the Transform record.
+     *
+     * Priority:
+     * 1. If revision is set (branch or tag name from Nextflow), use it
+     * 2. If commitId is available (running with -r <commit-sha>), use the commit SHA
+     * 3. Otherwise fall back to "local-development" (local script without git)
+     *
+     * @param metadata Transform metadata containing revision and commitId
+     * @return The version string to use for the Transform
+     */
+    static String getEffectiveVersion(TransformMetadata metadata) {
+        if (metadata.revision) {
+            return metadata.revision
+        }
+        if (metadata.commitId) {
+            return metadata.commitId
+        }
+        return 'local-development'
     }
 
     /**

@@ -255,26 +255,25 @@ final class LaminRunManager {
         // Collect all relevant metadata
         TransformInfoHelper.TransformMetadata metadata = TransformInfoHelper.collect(session)
 
-        // Generate transform key
+        // Generate transform key and version
         String key = TransformInfoHelper.generateTransformKey(metadata)
+        String version = TransformInfoHelper.getEffectiveVersion(metadata)
 
-        log.debug "Searching for existing Transform with key ${key} and revision ${metadata.revision}"
+        // Build filter for searching existing transforms
+        List filterConditions = [[key: [eq: key]], [version: [eq: version]]]
+
+        log.debug "Searching for existing Transform with key ${key} and version ${version}"
         List<Map> existingTransforms = laminInstance.getRecords(
             moduleName: 'core',
             modelName: 'transform',
-            filter: [
-                and: [
-                    [key: [eq: key]],
-                    [version: [eq: metadata.revision]]
-                ]
-            ]
+            filter: [and: filterConditions]
         )
-        log.debug "Found ${existingTransforms.size()} existing Transform(s) with key ${key} and revision ${metadata.revision}"
+        log.debug "Found ${existingTransforms.size()} existing Transform(s) with key ${key} and version ${version}"
 
         Map transformRecord = null
         if (existingTransforms) {
             if (existingTransforms.size() > 1) {
-                log.warn "Found multiple Transform objects with key ${key} and revision ${metadata.revision}"
+                log.warn "Found multiple Transform objects with key ${key} and version ${version}"
             }
             transformRecord = existingTransforms[0]
             updateTransform(transformRecord)
@@ -288,7 +287,7 @@ final class LaminRunManager {
                 uid: 'DrYrUnTrAuId',
                 id: -1,
                 key: key,
-                version: metadata.revision
+                version: version
             ] as Map<String, Object>
             updateTransform(transformRecord)
             log.info "Dry-run mode: using dummy transform ${transformRecord.get('uid')}"
@@ -302,7 +301,7 @@ final class LaminRunManager {
         transformRecord = laminInstance.createTransform(
             key: key,
             source_code: sourceCode,
-            version: metadata.revision,
+            version: version,
             type: 'pipeline',
             reference: metadata.repository,
             reference_type: 'url',
