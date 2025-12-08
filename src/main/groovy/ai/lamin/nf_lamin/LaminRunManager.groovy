@@ -21,11 +21,9 @@ import java.net.URI
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Collections
-import java.util.LinkedHashMap
 import java.util.concurrent.locks.Lock
 import java.util.concurrent.locks.ReentrantLock
 
-import groovy.json.JsonOutput
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import nextflow.Session
@@ -38,6 +36,7 @@ import ai.lamin.nf_lamin.hub.LaminHubConfigResolver
 import ai.lamin.nf_lamin.instance.Instance
 import ai.lamin.nf_lamin.instance.InstanceSettings
 import ai.lamin.nf_lamin.model.RunStatus
+import ai.lamin.nf_lamin.util.TransformInfoHelper
 
 /**
  * Holds shared state about the currently active Lamin transform and run.
@@ -253,29 +252,28 @@ final class LaminRunManager {
             }
         }
 
-        WorkflowMetadata wfMetadata = session.getWorkflowMetadata()
-        String repository = wfMetadata.repository ?: wfMetadata.projectName
-        String mainScript = wfMetadata.scriptFile.toString().replaceFirst("${wfMetadata.projectDir}/", '')
-        String revision = wfMetadata.revision ?: 'local-development'
-        String key = mainScript == 'main.nf' ? repository : "${repository}:${mainScript}"
+        // Collect all relevant metadata
+        TransformInfoHelper.TransformMetadata metadata = TransformInfoHelper.collect(session)
 
-        log.debug "Searching for existing Transform with key ${key} and revision ${revision}"
+        // Generate transform key and version
+        String key = TransformInfoHelper.generateTransformKey(metadata)
+        String version = TransformInfoHelper.getEffectiveVersion(metadata)
+
+        // Build filter for searching existing transforms
+        List filterConditions = [[key: [eq: key]], [version: [eq: version]]]
+
+        log.debug "Searching for existing Transform with key ${key} and version ${version}"
         List<Map> existingTransforms = laminInstance.getRecords(
             moduleName: 'core',
             modelName: 'transform',
-            filter: [
-                and: [
-                    [key: [eq: key]],
-                    [version: [eq: revision]]
-                ]
-            ]
+            filter: [and: filterConditions]
         )
-        log.debug "Found ${existingTransforms.size()} existing Transform(s) with key ${key} and revision ${revision}"
+        log.debug "Found ${existingTransforms.size()} existing Transform(s) with key ${key} and version ${version}"
 
         Map transformRecord = null
         if (existingTransforms) {
             if (existingTransforms.size() > 1) {
-                log.warn "Found multiple Transform objects with key ${key} and revision ${revision}"
+                log.warn "Found multiple Transform objects with key ${key} and version ${version}"
             }
             transformRecord = existingTransforms[0]
             updateTransform(transformRecord)
@@ -289,31 +287,23 @@ final class LaminRunManager {
                 uid: 'DrYrUnTrAuId',
                 id: -1,
                 key: key,
-                version: revision
+                version: version
             ] as Map<String, Object>
             updateTransform(transformRecord)
             log.info "Dry-run mode: using dummy transform ${transformRecord.get('uid')}"
             return transformRecord
         }
 
-        String manifestName = wfMetadata.manifest.getName() ?: '<no name in manifest>'
-        String manifestDescription = wfMetadata.manifest.getDescription() ?: '<no description in manifest>'
-        String description = "${manifestName}: ${manifestDescription}"
-        String commitId = wfMetadata.commitId
-        Map info = [
-            'repository': repository,
-            'main-script': mainScript,
-            'commit-id': commitId,
-            'revision': revision
-        ]
-        String infoAsJson = JsonOutput.toJson(info)
+        // Generate transform fields
+        String sourceCode = TransformInfoHelper.generateTransformSourceCode(metadata)
+        String description = TransformInfoHelper.generateTransformDescription(metadata)
 
         transformRecord = laminInstance.createTransform(
             key: key,
-            source_code: infoAsJson,
-            version: revision,
+            source_code: sourceCode,
+            version: version,
             type: 'pipeline',
-            reference: wfMetadata.repository,
+            reference: metadata.repository,
             reference_type: 'url',
             description: description
         )
