@@ -187,11 +187,18 @@ class TransformInfoHelper {
                 return RevisionType.COMMIT
             }
 
-            // Default: if we have a commitId but can't identify the type, assume branch
-            // (this handles cases like 'master' when working with remote repos where
-            // refs aren't fully cloned)
-            log.debug "Could not determine revision type for '${revision}', defaulting to BRANCH"
-            return RevisionType.BRANCH
+            // If revision contains git revision notation (^ or ~), it's a detached HEAD
+            // pointing to a specific commit (e.g., "4.1.0^2^2" means "2 commits before 4.1.0")
+            if (revision.contains('^') || revision.contains('~')) {
+                log.debug "Revision '${revision}' contains git ancestry notation, treating as COMMIT"
+                return RevisionType.COMMIT
+            }
+
+            // Default: if we have a commitId but can't identify as tag/branch, treat as COMMIT
+            // This is safer than assuming BRANCH, because unknown revisions with a commitId
+            // are more likely to be pinned to a specific commit (e.g., PR refs, detached HEAD)
+            log.debug "Could not determine revision type for '${revision}', defaulting to COMMIT (has commitId)"
+            return RevisionType.COMMIT
 
         } catch (Exception e) {
             log.debug "Failed to detect revision type: ${e.message}"
