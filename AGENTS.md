@@ -113,7 +113,7 @@ NXF_VER=25.10.0 nextflow \
   -profile docker \
   --input input.txt \
   --eval '.name = "foo"' \
-  -plugins 'nf-lamin@0.2.2'
+  -plugins 'nf-lamin@0.2.3'
 ```
 
 **Tips:**
