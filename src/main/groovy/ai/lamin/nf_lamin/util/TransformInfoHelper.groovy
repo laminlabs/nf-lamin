@@ -152,8 +152,9 @@ class TransformInfoHelper {
 
             // Check packed-refs for tags (git may pack refs for efficiency)
             Path packedRefs = gitDir.resolve('packed-refs')
+            String packedContent = null
             if (Files.exists(packedRefs)) {
-                String packedContent = packedRefs.text
+                packedContent = packedRefs.text
                 if (packedContent.contains("refs/tags/${revision}")) {
                     log.debug "Revision '${revision}' is a tag (found in packed-refs)"
                     return RevisionType.TAG
@@ -168,12 +169,9 @@ class TransformInfoHelper {
             }
 
             // Check packed-refs for branches
-            if (Files.exists(packedRefs)) {
-                String packedContent = packedRefs.text
-                if (packedContent.contains("refs/heads/${revision}")) {
-                    log.debug "Revision '${revision}' is a branch (found in packed-refs)"
-                    return RevisionType.BRANCH
-                }
+            if (packedContent?.contains("refs/heads/${revision}")) {
+                log.debug "Revision '${revision}' is a branch (found in packed-refs)"
+                return RevisionType.BRANCH
             }
 
             // Check for remote branches (origin/branch-name)
