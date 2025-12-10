@@ -46,4 +46,3 @@ class LaminPlugin extends BasePlugin {
         log.debug "Registered LaminFileSystemProvider for lamin:// URIs"
     }
 }
-
