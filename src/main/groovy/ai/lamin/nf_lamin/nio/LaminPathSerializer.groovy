@@ -14,36 +14,28 @@
  * limitations under the License.
  */
 
-package ai.lamin.nf_lamin
+package ai.lamin.nf_lamin.nio
 
 import groovy.transform.CompileStatic
-import groovy.util.logging.Slf4j
 
-import nextflow.file.FileHelper
-import nextflow.plugin.BasePlugin
-import org.pf4j.PluginWrapper
-
-import ai.lamin.nf_lamin.nio.LaminFileSystemProvider
+import nextflow.util.PathSerializer
+import nextflow.util.SerializerRegistrant
+import org.pf4j.Extension
 
 /**
- * The plugin entry point.
+ * Registers the LaminPath serializer for Kryo serialization.
  *
- * Registers the lamin:// FileSystemProvider when the plugin starts.
+ * This allows LaminPath objects to be properly serialized and deserialized
+ * when passed between Nextflow processes or cached.
+ *
+ * @author Lamin Labs
  */
-@Slf4j
+@Extension
 @CompileStatic
-class LaminPlugin extends BasePlugin {
-
-    LaminPlugin(PluginWrapper wrapper) {
-        super(wrapper)
-    }
+class LaminPathSerializer implements SerializerRegistrant {
 
     @Override
-    void start() {
-        super.start()
-        // Register the Lamin file system provider
-        FileHelper.getOrInstallProvider(LaminFileSystemProvider)
-        log.debug "Registered LaminFileSystemProvider for lamin:// URIs"
+    void register(Map<Class, Object> serializers) {
+        serializers.put(LaminPath, PathSerializer)
     }
 }
-
