@@ -387,7 +387,7 @@ class Instance {
      *    - key: The key for the transform (required)
      *    - kind: The kind of the transform (required)
      *    - source_code: The source code for the transform (required)
-     *    - version: The version of the transform (optional)
+     *    - version_tag: The version_tag of the transform (optional)
      *    - reference: The reference for the transform (optional)
      *    - reference_type: The reference type for the transform (optional)
      *    - description: The description of the transform (optional)
@@ -413,7 +413,7 @@ class Instance {
         );
 
         // Optional args
-        for (field in ["version", "reference", "reference_type", "description"]) {
+        for (field in ["version_tag", "reference", "reference_type", "description"]) {
             if (args.containsKey(field)) {
                 body.putKwargsItem(field, args[field])
             }
