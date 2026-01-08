@@ -302,7 +302,7 @@ final class LaminRunManager {
             key: key,
             source_code: sourceCode,
             version: version,
-            type: 'pipeline',
+            kind: 'pipeline',
             reference: metadata.repository,
             reference_type: 'url',
             description: description

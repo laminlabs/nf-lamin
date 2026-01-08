@@ -385,7 +385,7 @@ class Instance {
      * Create a transform in the Lamin API.
      * @param args A map containing the following
      *    - key: The key for the transform (required)
-     *    - type: The type of the transform (required)
+     *    - kind: The kind of the transform (required)
      *    - source_code: The source code for the transform (required)
      *    - version: The version of the transform (optional)
      *    - reference: The reference for the transform (optional)
@@ -398,17 +398,17 @@ class Instance {
     Map createTransform(Map args) {
         // Required args
         String key = args.key as String
-        String type = args.type as String
+        String kind = args.kind as String
         String sourceCode = args.source_code as String
 
         if (!key) { throw new IllegalStateException('Key is null. Please check the key.') }
-        if (!type) { throw new IllegalStateException('Type is null. Please check the type.') }
+        if (!kind) { throw new IllegalStateException('Kind is null. Please check the kind.') }
         if (!sourceCode) { throw new IllegalStateException('Source code is null. Please check the source code.') }
 
         // create the request body
         CreateTransformRequestBody body = new CreateTransformRequestBody(
             key: key,
-            type: type,
+            kind: kind,
             sourceCode: sourceCode
         );
 
