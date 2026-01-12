@@ -66,6 +66,13 @@ class LaminHub {
 
         try {
             Object responseMap = parseJson(responseJson, currentMethod)
+
+            // Check for error response
+            if (responseMap?.containsKey('error')) {
+                String errorMessage = responseMap.error as String
+                throw new IllegalStateException("Failed to fetch access token: ${errorMessage}")
+            }
+
             if (responseMap?.containsKey('accessToken')) {
                 String accessToken = responseMap.accessToken as String
                 if (!accessToken?.trim()) {
@@ -132,6 +139,13 @@ class LaminHub {
         String instanceSettingsJson = makePostRequest(url, payload, accessToken, true, currentMethod)
 
         Map instanceSettingsMap = parseJson(instanceSettingsJson, currentMethod)
+
+        // Check for error response with code and message
+        if (instanceSettingsMap?.containsKey('code') && instanceSettingsMap?.containsKey('message')) {
+            Integer errorCode = instanceSettingsMap.code as Integer
+            String errorMessage = instanceSettingsMap.message as String
+            throw new IllegalStateException("Failed to get instance settings for ${owner}/${name}: ${errorMessage} (code: ${errorCode})")
+        }
 
         if (!instanceSettingsMap) {
             log.error "LaminDB instance ${owner}/${name} could not be found."
