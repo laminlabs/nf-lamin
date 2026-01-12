@@ -260,20 +260,20 @@ final class LaminRunManager {
         String version = TransformInfoHelper.getEffectiveVersion(metadata)
 
         // Build filter for searching existing transforms
-        List filterConditions = [[key: [eq: key]], [version: [eq: version]]]
+        List filterConditions = [[key: [eq: key]], [version_tag: [eq: version]]]
 
-        log.debug "Searching for existing Transform with key ${key} and version ${version}"
+        log.debug "Searching for existing Transform with key ${key} and version_tag ${version}"
         List<Map> existingTransforms = laminInstance.getRecords(
             moduleName: 'core',
             modelName: 'transform',
             filter: [and: filterConditions]
         )
-        log.debug "Found ${existingTransforms.size()} existing Transform(s) with key ${key} and version ${version}"
+        log.debug "Found ${existingTransforms.size()} existing Transform(s) with key ${key} and version_tag ${version}"
 
         Map transformRecord = null
         if (existingTransforms) {
             if (existingTransforms.size() > 1) {
-                log.warn "Found multiple Transform objects with key ${key} and version ${version}"
+                log.warn "Found multiple Transform objects with key ${key} and version_tag ${version}"
             }
             transformRecord = existingTransforms[0]
             updateTransform(transformRecord)
@@ -287,7 +287,7 @@ final class LaminRunManager {
                 uid: 'DrYrUnTrAuId',
                 id: -1,
                 key: key,
-                version: version
+                version_tag: version
             ] as Map<String, Object>
             updateTransform(transformRecord)
             log.info "Dry-run mode: using dummy transform ${transformRecord.get('uid')}"
@@ -301,8 +301,8 @@ final class LaminRunManager {
         transformRecord = laminInstance.createTransform(
             key: key,
             source_code: sourceCode,
-            version: version,
-            type: 'pipeline',
+            version_tag: version,
+            kind: 'pipeline',
             reference: metadata.repository,
             reference_type: 'url',
             description: description
