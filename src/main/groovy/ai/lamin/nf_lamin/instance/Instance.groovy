@@ -386,7 +386,8 @@ class Instance {
 
         Map response = callApi { String accessToken ->
             this.accountsApi.getCallerAccountAccountGet(
-                this.settings.id(),
+                //this.settings.id(),
+                null,
                 accessToken
             ) as Map
         }
