@@ -103,7 +103,11 @@ final class LaminRunManager {
         }
     }
 
-    protected LaminHub getHub() {
+    /**
+     * Get the LaminHub client.
+     * @return the hub
+     */
+    LaminHub getHub() {
         return hub
     }
 

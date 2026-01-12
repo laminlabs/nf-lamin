@@ -1,7 +1,7 @@
 include { getRunUid; getTransformUid; getArtifactFromUid } from 'plugin/nf-lamin'
 
-params.artifactUri = 'lamin://laminlabs/lamindata/artifacts/s3rtK8wIzJNKvg5Q'  // full artifact URI
-params.artifactUidOnCurrentInstance = 'HOpnASIDDLx3pFYD0000'                   // artifact UID for current instance lookup
+params.artifactUri = 'lamin://laminlabs/lamindata/artifact/s3rtK8wIzJNKvg5Q'  // full artifact URI (a small text file)
+params.artifactUidOnCurrentInstance = 'HOpnASIDDLx3pFYD0000'                  // same artifact UID for current instance lookup
 
 process publishData {
   publishDir "${params.outputDir}/${id}", mode: 'copy', overwrite: true
@@ -39,18 +39,27 @@ workflow {
   metadataFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata))
   log.info "Wrote metadata to ${metadataFile}"
 
-  // test artifact fetching
-  def artifactUriMatcher = (params.artifactUri =~ /^lamin:\/\/([^\/]+)\/([^\/]+)\/artifacts?\/(.+)$/)
-  if (!artifactUriMatcher.matches()) {
-      throw new IllegalArgumentException("Invalid artifact URI format: ${params.artifactUri}")
-  }
-  def (_, instOwner, instName, artifactUid) = artifactUriMatcher[0]
-  def artPath = getArtifactFromUid(instOwner, instName, artifactUid)
-  log.info "Artifact URL for '${params.artifactUri}': ${artPath}"
+  // test artifact fetching via lamin:// URI
+  def artPath = file(params.artifactUri)
+  log.info "Resolved artifact URL for '${params.artifactUri}': ${artPath.resolveToStorage()}"
+  log.info "Artifact path class: ${artPath.class.name}"
 
-  // assumes the current instance is indeed laminlabs/lamindata
+  // Test that we can actually read the file contents via lamin:// path
+  try {
+    def artSize = artPath.size()
+    log.info "Artifact size via lamin:// path: ${artSize} bytes"
+    if (artSize > 0 && artSize < 1000) {
+      def artContent = artPath.text.take(100)
+      log.info "Artifact content preview: ${artContent}..."
+    }
+  } catch (Exception e) {
+    log.error "Failed to read artifact via lamin:// path: ${e.message}"
+  }
+
+  // Test artifact fetching via getArtifactFromUid (returns S3 path directly)
   def artPath2 = getArtifactFromUid(params.artifactUidOnCurrentInstance)
-  log.info "Artifact URL for UID '${params.artifactUidOnCurrentInstance}': ${artPath2}"
+  log.info "Artifact via getArtifactFromUid('${params.artifactUidOnCurrentInstance}'): ${artPath2}"
+  log.info "Artifact path2 class: ${artPath2.class.name}"
 
   // create output channel
   ch_out = Channel.fromList([

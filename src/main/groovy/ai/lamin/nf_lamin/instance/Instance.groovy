@@ -15,8 +15,9 @@ import ai.lamin.lamin_api_client.api.InstanceTransformsApi
 
 import ai.lamin.nf_lamin.hub.LaminHub
 
+import nextflow.file.FileHelper
+
 import java.nio.file.Path
-import java.nio.file.Paths
 
 /**
  * Represents a Lamin instance.
@@ -385,7 +386,8 @@ class Instance {
 
         Map response = callApi { String accessToken ->
             this.accountsApi.getCallerAccountAccountGet(
-                this.settings.id(),
+                //this.settings.id(),
+                null,
                 accessToken
             ) as Map
         }
@@ -558,6 +560,34 @@ class Instance {
      * @throws ApiException if no artifact is found or if the API call fails
      */
     Path getArtifactFromUid(String uid) throws ApiException {
+        Map<String, Object> info = getArtifactStorageInfo(uid)
+        String storageRoot = info.storageRoot as String
+        String artifactKey = info.artifactKey as String
+
+        // resolve full path using FileHelper to properly handle cloud URIs (s3://, gs://, etc.)
+        Path storagePath = FileHelper.asPath(storageRoot)
+        Path artifactPath = storagePath.resolve(artifactKey)
+        log.info "Artifact ${uid} resolved to path: '${artifactPath.toUri()}'"
+
+        return artifactPath
+    }
+
+    /**
+     * Retrieves the storage information for an artifact from LaminDB by its UID.
+     *
+     * This method queries the LaminDB instance to find an artifact matching the given UID
+     * (using a startswith match to support both base UIDs and versioned UIDs), retrieves
+     * its storage information, and returns the storage root and artifact key separately.
+     *
+     * If multiple artifacts match (e.g., multiple versions), the most recently updated
+     * artifact is selected.
+     *
+     * @param uid The artifact UID (must be 16 or 20 characters long)
+     * @return A Map containing 'storageRoot' (e.g., "s3://bucket") and 'artifactKey' (e.g., ".lamindb/uid.txt")
+     * @throws IllegalStateException if the UID is null, empty, or has invalid length
+     * @throws ApiException if no artifact is found or if the API call fails
+     */
+    Map<String, Object> getArtifactStorageInfo(String uid) throws ApiException {
 
         if (!uid) {
             throw new IllegalStateException('UID is null or empty. Please check the UID.')
@@ -591,13 +621,13 @@ class Instance {
         String storageRoot = storage.root as String
 
         // get artifact key
-        String key = autoStorageKeyFromArtifact(artifact)
+        String artifactKey = autoStorageKeyFromArtifact(artifact)
 
-        // resolve full path
-        Path artifactPath = Paths.get(storageRoot).resolve(key)
-        log.info "Artifact ${uid} resolved to path: ${artifactPath}"
-
-        return artifactPath
+        return [
+            storageRoot: storageRoot,
+            artifactKey: artifactKey,
+            artifactUid: artifact.uid as String
+        ]
     }
 
     // ------------------- PRIVATE METHODS -------------------
