@@ -49,16 +49,16 @@ jobs:
       matrix:
         include:
           - java_version: 21
-            args: ""
+            validation_args: ""
             lamin_env: prod
           - java_version: 21
-            args: ""
+            validation_args: "--artifact-uri lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A --artifact-uid-on-current-instance cuQZhgVvDuy1GxxG"
             lamin_env: staging
           - java_version: 25
-            args: "-with-report"
+            validation_args: "-with-report"
             lamin_env: prod
           - java_version: 25
-            args: "-with-report"
+            validation_args: "-with-report --artifact-uri lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A --artifact-uid-on-current-instance cuQZhgVvDuy1GxxG"
             lamin_env: staging
     steps:
       - name: Environment
@@ -116,7 +116,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
-          make validate BRANCH="$BRANCH" ARGS="${{ matrix.args }}"
+          make validate BRANCH="$BRANCH" ARGS="${{ matrix.validation_args }}"
 
       - name: Print Nextflow log
         if: always()

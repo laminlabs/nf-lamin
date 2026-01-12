@@ -1,5 +1,8 @@
 include { getRunUid; getTransformUid; getArtifactFromUid } from 'plugin/nf-lamin'
 
+params.artifactUri = 'lamin://laminlabs/lamindata/artifacts/s3rtK8wIzJNKvg5Q'  // full artifact URI
+params.artifactUidOnCurrentInstance = 'HOpnASIDDLx3pFYD0000'                   // artifact UID for current instance lookup
+
 process publishData {
   publishDir "${params.outputDir}/${id}", mode: 'copy', overwrite: true
 
@@ -37,21 +40,26 @@ workflow {
   log.info "Wrote metadata to ${metadataFile}"
 
   // test artifact fetching
-  def artPath = getArtifactFromUid('laminlabs', 'lamindata', 's3rtK8wIzJNKvg5Q')
-  log.info "Artifact URL for UID 's3rtK8wIzJNKvg5Q': ${artPath}"
+  def artifactUriMatcher = (params.artifactUri =~ /^lamin:\/\/([^\/]+)\/([^\/]+)\/artifacts?\/(.+)$/)
+  if (!artifactUriMatcher.matches()) {
+      throw new IllegalArgumentException("Invalid artifact URI format: ${params.artifactUri}")
+  }
+  def (_, instOwner, instName, artifactUid) = artifactUriMatcher[0]
+  def artPath = getArtifactFromUid(instOwner, instName, artifactUid)
+  log.info "Artifact URL for '${params.artifactUri}': ${artPath}"
 
   // assumes the current instance is indeed laminlabs/lamindata
-  def artPath2 = getArtifactFromUid('HOpnASIDDLx3pFYD0000')
-  log.info "Artifact URL for UID 'HOpnASIDDLx3pFYD0000': ${artPath2}"
+  def artPath2 = getArtifactFromUid(params.artifactUidOnCurrentInstance)
+  log.info "Artifact URL for UID '${params.artifactUidOnCurrentInstance}': ${artPath2}"
 
   // create output channel
   ch_out = Channel.fromList([
     // [id: 'lamin_metadata', path: metadataFile]
     ["lamin_metadata", metadataFile]
   ])
-    | view{("Before publish: $it")}
+    | view{it -> "Before publish: $it"}
     | publishData
-    | view{("After publish: $it")}
+    | view{it -> "After publish: $it"}
 
   // publish:
   // output = ch_out
