@@ -281,7 +281,23 @@ final class LaminPath implements Path {
 
     @Override
     Path resolveSibling(String other) {
-        return resolveSibling(fileSystem.getPath(other))
+        if (other == null || other.isEmpty()) {
+            return getParent()
+        }
+
+        // If it's an absolute lamin:// URI, parse and return it directly
+        if (other.startsWith(LaminUriParser.SCHEME + ':')) {
+            return new LaminPath(fileSystem, LaminUriParser.parse(other))
+        }
+
+        // Otherwise, resolve relative to parent
+        Path parent = getParent()
+        if (parent == null) {
+            // No parent, treat as relative path from artifact root
+            LaminUriParser newParsed = parsed.withoutSubPath().withSubPath(other)
+            return new LaminPath(fileSystem, newParsed)
+        }
+        return parent.resolve(other)
     }
 
     @Override
