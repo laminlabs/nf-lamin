@@ -178,35 +178,29 @@ final class LaminPath implements Path {
 
     @Override
     Path getName(int index) {
-        if (index < 0) {
-            throw new IllegalArgumentException("Index cannot be negative: ${index}")
-        }
-
-        List<String> components = []
-        components.add(parsed.owner)
-        components.add(parsed.instance)
-        components.add(parsed.resourceType)
-        components.add(parsed.resourceId)
-        if (parsed.hasSubPath()) {
-            components.addAll(parsed.subPath.split(LaminUriParser.SEP))
-        }
-
-        if (index >= components.size()) {
-            throw new IllegalArgumentException("Index ${index} out of bounds for path with ${components.size()} components")
-        }
-
-        // Return a path representing just that name component
-        // This is a simplified implementation
-        return this
+        // Lamin URIs (lamin://owner/instance/artifact/uid) are not hierarchical file paths.
+        // Individual components cannot exist as standalone paths - you cannot navigate to
+        // 'lamin://owner/' or 'lamin://owner/instance/artifact/' without a complete artifact UID.
+        // If you're seeing this error, you may be using a lamin:// path in a context that
+        // expects a traditional filesystem path.
+        throw new UnsupportedOperationException(
+            "getName() is not supported for lamin:// URIs. Lamin paths reference artifacts by UID " +
+            "(e.g., lamin://owner/instance/artifact/uid) and individual path components are not " +
+            "valid standalone paths. Path: ${toUriString()}"
+        )
     }
 
     @Override
     Path subpath(int beginIndex, int endIndex) {
-        if (beginIndex < 0 || endIndex < 0 || beginIndex >= endIndex) {
-            throw new IllegalArgumentException("Invalid subpath indices: begin=${beginIndex}, end=${endIndex}")
-        }
-        // Simplified implementation
-        return this
+        // Lamin URIs (lamin://owner/instance/artifact/uid) are not hierarchical file paths.
+        // You cannot extract partial paths like 'owner/instance' as they are not valid lamin URIs.
+        // If you're seeing this error, you may be using a lamin:// path in a context that
+        // expects a traditional filesystem path.
+        throw new UnsupportedOperationException(
+            "subpath() is not supported for lamin:// URIs. Lamin paths reference artifacts by UID " +
+            "(e.g., lamin://owner/instance/artifact/uid) and partial paths are not valid. " +
+            "Path: ${toUriString()}"
+        )
     }
 
     @Override
@@ -309,8 +303,12 @@ final class LaminPath implements Path {
             relative = relative.substring(1)
         }
 
-        // Return a relative path (simplified)
-        return fileSystem.getPath(relative)
+        // Return a relative path using the default filesystem
+        // This is appropriate since the result is a relative path, not a lamin:// URI
+        if (relative.isEmpty()) {
+            return java.nio.file.Paths.get('')
+        }
+        return java.nio.file.Paths.get(relative)
     }
 
     @Override
@@ -347,11 +345,15 @@ final class LaminPath implements Path {
 
     @Override
     Iterator<Path> iterator() {
-        // Return iterator over path components
-        List<Path> paths = []
-        // Simplified: just return this path
-        paths.add(this)
-        return paths.iterator()
+        // Lamin URIs (lamin://owner/instance/artifact/uid) are not hierarchical file paths.
+        // Individual components cannot be iterated as Path objects since they are not valid
+        // standalone lamin URIs. If you're seeing this error, you may be using a lamin:// path
+        // in a context that expects a traditional filesystem path.
+        throw new UnsupportedOperationException(
+            "iterator() is not supported for lamin:// URIs. Lamin paths reference artifacts by UID " +
+            "(e.g., lamin://owner/instance/artifact/uid) and individual path components cannot be " +
+            "iterated as standalone paths. Path: ${toUriString()}"
+        )
     }
 
     @Override
