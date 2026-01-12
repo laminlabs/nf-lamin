@@ -102,6 +102,20 @@ class LaminPathTest extends Specification {
         path.subPath == 'subdir/file.txt'
     }
 
+    // ==================== resolveToStorage Tests ====================
+
+    def "resolveToStorage should delegate to provider"() {
+        given:
+        def path = createPath('lamin://laminlabs/lamindata/artifact/uid123')
+        def expectedPath = java.nio.file.Paths.get('/resolved/path')
+
+        when:
+        path.resolveToStorage()
+
+        then:
+        1 * provider.resolveToUnderlyingPath(path) >> expectedPath
+    }
+
     // ==================== Path Interface - Basic Methods ====================
 
     def "getFileSystem should return the file system"() {
@@ -221,50 +235,56 @@ class LaminPathTest extends Specification {
 
     // ==================== getName Tests ====================
 
-    def "getName should throw for negative index"() {
+    def "getName should throw UnsupportedOperationException"() {
         given:
         def path = createPath('lamin://laminlabs/lamindata/artifact/uid123')
 
         when:
-        path.getName(-1)
+        path.getName(0)
 
         then:
-        thrown(IllegalArgumentException)
+        def e = thrown(UnsupportedOperationException)
+        e.message.contains('getName()')
+        e.message.contains('lamin://')
     }
 
-    def "getName should throw for out of bounds index"() {
+    def "getName error message should include the path"() {
         given:
         def path = createPath('lamin://laminlabs/lamindata/artifact/uid123')
 
         when:
-        path.getName(10)
+        path.getName(0)
 
         then:
-        thrown(IllegalArgumentException)
+        def e = thrown(UnsupportedOperationException)
+        e.message.contains('lamin://laminlabs/lamindata/artifact/uid123')
     }
 
     // ==================== subpath Tests ====================
 
-    def "subpath should throw for invalid indices"() {
+    def "subpath should throw UnsupportedOperationException"() {
         given:
         def path = createPath('lamin://laminlabs/lamindata/artifact/uid123')
 
         when:
-        path.subpath(-1, 2)
+        path.subpath(0, 2)
 
         then:
-        thrown(IllegalArgumentException)
+        def e = thrown(UnsupportedOperationException)
+        e.message.contains('subpath()')
+        e.message.contains('lamin://')
     }
 
-    def "subpath should throw when begin >= end"() {
+    def "subpath error message should include the path"() {
         given:
-        def path = createPath('lamin://laminlabs/lamindata/artifact/uid123')
+        def path = createPath('lamin://laminlabs/lamindata/artifact/uid123/subdir/file.txt')
 
         when:
-        path.subpath(2, 2)
+        path.subpath(0, 2)
 
         then:
-        thrown(IllegalArgumentException)
+        def e = thrown(UnsupportedOperationException)
+        e.message.contains('lamin://laminlabs/lamindata/artifact/uid123/subdir/file.txt')
     }
 
     // ==================== startsWith Tests ====================
@@ -410,6 +430,61 @@ class LaminPathTest extends Specification {
         path.resolveSibling(other) == other
     }
 
+    def "resolveSibling(String) should return parent for null"() {
+        given:
+        def path = createPath('lamin://laminlabs/lamindata/artifact/uid123/file.txt')
+
+        when:
+        def result = path.resolveSibling((String) null)
+
+        then:
+        result.toUriString() == 'lamin://laminlabs/lamindata/artifact/uid123'
+    }
+
+    def "resolveSibling(String) should return parent for empty string"() {
+        given:
+        def path = createPath('lamin://laminlabs/lamindata/artifact/uid123/file.txt')
+
+        when:
+        def result = path.resolveSibling('')
+
+        then:
+        result.toUriString() == 'lamin://laminlabs/lamindata/artifact/uid123'
+    }
+
+    def "resolveSibling(String) should resolve relative path with parent"() {
+        given:
+        def path = createPath('lamin://laminlabs/lamindata/artifact/uid123/subdir/file.txt')
+
+        when:
+        def result = path.resolveSibling('other.txt')
+
+        then:
+        result.toUriString() == 'lamin://laminlabs/lamindata/artifact/uid123/subdir/other.txt'
+    }
+
+    def "resolveSibling(String) should parse absolute lamin URI"() {
+        given:
+        def path = createPath('lamin://laminlabs/lamindata/artifact/uid123/file.txt')
+
+        when:
+        def result = path.resolveSibling('lamin://other/instance/artifact/uid456')
+
+        then:
+        result.toUriString() == 'lamin://other/instance/artifact/uid456'
+    }
+
+    def "resolveSibling(String) should handle path without parent"() {
+        given:
+        def path = createPath('lamin://laminlabs/lamindata/artifact/uid123')
+
+        when:
+        def result = path.resolveSibling('newfile.txt')
+
+        then:
+        result.toUriString() == 'lamin://laminlabs/lamindata/artifact/uid123/newfile.txt'
+    }
+
     // ==================== relativize Tests ====================
 
     def "relativize should throw for non-LaminPath"() {
@@ -434,6 +509,42 @@ class LaminPathTest extends Specification {
 
         then:
         thrown(IllegalArgumentException)
+    }
+
+    def "relativize should return empty path for same path"() {
+        given:
+        def base = createPath('lamin://laminlabs/lamindata/artifact/uid123')
+        def other = createPath('lamin://laminlabs/lamindata/artifact/uid123')
+
+        when:
+        def result = base.relativize(other)
+
+        then:
+        result.toString() == ''
+    }
+
+    def "relativize should return relative path for sub-path"() {
+        given:
+        def base = createPath('lamin://laminlabs/lamindata/artifact/uid123')
+        def other = createPath('lamin://laminlabs/lamindata/artifact/uid123/subdir/file.txt')
+
+        when:
+        def result = base.relativize(other)
+
+        then:
+        result.toString() == 'subdir/file.txt'
+    }
+
+    def "relativize should return local Path type"() {
+        given:
+        def base = createPath('lamin://laminlabs/lamindata/artifact/uid123')
+        def other = createPath('lamin://laminlabs/lamindata/artifact/uid123/file.txt')
+
+        when:
+        def result = base.relativize(other)
+
+        then:
+        !(result instanceof LaminPath)
     }
 
     // ==================== toUri Tests ====================
@@ -509,15 +620,29 @@ class LaminPathTest extends Specification {
 
     // ==================== iterator Tests ====================
 
-    def "iterator should return iterator"() {
+    def "iterator should throw UnsupportedOperationException"() {
         given:
         def path = createPath('lamin://laminlabs/lamindata/artifact/uid123')
 
         when:
-        def iter = path.iterator()
+        path.iterator()
 
         then:
-        iter.hasNext()
+        def e = thrown(UnsupportedOperationException)
+        e.message.contains('iterator()')
+        e.message.contains('lamin://')
+    }
+
+    def "iterator error message should include the path"() {
+        given:
+        def path = createPath('lamin://laminlabs/lamindata/artifact/uid123')
+
+        when:
+        path.iterator()
+
+        then:
+        def e = thrown(UnsupportedOperationException)
+        e.message.contains('lamin://laminlabs/lamindata/artifact/uid123')
     }
 
     // ==================== compareTo Tests ====================
