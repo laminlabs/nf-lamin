@@ -9,27 +9,16 @@ on:
       - "*"
   repository_dispatch:
     types: [build]
+  # run tests daily at 5am UTC (not publish)
+  schedule:
+    - cron: "0 5 * * *"
 
 jobs:
-  test:
-    name: Test nf-lamin
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
-    env:
-      GITHUB_EVENT_NAME: ${{ github.event_name }}
-      NXF_ANSI_LOG: false
-    timeout-minutes: 20
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - java_version: 21
-            args: ""
-          - java_version: 25
-            args: "-with-report"
+    timeout-minutes: 10
     steps:
-      - name: Environment
-        run: env | sort
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -47,7 +36,44 @@ jobs:
       - run: pip install "laminci@git+https://github.com/laminlabs/laminci"
 
       - run: nox -s lint
-        if: ${{ matrix.java_version == '25' }}
+
+  test:
+    name: Test nf-lamin
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_EVENT_NAME: ${{ github.event_name }}
+      NXF_ANSI_LOG: false
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - java_version: 21
+            validation_args: ""
+            lamin_env: prod
+          - java_version: 21
+            validation_args: "--artifact-uri lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A --artifact-uid-on-current-instance cuQZhgVvDuy1GxxG"
+            lamin_env: staging
+          - java_version: 25
+            validation_args: "-with-report"
+            lamin_env: prod
+          - java_version: 25
+            validation_args: "-with-report --artifact-uri lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A --artifact-uid-on-current-instance cuQZhgVvDuy1GxxG"
+            lamin_env: staging
+    steps:
+      - name: Environment
+        run: env | sort
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13" # TODO: switch back to 3.x when pyarrow builds
+
+      - run: pip install "laminci@git+https://github.com/laminlabs/laminci"
 
       - name: Setup Java ${{ matrix.java_version }}
         uses: actions/setup-java@v5
@@ -63,18 +89,18 @@ jobs:
       - name: Compile
         run: make assemble
 
-      - name: Tests
+      - name: Tests (${{ matrix.lamin_env }})
         run: make test
         env:
           GRADLE_OPTS: "-Dorg.gradle.daemon=false"
-          LAMIN_API_KEY: ${{ secrets.LAMIN_API_KEY_TESTUSER1 }}
-          LAMIN_STAGING_API_KEY: ${{ secrets.LAMIN_API_KEY_TESTUSER1_STAGING }}
+          LAMIN_API_KEY: ${{ matrix.lamin_env == 'prod' && secrets.LAMIN_API_KEY_TESTUSER1 || '' }}
+          LAMIN_STAGING_API_KEY: ${{ matrix.lamin_env == 'staging' && secrets.LAMIN_API_KEY_TESTUSER1_STAGING || '' }}
           LAMIN_TEST_BUCKET: ${{ secrets.LAMIN_TEST_BUCKET }}
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: test-report-java${{ matrix.java_version }}
+          name: test-report-java${{ matrix.java_version }}-${{ matrix.lamin_env }}
           path: build/reports
 
       - name: Build plugin
@@ -84,13 +110,13 @@ jobs:
       - name: Run validation workflow
         env:
           LAMIN_CURRENT_INSTANCE: laminlabs/lamindata
-          LAMIN_API_KEY: ${{ secrets.LAMIN_API_KEY_TESTUSER1 }}
+          LAMIN_API_KEY: ${{ matrix.lamin_env == 'staging' && secrets.LAMIN_API_KEY_TESTUSER1_STAGING || secrets.LAMIN_API_KEY_TESTUSER1 }}
           LAMIN_TEST_BUCKET: ${{ secrets.LAMIN_TEST_BUCKET }}
-          LAMIN_ENV: prod
+          LAMIN_ENV: ${{ matrix.lamin_env }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
-          make validate BRANCH="$BRANCH" ARGS="${{ matrix.args }}"
+          make validate BRANCH="$BRANCH" ARGS="${{ matrix.validation_args }}"
 
       - name: Print Nextflow log
         if: always()
@@ -99,7 +125,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: validation-logs-java${{ matrix.java_version }}
+          name: validation-logs-java${{ matrix.java_version }}-${{ matrix.lamin_env }}
           path: .nextflow.log
           include-hidden-files: true
 
@@ -174,8 +200,8 @@ jobs:
   docs:
     name: Publish docs
     runs-on: ubuntu-latest
-    needs: [test, build]
-    if: ${{ always() && contains(needs.build.result, 'success') }}
+    needs: [lint, test, build]
+    if: ${{ always() && contains(needs.build.result, 'success') && github.event_name != 'schedule' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

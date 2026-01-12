@@ -93,11 +93,9 @@ class InstanceArtifactTest extends Specification {
     @IgnoreIf({ !env.LAMIN_API_KEY })
     def "should handle API client configuration correctly"() {
         when:
-        def apiInstance = instance.getApiInstance()
-        def client = apiInstance.getApiClient()
+        def client = instance.getApiClient()
 
         then:
-        apiInstance != null
         client != null
         client.getBasePath() != null
         client.getBasePath().contains('api')
