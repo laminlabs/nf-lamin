@@ -12,6 +12,8 @@ import nextflow.script.WorkflowMetadata
 import spock.lang.Requires
 import spock.lang.Specification
 
+import nextflow.trace.event.FilePublishEvent
+
 import ai.lamin.nf_lamin.hub.LaminHub
 import ai.lamin.nf_lamin.hub.LaminHubConfigResolver
 import ai.lamin.nf_lamin.instance.Instance
@@ -261,7 +263,7 @@ class LaminObserverIntegrationTest extends Specification {
         and: 'a local artifact is published'
         Path localFile = Files.createTempFile("nf-lamin-local-${uniqueSuffix}", '.txt')
         Files.writeString(localFile, "nf-lamin integration test artifact ${uniqueSuffix}-${System.nanoTime()}")
-        observer.onFilePublish(localFile, localFile)
+        observer.onFilePublish(new FilePublishEvent(localFile, localFile, null))
 
         then:
         uploadedArtifact?.uid
@@ -290,7 +292,7 @@ class LaminObserverIntegrationTest extends Specification {
             toUri() >> remoteUri
             toString() >> remoteUri.toString()
         }
-        observer.onFilePublish(remotePath, localFile)
+        observer.onFilePublish(new FilePublishEvent(localFile, remotePath, null))
 
         then:
         if (remoteArtifact) {
