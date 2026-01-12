@@ -40,12 +40,7 @@ workflow {
   log.info "Wrote metadata to ${metadataFile}"
 
   // test artifact fetching
-  def artifactUriMatcher = (params.artifactUri =~ /^lamin:\/\/([^\/]+)\/([^\/]+)\/artifacts?\/(.+)$/)
-  if (!artifactUriMatcher.matches()) {
-      throw new IllegalArgumentException("Invalid artifact URI format: ${params.artifactUri}")
-  }
-  def (_, instOwner, instName, artifactUid) = artifactUriMatcher[0]
-  def artPath = getArtifactFromUid(instOwner, instName, artifactUid)
+  def artPath = file(params.artifactUri)
   log.info "Artifact URL for '${params.artifactUri}': ${artPath}"
 
   // assumes the current instance is indeed laminlabs/lamindata
