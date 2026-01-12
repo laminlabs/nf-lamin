@@ -124,6 +124,31 @@ final class LaminPath implements Path {
         return parsed.toUriString()
     }
 
+    /**
+     * Resolve this lamin:// path to its underlying storage path.
+     *
+     * This method queries the LaminDB API to find the artifact's actual storage
+     * location (S3, GCS, local filesystem, etc.) and returns a Path object
+     * pointing to that location.
+     *
+     * Example:
+     * <pre>
+     * def laminPath = file('lamin://laminlabs/lamindata/artifact/uid123')
+     * def s3Path = laminPath.resolveToStorage()
+     * // s3Path might be: s3://bucket/.lamindb/uid123.h5ad
+     * </pre>
+     *
+     * Note: This requires that the LaminRunManager has been initialized with
+     * an API key (i.e., the workflow has started with lamin plugin configured).
+     *
+     * @return A Path to the underlying storage (e.g., S3Path, GcsPath, local Path)
+     * @throws IllegalStateException if LaminRunManager is not initialized
+     */
+    Path resolveToStorage() {
+        LaminFileSystemProvider provider = (LaminFileSystemProvider) fileSystem.provider()
+        return provider.resolveToUnderlyingPath(this)
+    }
+
     // ==================== Path Interface Implementation ====================
 
     @Override
