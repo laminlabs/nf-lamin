@@ -11,15 +11,15 @@ LaminDB integrates with Nextflow through:
 
 ## Version Compatibility
 
-| Version   | Min Nextflow | Status         | Key Features                                                    |
-| --------- | ------------ | -------------- | --------------------------------------------------------------- |
-| **0.3.x** | 25.10.0      | 🚧 Development | Input artifact tracking                                         |
-| **0.2.3** | 25.04.0      | 🚧 Development | `lamin://` URI support                                          |
-| **0.2.2** | 25.04.0      | ✅ Supported   | `getInstanceSlug()`                                             |
-| 0.2.1     | 25.04.0      | ✅ Supported   | Report upload, `getRunUid()`, `getTransformUid()`, dry-run mode |
-| 0.2.0     | 25.04.0      | ❌ Unsupported | Specify transform/run UID                                       |
-| 0.1.0     | 24.04.0      | ❌ Unsupported | Transform & Run tracking, output artifact registration          |
-| 0.0.1     | 24.04.0      | ❌ Unsupported | Initial release                                                 |
+| nf-lamin  | LaminDB       | Nextflow   | Status         | Key Features                                                          |
+| --------- | ------------- | ---------- | -------------- | --------------------------------------------------------------------- |
+| **0.4.x** | >= 2.0        | >= 25.10.0 | 🚧 Development | Input artifact tracking                                               |
+| **0.3.0** | >= 2.0        | >= 25.04.0 | ✅ Supported   | Upgrade to LaminDB v2, Add support for `lamin://` URI support         |
+| **0.2.2** | >= 1.0, < 2.0 | >= 25.04.0 | ✅ Supported   | Added `getInstanceSlug()`                                             |
+| 0.2.1     | >= 1.0, < 2.0 | >= 25.04.0 | ❌ Unsupported | Added report upload, `getRunUid()`, `getTransformUid()`, dry-run mode |
+| 0.2.0     | >= 1.0, < 2.0 | >= 25.04.0 | ❌ Unsupported | Specify transform/run UID                                             |
+| 0.1.0     | >= 1.0, < 2.0 | >= 24.04.0 | ❌ Unsupported | Added Transform & Run tracking, output artifact registration          |
+| 0.0.1     | >= 1.0, < 2.0 | >= 24.04.0 | ❌ Unsupported | Initial release                                                       |
 
 ## Plugin
 
