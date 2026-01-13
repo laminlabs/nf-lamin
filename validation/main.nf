@@ -33,16 +33,16 @@ workflow {
   main:
 
   // test artifact fetching via lamin:// URI
-  def artPath = file(params.artifactUri)
-  log.info "Resolved artifact URL for '${params.artifactUri}': ${artPath.resolveToStorage()}"
-  log.info "Artifact path class: ${artPath.class.name}"
+  def artPath1 = file(params.artifactUri)
+  log.info "Resolved artifact URL for '${params.artifactUri}': ${artPath1.resolveToStorage()}"
+  log.info "Artifact path class: ${artPath1.class.name}"
 
   // Test that we can actually read the file contents via lamin:// path
   try {
-    def artSize = artPath.size()
+    def artSize = artPath1.size()
     log.info "Artifact size via lamin:// path: ${artSize} bytes"
     if (artSize > 0 && artSize < 1000) {
-      def artContent = artPath.text.take(100)
+      def artContent = artPath1.text.take(100)
       log.info "Artifact content preview: ${artContent}..."
     }
   } catch (Exception e) {
@@ -56,7 +56,8 @@ workflow {
 
   // create output channel
   ch_out = Channel.fromList([
-    ["lamin_metadata", file("gs://di-temporary-public/scratch/temp-bgzip/run_20251015_120418/run.bgzip.state.yaml")]
+    ["artifact1", artPath1],
+    ["artifact2", artPath2]
   ])
     | view{it -> "Before publish: $it"}
     | summarizeData
