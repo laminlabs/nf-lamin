@@ -7,12 +7,17 @@ import ai.lamin.lamin_api_client.ApiClient
 import ai.lamin.lamin_api_client.ApiException
 import ai.lamin.lamin_api_client.Configuration
 import ai.lamin.lamin_api_client.model.*
-import ai.lamin.lamin_api_client.api.DefaultApi
+import ai.lamin.lamin_api_client.api.AccountsApi
+import ai.lamin.lamin_api_client.api.InstanceArtifactsApi
+import ai.lamin.lamin_api_client.api.InstanceRecordsApi
+import ai.lamin.lamin_api_client.api.InstanceStatisticsApi
+import ai.lamin.lamin_api_client.api.InstanceTransformsApi
 
 import ai.lamin.nf_lamin.hub.LaminHub
 
+import nextflow.file.FileHelper
+
 import java.nio.file.Path
-import java.nio.file.Paths
 
 /**
  * Represents a Lamin instance.
@@ -29,7 +34,12 @@ class Instance {
 
     final protected LaminHub hub
     final protected InstanceSettings settings
-    final protected DefaultApi apiInstance
+    final protected ApiClient apiClient
+    final protected AccountsApi accountsApi
+    final protected InstanceArtifactsApi artifactsApi
+    final protected InstanceRecordsApi recordsApi
+    final protected InstanceStatisticsApi statisticsApi
+    final protected InstanceTransformsApi transformsApi
     final protected Integer maxRetries
     final protected Integer retryDelay
 
@@ -53,14 +63,22 @@ class Instance {
         this.settings = settings
 
         // Initialize the API client with the provided API URL
-        ApiClient defaultClient = Configuration.getDefaultApiClient()
-        defaultClient.setBasePath(this.settings.apiUrl)
-        this.apiInstance = new DefaultApi(defaultClient)
+        // Note: We create a new ApiClient per Instance to support thread safety
+        // as recommended by the lamin-api-client documentation
+        this.apiClient = new ApiClient()
+        this.apiClient.setBasePath(this.settings.apiUrl)
 
         // increase the timeout for the API client to 30 seconds
-        this.apiInstance.getApiClient().setReadTimeout(30000)
-        this.apiInstance.getApiClient().setConnectTimeout(30000)
-        this.apiInstance.getApiClient().setWriteTimeout(30000)
+        this.apiClient.setReadTimeout(30000)
+        this.apiClient.setConnectTimeout(30000)
+        this.apiClient.setWriteTimeout(30000)
+
+        // Initialize the specialized API instances
+        this.accountsApi = new AccountsApi(this.apiClient)
+        this.artifactsApi = new InstanceArtifactsApi(this.apiClient)
+        this.recordsApi = new InstanceRecordsApi(this.apiClient)
+        this.statisticsApi = new InstanceStatisticsApi(this.apiClient)
+        this.transformsApi = new InstanceTransformsApi(this.apiClient)
 
         // set maxRetries and retryDelay
         this.maxRetries = maxRetries
@@ -116,11 +134,11 @@ class Instance {
     }
 
     /**
-     * Get the API instance.
-     * @return the API instance
+     * Get the API client.
+     * @return the API client
      */
-    DefaultApi getApiInstance() {
-        return this.apiInstance
+    ApiClient getApiClient() {
+        return this.apiClient
     }
 
     /**
@@ -132,10 +150,9 @@ class Instance {
         log.trace "GET getInstanceStatistics"
 
         Object response = callApi { String accessToken ->
-            this.apiInstance.getInstanceStatisticsInstancesInstanceIdStatisticsGet(
+            this.statisticsApi.getInstanceStatisticsInstancesInstanceIdStatisticsGet(
                 this.settings.id(),
                 [],
-                this.settings.schemaId(),
                 accessToken
             )
         }
@@ -152,9 +169,8 @@ class Instance {
         log.trace "GET getNonEmptyTables"
 
         Map response = callApi { String accessToken ->
-            this.apiInstance.getNonEmptyTablesInstancesInstanceIdNonEmptyTablesGet(
+            this.statisticsApi.getNonEmptyTablesInstancesInstanceIdNonEmptyTablesGet(
                 this.settings.id(),
-                this.settings.schemaId(),
                 accessToken
             )
         } as Map
@@ -200,14 +216,13 @@ class Instance {
         // Do call
         log.trace "POST getRecord: ${moduleName}.${modelName}, idOrUid=${idOrUid}"
         Map response = callApi { String accessToken ->
-            this.apiInstance.getRecordInstancesInstanceIdModulesModuleNameModelNameIdOrUidPost(
+            this.recordsApi.getRecordInstancesInstanceIdModulesModuleNameModelNameIdOrUidPost(
                 moduleName,
                 modelName,
                 idOrUid,
                 this.settings.id(),
                 limitToMany,
                 includeForeignKeys,
-                this.settings.schemaId(),
                 accessToken,
                 body
             ) as Map
@@ -263,7 +278,7 @@ class Instance {
         // Do call
         log.trace "POST getRecords: ${moduleName}.${modelName}, filter=${filter}, limit=${limit}, offset=${offset}"
         List<Map> response = callApi { String accessToken ->
-            this.apiInstance.getRecordsInstancesInstanceIdModulesModuleNameModelNamePost(
+            this.recordsApi.getRecordsInstancesInstanceIdModulesModuleNameModelNamePost(
                 moduleName,
                 modelName,
                 this.settings.id(),
@@ -271,7 +286,6 @@ class Instance {
                 offset,
                 limitToMany,
                 includeForeignKeys,
-                this.settings.schemaId(),
                 accessToken,
                 body
             ) as List<Map>
@@ -304,12 +318,11 @@ class Instance {
         // Do call
         log.trace "PUT createRecord: ${moduleName}.${modelName}, data=${data}"
         List<Map> response = callApi { String accessToken ->
-            this.apiInstance.createRecordsInstancesInstanceIdModulesModuleNameModelNamePut(
+            this.recordsApi.createRecordsInstancesInstanceIdModulesModuleNameModelNamePut(
                 moduleName,
                 modelName,
                 this.settings.id(),
                 data,
-                this.settings.schemaId(),
                 accessToken
             )
         } as List<Map>
@@ -350,13 +363,12 @@ class Instance {
         // Do call
         log.trace "PATCH updateRecord: ${moduleName}.${modelName}, uid=${uid}, data=${data}"
         Map response = callApi { String accessToken ->
-            this.apiInstance.updateRecordInstancesInstanceIdModulesModuleNameModelNameUidPatch(
+            this.recordsApi.updateRecordInstancesInstanceIdModulesModuleNameModelNameUidPatch(
                 moduleName,
                 modelName,
                 uid,
                 this.settings.id(),
                 data,
-                this.settings.schemaId(),
                 accessToken
             ) as Map
         }
@@ -373,7 +385,9 @@ class Instance {
         log.trace "GET /account"
 
         Map response = callApi { String accessToken ->
-            this.apiInstance.getCallerAccountAccountGet(
+            this.accountsApi.getCallerAccountAccountGet(
+                //this.settings.id(),
+                null,
                 accessToken
             ) as Map
         }
@@ -385,9 +399,9 @@ class Instance {
      * Create a transform in the Lamin API.
      * @param args A map containing the following
      *    - key: The key for the transform (required)
-     *    - type: The type of the transform (required)
+     *    - kind: The kind of the transform (required)
      *    - source_code: The source code for the transform (required)
-     *    - version: The version of the transform (optional)
+     *    - version_tag: The version_tag of the transform (optional)
      *    - reference: The reference for the transform (optional)
      *    - reference_type: The reference type for the transform (optional)
      *    - description: The description of the transform (optional)
@@ -398,22 +412,22 @@ class Instance {
     Map createTransform(Map args) {
         // Required args
         String key = args.key as String
-        String type = args.type as String
+        String kind = args.kind as String
         String sourceCode = args.source_code as String
 
         if (!key) { throw new IllegalStateException('Key is null. Please check the key.') }
-        if (!type) { throw new IllegalStateException('Type is null. Please check the type.') }
+        if (!kind) { throw new IllegalStateException('Kind is null. Please check the kind.') }
         if (!sourceCode) { throw new IllegalStateException('Source code is null. Please check the source code.') }
 
         // create the request body
         CreateTransformRequestBody body = new CreateTransformRequestBody(
             key: key,
-            type: type,
+            kind: kind,
             sourceCode: sourceCode
         );
 
         // Optional args
-        for (field in ["version", "reference", "reference_type", "description"]) {
+        for (field in ["version_tag", "reference", "reference_type", "description"]) {
             if (args.containsKey(field)) {
                 body.putKwargsItem(field, args[field])
             }
@@ -422,7 +436,7 @@ class Instance {
         // Do call
         log.trace "POST /instances/{instance_id}/transforms: ${body.toJson()}"
         Map response = callApi { String accessToken ->
-            this.apiInstance.createTransformInstancesInstanceIdTransformsPost(
+            this.transformsApi.createTransformInstancesInstanceIdTransformsPost(
                 this.settings.id(),
                 body,
                 accessToken
@@ -469,7 +483,7 @@ class Instance {
         log.trace "POST /instances/{instance_id}/artifacts/create: ${body.toJson()}"
 
         Map<String, Object> response = callApi { String accessToken ->
-            this.apiInstance.createArtifactInstancesInstanceIdArtifactsCreatePost(
+            this.artifactsApi.createArtifactInstancesInstanceIdArtifactsCreatePost(
                 this.settings.id(),
                 body,
                 accessToken
@@ -514,7 +528,7 @@ class Instance {
         // Do call
         log.trace "POST /instances/{instance_id}/artifacts/upload: file=${file}, kwargs=${kwargsString}"
         Map<String, Object> response = callApi { String accessToken ->
-            this.apiInstance.uploadArtifactInstancesInstanceIdArtifactsUploadPost(
+            this.artifactsApi.uploadArtifactInstancesInstanceIdArtifactsUploadPost(
                 this.settings.id(),
                 file,
                 accessToken,
@@ -546,6 +560,34 @@ class Instance {
      * @throws ApiException if no artifact is found or if the API call fails
      */
     Path getArtifactFromUid(String uid) throws ApiException {
+        Map<String, Object> info = getArtifactStorageInfo(uid)
+        String storageRoot = info.storageRoot as String
+        String artifactKey = info.artifactKey as String
+
+        // resolve full path using FileHelper to properly handle cloud URIs (s3://, gs://, etc.)
+        Path storagePath = FileHelper.asPath(storageRoot)
+        Path artifactPath = storagePath.resolve(artifactKey)
+        log.info "Artifact ${uid} resolved to path: '${artifactPath.toUri()}'"
+
+        return artifactPath
+    }
+
+    /**
+     * Retrieves the storage information for an artifact from LaminDB by its UID.
+     *
+     * This method queries the LaminDB instance to find an artifact matching the given UID
+     * (using a startswith match to support both base UIDs and versioned UIDs), retrieves
+     * its storage information, and returns the storage root and artifact key separately.
+     *
+     * If multiple artifacts match (e.g., multiple versions), the most recently updated
+     * artifact is selected.
+     *
+     * @param uid The artifact UID (must be 16 or 20 characters long)
+     * @return A Map containing 'storageRoot' (e.g., "s3://bucket") and 'artifactKey' (e.g., ".lamindb/uid.txt")
+     * @throws IllegalStateException if the UID is null, empty, or has invalid length
+     * @throws ApiException if no artifact is found or if the API call fails
+     */
+    Map<String, Object> getArtifactStorageInfo(String uid) throws ApiException {
 
         if (!uid) {
             throw new IllegalStateException('UID is null or empty. Please check the UID.')
@@ -579,13 +621,13 @@ class Instance {
         String storageRoot = storage.root as String
 
         // get artifact key
-        String key = autoStorageKeyFromArtifact(artifact)
+        String artifactKey = autoStorageKeyFromArtifact(artifact)
 
-        // resolve full path
-        Path artifactPath = Paths.get(storageRoot).resolve(key)
-        log.info "Artifact ${uid} resolved to path: ${artifactPath}"
-
-        return artifactPath
+        return [
+            storageRoot: storageRoot,
+            artifactKey: artifactKey,
+            artifactUid: artifact.uid as String
+        ]
     }
 
     // ------------------- PRIVATE METHODS -------------------
