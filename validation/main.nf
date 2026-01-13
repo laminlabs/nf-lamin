@@ -1,8 +1,21 @@
 include { getRunUid; getTransformUid; getArtifactFromUid } from 'plugin/nf-lamin'
 
-params.artifactUri = 'lamin://laminlabs/lamindata/artifact/s3rtK8wIzJNKvg5Q'  // full artifact URI (a small text file)
-params.artifactUidOnCurrentInstance = 'HOpnASIDDLx3pFYD0000'                  // same artifact UID for current instance lookup
+/*
+  Parameters
+*/
 
+// An artifact URI in lamin:// format
+params.artifactUri = 'lamin://laminlabs/lamindata/artifact/s3rtK8wIzJNKvg5Q'
+
+// An artifact UID on the current instance
+params.artifactUidOnCurrentInstance = 'HOpnASIDDLx3pFYD0000'
+
+// Output directory
+params.outputDir = "output"
+
+/*
+  Process to summarize data and generate output.json with metadata
+*/
 process summarizeData {
   publishDir "${params.outputDir}/${id}", mode: 'copy', overwrite: true
 
@@ -29,6 +42,9 @@ process summarizeData {
   """
 }
 
+/*
+  Main workflow
+*/
 workflow {
   main:
 
@@ -55,7 +71,7 @@ workflow {
   log.info "Artifact path2 class: ${artPath2.class.name}"
 
   // create output channel
-  ch_out = Channel.fromList([
+  ch_out = channel.fromList([
     ["artifact1", artPath1],
     ["artifact2", artPath2]
   ])
