@@ -36,6 +36,7 @@ import ai.lamin.nf_lamin.hub.LaminHubConfigResolver
 import ai.lamin.nf_lamin.instance.Instance
 import ai.lamin.nf_lamin.instance.InstanceSettings
 import ai.lamin.nf_lamin.model.RunStatus
+import ai.lamin.nf_lamin.nio.LaminPath
 import ai.lamin.nf_lamin.util.TransformInfoHelper
 
 /**
@@ -506,6 +507,13 @@ final class LaminRunManager {
         Path path = params.get('path') as Path
         if (path == null) {
             throw new IllegalArgumentException("Parameter 'path' must be a valid Path object")
+        }
+
+        // If path is a LaminPath, resolve it to the underlying storage path
+        if (path instanceof LaminPath) {
+            log.debug "Resolving LaminPath to underlying storage: ${path.toUri()}"
+            path = ((LaminPath) path).resolveToStorage()
+            log.debug "Resolved to: ${path.toUri()}"
         }
 
         // Validate and extract optional parameters
