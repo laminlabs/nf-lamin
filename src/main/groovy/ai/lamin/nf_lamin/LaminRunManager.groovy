@@ -571,6 +571,7 @@ final class LaminRunManager {
 
         boolean isLocalFile = (path.toUri().getScheme() ?: 'file') == 'file'
 
+        String logContext = runId != null ? "for run ${runId}" : "without run association"
         Map<String, Object> artifact = null
         artifactLock.lock()
         try {
@@ -589,7 +590,6 @@ final class LaminRunManager {
             }
 
             // Artifact doesn't exist, create it
-            String logContext = runId != null ? "for run ${runId}" : "without run association"
             log.debug "Creating artifact ${logContext} at ${path.toUri()}"
 
             Map<String, Object> apiParams = [:]
