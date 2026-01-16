@@ -20,6 +20,8 @@ import java.nio.file.Path
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import nextflow.Session
+import nextflow.file.FileHolder
+import nextflow.processor.TaskRun
 import nextflow.trace.TraceObserverV2
 import nextflow.trace.event.TaskEvent
 import nextflow.trace.event.FilePublishEvent
@@ -62,6 +64,20 @@ class LaminObserver implements TraceObserverV2 {
     void onFilePublish(FilePublishEvent event) {
         log.debug "LaminObserver.onFilePublish: ${event.source} -> ${event.target}"
         state.createOutputArtifact(event.target)
+    }
+
+    @Override
+    void onTaskComplete(TaskEvent event) {
+        TaskRun task = event.handler.task
+        List<FileHolder> inputFiles = task.getInputFiles()
+
+        log.debug "LaminObserver.onTaskComplete: ${task.name} with inputFiles: ${inputFiles}"
+
+        for (FileHolder holder : inputFiles) {
+            Path source = holder.getSourcePath()
+            log.debug "LaminObserver.onTaskComplete ${task.name}: '${source.toUri()}' staged as '${holder.getStageName()}'"
+            state.createInputArtifact(source)
+        }
     }
 
     @Override

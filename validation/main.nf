@@ -1,55 +1,64 @@
 include { getRunUid; getTransformUid; getArtifactFromUid } from 'plugin/nf-lamin'
 
-params.artifactUri = 'lamin://laminlabs/lamindata/artifact/s3rtK8wIzJNKvg5Q'  // full artifact URI (a small text file)
-params.artifactUidOnCurrentInstance = 'HOpnASIDDLx3pFYD0000'                  // same artifact UID for current instance lookup
+/*
+  Parameters
+*/
 
-process publishData {
+// An artifact URI in lamin:// format
+params.artifactUri = 'lamin://laminlabs/lamindata/artifact/s3rtK8wIzJNKvg5Q'
+
+// An artifact UID on the current instance
+params.artifactUidOnCurrentInstance = 'HOpnASIDDLx3pFYD0000'
+
+// Output directory
+params.outputDir = "output"
+
+/*
+  Process to summarize data and generate output.json with metadata
+*/
+process summarizeData {
   publishDir "${params.outputDir}/${id}", mode: 'copy', overwrite: true
 
   input:
-  tuple val(id), path(x)
+  tuple val(id), path(input)
 
   output:
-  tuple val(id), path("$x")
+  tuple val(id), path("output.json")
 
   script:
+  def runUid = getRunUid()
+  def transformUid = getTransformUid()
+
+  def metadata = [
+    id: id,
+    runUid: runUid,
+    transformUid: transformUid,
+    inputFileSize: input.size()
+  ]
   """
-  echo "Publishing data for ${id}"
+  cat > output.json << EOF
+  ${groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata))}
+  EOF
   """
 }
 
+/*
+  Main workflow
+*/
 workflow {
   main:
-  def runUid = getRunUid()
-  if (!runUid) {
-      throw new IllegalStateException('getRunUid() returned null. Ensure the plugin has created or resolved the run in LaminDB.')
-  }
-  def transformUid = getTransformUid()
-  if (!transformUid) {
-      throw new IllegalStateException('getTransformUid() returned null. Ensure the plugin has created or resolved the transform in LaminDB.')
-  }
-  log.info "Validated Lamin run ${runUid} for transform ${transformUid}"
-
-  // create metadata file
-  def metadata = [
-    runUid: runUid,
-    transformUid: transformUid
-  ]
-  def metadataFile = File.createTempFile('lamin_metadata_', '.json').toPath()
-  metadataFile.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata))
-  log.info "Wrote metadata to ${metadataFile}"
 
   // test artifact fetching via lamin:// URI
-  def artPath = file(params.artifactUri)
-  log.info "Resolved artifact URL for '${params.artifactUri}': ${artPath.resolveToStorage()}"
-  log.info "Artifact path class: ${artPath.class.name}"
+  def artPath1 = file(params.artifactUri)
+  log.info "Resolved artifact URL for '${params.artifactUri}': ${artPath1.resolveToStorage()}"
+  log.info "Artifact path class: ${artPath1.class.name}"
 
   // Test that we can actually read the file contents via lamin:// path
   try {
-    def artSize = artPath.size()
+    def artSize = artPath1.size()
     log.info "Artifact size via lamin:// path: ${artSize} bytes"
     if (artSize > 0 && artSize < 1000) {
-      def artContent = artPath.text.take(100)
+      def artContent = artPath1.text.take(100)
       log.info "Artifact content preview: ${artContent}..."
     }
   } catch (Exception e) {
@@ -62,12 +71,12 @@ workflow {
   log.info "Artifact path2 class: ${artPath2.class.name}"
 
   // create output channel
-  ch_out = Channel.fromList([
-    // [id: 'lamin_metadata', path: metadataFile]
-    ["lamin_metadata", metadataFile]
+  ch_out = channel.fromList([
+    ["artifact1", artPath1],
+    ["artifact2", artPath2]
   ])
     | view{it -> "Before publish: $it"}
-    | publishData
+    | summarizeData
     | view{it -> "After publish: $it"}
 
   // publish:
