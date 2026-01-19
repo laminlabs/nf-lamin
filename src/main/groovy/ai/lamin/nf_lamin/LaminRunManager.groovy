@@ -36,6 +36,7 @@ import ai.lamin.nf_lamin.hub.LaminHubConfigResolver
 import ai.lamin.nf_lamin.instance.Instance
 import ai.lamin.nf_lamin.instance.InstanceSettings
 import ai.lamin.nf_lamin.model.RunStatus
+import ai.lamin.nf_lamin.nio.LaminPath
 import ai.lamin.nf_lamin.util.TransformInfoHelper
 
 /**
@@ -419,6 +420,61 @@ final class LaminRunManager {
         updateRun(updatedRun)
     }
 
+    Map<String, Object> createInputArtifact(Path path) {
+        if (laminInstance == null || config.dryRun) {
+            return null
+        }
+
+        // if path is a local file, skip creating input artifact
+        // This will happen quite often so we avoid logging a warning
+        boolean isLocalFile = (path.toUri().getScheme() ?: 'file') == 'file'
+        if (isLocalFile) {
+            // log.debug "Skipping input artifact creation for local file at ${path.toUri()}"
+            return null
+        }
+
+        String description = "Input artifact at ${path.toUri()}"
+
+        Map<String, Object> artifact = fetchOrCreateArtifact(
+            path: path,
+            description: description
+        )
+
+        if (artifact == null) {
+            log.warn "Failed to create input artifact for path ${path.toUri()}"
+            return null
+        }
+
+        log.debug "Created input artifact ${artifact?.get('uid')} for path ${path.toUri()}"
+
+        // Link artifact to current run as an input artifact
+        Integer artifactId = (artifact.get('id') as Number)?.intValue()
+        Integer runId = (run?.get('id') as Number)?.intValue()
+
+        if (artifactId == null) {
+            log.warn "Artifact ID is null for artifact ${artifact.get('uid')}"
+        } else if (runId == null) {
+            log.warn "Run ID is null; cannot link artifact ${artifact.get('uid')} to run"
+        } else {
+            try {
+                laminInstance.createRecord(
+                    moduleName: 'core',
+                    modelName: 'artifact_input_of_runs',
+                    data: [
+                        artifact_id: artifactId,
+                        run_id: runId
+                    ]
+                )
+                log.debug "Linked artifact ${artifact.get('uid')} as input to run ${run.get('uid')}"
+            } catch (Exception e) {
+                // Link may already exist if artifact was previously used as input
+                log.debug "Could not link artifact ${artifact.get('uid')} to run: ${e.getMessage()}"
+            }
+        }
+
+        return artifact
+    }
+
     Map<String, Object> createOutputArtifact(Path path) {
         if (run == null || laminInstance == null || config.dryRun) {
             return null
@@ -430,14 +486,40 @@ final class LaminRunManager {
         }
 
         String description = "Output artifact for run ${runId}"
-        return createOrUploadArtifact(
+        return fetchOrCreateArtifact(
             path: path,
             run_id: runId,
             description: description
         )
     }
 
-    Map<String, Object> createOrUploadArtifact(Map<String, Object> params) {
+    /**
+     * Fetch an existing artifact by its remote path.
+     * @param remotePath The remote storage path of the artifact (e.g., s3://bucket/file.txt)
+     * @return the artifact map if found, null otherwise
+     */
+    private Map<String, Object> fetchArtifact(String remotePath) {
+        if (remotePath == null || laminInstance == null) {
+            return null
+        }
+
+        Map<String, Object> artifact = laminInstance.getArtifactByPath(remotePath)
+        if (artifact != null) {
+            log.debug "Found existing artifact at ${remotePath}: ${artifact.get('uid')}"
+        }
+        return artifact
+    }
+
+    /**
+     * Create or fetch an artifact at the specified path.
+     * @param params A map of parameters:
+     *   - path (Path, required): The local or remote path of the artifact
+     *   - run_id (Integer, optional): The ID of the run to associate the artifact with
+     *   - description (String, optional): A description for the artifact
+     *   - kind (String, optional): The kind of artifact
+     * @return the artifact map if created or found, null on failure
+     */
+    Map<String, Object> fetchOrCreateArtifact(Map<String, Object> params) {
         if (laminInstance == null || config.dryRun) {
             return null
         }
@@ -450,6 +532,13 @@ final class LaminRunManager {
         Path path = params.get('path') as Path
         if (path == null) {
             throw new IllegalArgumentException("Parameter 'path' must be a valid Path object")
+        }
+
+        // If path is a LaminPath, resolve it to the underlying storage path
+        if (path instanceof LaminPath) {
+            log.debug "Resolving LaminPath to underlying storage: ${path.toUri()}"
+            path = ((LaminPath) path).resolveToStorage()
+            log.debug "Resolved to: ${path.toUri()}"
         }
 
         // Validate and extract optional parameters
@@ -483,11 +572,26 @@ final class LaminRunManager {
         boolean isLocalFile = (path.toUri().getScheme() ?: 'file') == 'file'
 
         String logContext = runId != null ? "for run ${runId}" : "without run association"
-        log.debug "Creating artifact ${logContext} at ${path.toUri()}"
-
         Map<String, Object> artifact = null
         artifactLock.lock()
         try {
+            // First, check if artifact already exists at this path
+            String remotePath = isLocalFile ? null : path.toUri().toString()
+            artifact = fetchArtifact(remotePath)
+            if (artifact != null) {
+                // If artifact exists but needs to be linked to current run, link it
+                if (runId != null) {
+                    Integer artifactRunId = (artifact.get('run_id') as Number)?.intValue()
+                    if (artifactRunId != runId) {
+                        log.debug "Artifact ${artifact.get('uid')} was created by a different run (${artifactRunId}), but will not be re-linked"
+                    }
+                }
+                return artifact
+            }
+
+            // Artifact doesn't exist, create it
+            log.debug "Creating artifact ${logContext} at ${path.toUri()}"
+
             Map<String, Object> apiParams = [:]
             if (runId != null) {
                 apiParams.put('run_id', runId)
@@ -504,7 +608,6 @@ final class LaminRunManager {
                 apiParams.put('file', file)
                 artifact = laminInstance.uploadArtifact(apiParams)
             } else {
-                String remotePath = path.toUri().toString()
                 apiParams.put('path', remotePath)
                 artifact = laminInstance.createArtifact(apiParams)
             }
@@ -574,8 +677,8 @@ final class LaminRunManager {
     enabled = true
     file = "path/to/lamin_report-\${new Date().format('yyyyMMdd-HHmmss')}.html"
 }</pre>
-        <p><strong>Option 2:</strong> Add the <code>-with-report</code> flag to your nextflow run command:</p>
-        <pre>nextflow run your_pipeline.nf -with-report</pre>
+        <p><strong>Option 2:</strong> Add the <code>-with-report path/to/report.html</code> flag to your nextflow run command:</p>
+        <pre>nextflow run your_pipeline.nf -with-report path/to/report.html</pre>
         <p>For more information, see the <a href="https://www.nextflow.io/docs/latest/reports.html#execution-report" target="_blank">Nextflow documentation</a>.</p>
     </div>
 </body>
@@ -587,7 +690,7 @@ final class LaminRunManager {
         try {
             String description = "Nextflow execution report for run ${run?.get('uid')}"
 
-            Map<String, Object> artifact = createOrUploadArtifact(
+            Map<String, Object> artifact = fetchOrCreateArtifact(
                 path: reportPath,
                 run_id: null,
                 description: description,

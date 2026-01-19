@@ -386,8 +386,6 @@ class Instance {
 
         Map response = callApi { String accessToken ->
             this.accountsApi.getCallerAccountAccountGet(
-                //this.settings.id(),
-                null,
                 accessToken
             ) as Map
         }
@@ -498,6 +496,37 @@ class Instance {
         }
 
         return responseBody?.artifact as Map<String, Object>
+    }
+
+    /**
+     * Get an artifact by its storage path.
+     * @param path The storage path of the artifact (required)
+     * @return a map containing the artifact data, or null if not found
+     * @throws IllegalStateException if the path is null or empty
+     * @throws ApiException if an error occurs while fetching the artifact
+     */
+    Map getArtifactByPath(String path) {
+        if (!path) { throw new IllegalStateException('Path is null or empty. Please check the path.') }
+
+        log.trace "GET /instances/{instance_id}/artifacts/by-path?path=${path}"
+        try {
+            Map<String, Object> response = callApi { String accessToken ->
+                this.artifactsApi.getArtifactByPathInstancesInstanceIdArtifactsByPathGet(
+                    this.settings.id(),
+                    path,
+                    accessToken
+                ) as Map<String, Object>
+            }
+            log.trace "Response from getArtifactByPath: ${response}"
+            return response
+        } catch (ApiException e) {
+            // 404 is expected if artifact doesn't exist
+            if (e.getCode() == 404) {
+                log.trace "Artifact not found at path: ${path}"
+                return null
+            }
+            throw e
+        }
     }
 
     /**

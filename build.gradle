@@ -2,19 +2,19 @@ plugins {
     id 'io.nextflow.nextflow-plugin' version '1.0.0-beta.10'
 }
 
-version = '0.3.0'
+version = '0.4.0'
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    implementation 'ai.lamin:lamin-api-client:0.0.4'
+    implementation 'ai.lamin:lamin-api-client:0.0.5'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 nextflowPlugin {
-    nextflowVersion = '25.04.0'
+    nextflowVersion = '25.10.0'
 
     description = 'Nextflow plugin for integrating with Lamin Hub'
     provider = 'Lamin Labs'
