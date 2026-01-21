@@ -38,6 +38,8 @@ import ai.lamin.nf_lamin.instance.InstanceSettings
 import ai.lamin.nf_lamin.model.RunStatus
 import ai.lamin.nf_lamin.nio.LaminPath
 import ai.lamin.nf_lamin.util.TransformInfoHelper
+import ai.lamin.nf_lamin.config.ArtifactConfig
+import ai.lamin.nf_lamin.config.ArtifactEvaluation
 
 /**
  * Holds shared state about the currently active Lamin transform and run.
@@ -420,6 +422,48 @@ final class LaminRunManager {
         updateRun(updatedRun)
     }
 
+    /**
+     * Evaluate an artifact path against configuration rules.
+     *
+     * Returns a combined result with tracking decision and accumulated metadata.
+     * Uses either the global 'artifacts' config OR the direction-specific config
+     * (input_artifacts/output_artifacts), as they are mutually exclusive.
+     *
+     * @param path File path to evaluate
+     * @param direction 'input' or 'output'
+     * @return ArtifactEvaluation with shouldTrack flag and metadata
+     */
+    ArtifactEvaluation evaluateArtifact(Path path, String direction) {
+        if (config == null) {
+            // Default to tracking with empty metadata if no config
+            return new ArtifactEvaluation(true, [:])
+        }
+
+        String pathStr = path.toUri().toString()
+
+        // Use global artifacts config if defined, otherwise use direction-specific config
+        // Note: These are mutually exclusive (validated in LaminConfig)
+        ArtifactConfig artifactConfig = config.getArtifacts()
+        if (artifactConfig == null) {
+            artifactConfig = direction == 'input' ? config.getInputArtifacts() : config.getOutputArtifacts()
+        }
+
+        // If no config defined, default to tracking with empty metadata
+        if (artifactConfig == null) {
+            log.debug "No artifact config defined, tracking '${pathStr}' as ${direction} with default settings"
+            return new ArtifactEvaluation(true, [:])
+        }
+
+        // Evaluate the path against the config
+        ArtifactEvaluation evaluation = artifactConfig.evaluate(pathStr, direction)
+        if (evaluation.shouldTrack) {
+            log.debug "Artifact '${pathStr}' will be tracked as ${direction} with metadata: ${evaluation.metadata}"
+        } else {
+            log.debug "Artifact '${pathStr}' excluded by artifact config"
+        }
+        return evaluation
+    }
+
     Map<String, Object> createInputArtifact(Path path) {
         if (laminInstance == null || config.dryRun) {
             return null
@@ -433,12 +477,24 @@ final class LaminRunManager {
             return null
         }
 
+        // Evaluate artifact against configuration rules
+        ArtifactEvaluation evaluation = evaluateArtifact(path, 'input')
+        if (!evaluation.shouldTrack) {
+            log.debug "Skipping input artifact creation for ${path.toUri()} (excluded by config)"
+            return null
+        }
+
+        // Get metadata from evaluation
+        Map<String, Object> metadata = evaluation.metadata
+
         String description = "Input artifact at ${path.toUri()}"
 
-        Map<String, Object> artifact = fetchOrCreateArtifact(
+        Map<String, Object> params = [
             path: path,
             description: description
-        )
+        ]
+
+        Map<String, Object> artifact = fetchOrCreateArtifact(params)
 
         if (artifact == null) {
             log.warn "Failed to create input artifact for path ${path.toUri()}"
@@ -446,6 +502,12 @@ final class LaminRunManager {
         }
 
         log.debug "Created input artifact ${artifact?.get('uid')} for path ${path.toUri()}"
+
+        // TODO: Link metadata (kind, ulabel_uids, project_uids) to artifact
+        // These are relational mappings that need to be set after artifact creation
+        if (evaluation.kind || evaluation.ulabelUids || evaluation.projectUids) {
+            log.warn "Artifact metadata linking not yet implemented - metadata will be ignored for artifact ${artifact.get('uid')}: ${evaluation.metadata}"
+        }
 
         // Link artifact to current run as an input artifact
         Integer artifactId = (artifact.get('id') as Number)?.intValue()
@@ -480,17 +542,43 @@ final class LaminRunManager {
             return null
         }
 
+        // Evaluate artifact against configuration rules
+        ArtifactEvaluation evaluation = evaluateArtifact(path, 'output')
+        if (!evaluation.shouldTrack) {
+            log.debug "Skipping output artifact creation for ${path.toUri()} (excluded by config)"
+            return null
+        }
+
+        // Get metadata from evaluation
+        Map<String, Object> metadata = evaluation.metadata
+
         Integer runId = (run.get('id') as Number)?.intValue()
         if (runId == null) {
             return null
         }
 
         String description = "Output artifact for run ${runId}"
-        return fetchOrCreateArtifact(
+
+        Map<String, Object> params = [
             path: path,
             run_id: runId,
             description: description
-        )
+        ]
+
+        Map<String, Object> artifact = fetchOrCreateArtifact(params)
+
+        if (artifact == null) {
+            log.warn "Failed to create output artifact for path ${path.toUri()}"
+            return null
+        }
+
+        // TODO: Link metadata (kind, ulabel_uids, project_uids) to artifact
+        // These are relational mappings that need to be set after artifact creation
+        if (evaluation.kind || evaluation.ulabelUids || evaluation.projectUids) {
+            log.warn "Artifact metadata linking not yet implemented - metadata will be ignored for artifact ${artifact.get('uid')}: ${evaluation.metadata}"
+        }
+
+        return artifact
     }
 
     /**
@@ -516,7 +604,6 @@ final class LaminRunManager {
      *   - path (Path, required): The local or remote path of the artifact
      *   - run_id (Integer, optional): The ID of the run to associate the artifact with
      *   - description (String, optional): A description for the artifact
-     *   - kind (String, optional): The kind of artifact
      * @return the artifact map if created or found, null on failure
      */
     Map<String, Object> fetchOrCreateArtifact(Map<String, Object> params) {
@@ -560,15 +647,6 @@ final class LaminRunManager {
             description = descValue as String
         }
 
-        String kind = null
-        if (params.containsKey('kind')) {
-            Object kindValue = params.get('kind')
-            if (kindValue != null && !(kindValue instanceof String)) {
-                throw new IllegalArgumentException("Parameter 'kind' must be a String or null")
-            }
-            kind = kindValue as String
-        }
-
         boolean isLocalFile = (path.toUri().getScheme() ?: 'file') == 'file'
 
         String logContext = runId != null ? "for run ${runId}" : "without run association"
@@ -598,9 +676,6 @@ final class LaminRunManager {
             }
             if (description != null) {
                 apiParams.put('description', description)
-            }
-            if (kind != null) {
-                apiParams.put('kind', kind)
             }
 
             if (isLocalFile) {
