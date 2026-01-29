@@ -501,9 +501,9 @@ class Instance {
     /**
      * Get an artifact by its storage path.
      * @param path The storage path of the artifact (required)
-     * @return a map containing the artifact data, or null if not found
+     * @return a map containing the artifact data, or null if not found or path is invalid
      * @throws IllegalStateException if the path is null or empty
-     * @throws ApiException if an error occurs while fetching the artifact
+     * @throws ApiException if an unexpected error occurs while fetching the artifact
      */
     Map getArtifactByPath(String path) {
         if (!path) { throw new IllegalStateException('Path is null or empty. Please check the path.') }
@@ -511,20 +511,52 @@ class Instance {
         log.trace "GET /instances/{instance_id}/artifacts/by-path?path=${path}"
         try {
             Map<String, Object> response = callApi { String accessToken ->
-                this.artifactsApi.getArtifactByPathInstancesInstanceIdArtifactsByPathGet(
-                    this.settings.id(),
-                    path,
-                    accessToken
-                ) as Map<String, Object>
+                try {
+                    // Inner try-catch is a workaround for API returning 500 instead of 404 when artifact doesn't exist
+                    // See: https://github.com/laminlabs/laminhub-public/issues/196
+                    this.artifactsApi.getArtifactByPathInstancesInstanceIdArtifactsByPathGet(
+                        this.settings.id(),
+                        path,
+                        accessToken
+                    ) as Map<String, Object>
+                } catch (ApiException innerEx) {
+                    // Handle 500 with DoesNotExist inside closure to prevent retries
+                    if (innerEx.getCode() == 500 && innerEx.getResponseBody()?.contains('DoesNotExist')) {
+                        log.trace "Artifact not found at path (500 DoesNotExist): ${path}"
+                        return null
+                    }
+                    throw innerEx
+                }
             }
+
+            // If response is null (from DoesNotExist handling above), return null
+            if (response == null) {
+                return null
+            }
+
             log.trace "Response from getArtifactByPath: ${response}"
-            return response
+
+            // Successful response - extract artifact from body
+            Map<String, Object> body = response?.body as Map<String, Object>
+            if (body?.artifact) {
+                return body?.artifact as Map<String, Object>
+            }
+
+            // Unexpected response format
+            log.warn "Unexpected response format from getArtifactByPath: ${response}"
+            return null
         } catch (ApiException e) {
             // 404 is expected if artifact doesn't exist
             if (e.getCode() == 404) {
                 log.trace "Artifact not found at path: ${path}"
                 return null
             }
+            // 500 with DoesNotExist - artifact doesn't exist
+            if (e.getCode() == 500 && (e.getMessage()?.contains('DoesNotExist') || e.getResponseBody()?.contains('DoesNotExist'))) {
+                log.trace "Artifact not found at path: ${path}"
+                return null
+            }
+
             throw e
         }
     }
@@ -686,7 +718,11 @@ class Instance {
                 this.hub.refreshAccessToken()
                 accessToken = getBearerToken()
                 return closure.call(accessToken)
-            } else if (retries <= this.maxRetries) {
+            } else if (e.code == 404) {
+                // Not found, do not retry
+                log.debug "API call failed with status 404. Not retrying."
+
+            } else if (retries < this.maxRetries) {
                 // Retry the API call
                 log.warn "API call failed with status ${e.code}. Retrying (${retries + 1}/${this.maxRetries})..."
                 Thread.sleep(this.retryDelay)
