@@ -4,7 +4,6 @@ execute_via: python
 
 # Post-run script
 
-
 [Nextflow](https://www.nextflow.io/) is the most widely used workflow manager in bioinformatics.
 
 We generally recommend using the `nf-lamin` plugin.
@@ -16,7 +15,6 @@ The approach could be automated by deploying the script via
 
 1. a serverless environment trigger (e.g., AWS Lambda)
 2. a [post-run script](https://docs.seqera.io/platform/23.4.0/launch/advanced#pre-and-post-run-scripts) on the Seqera Platform
-
 
 :::{dropdown} What steps are executed by the nf-core/scrnaseq pipeline?
 
@@ -63,14 +61,12 @@ nextflow run nf-core/scrnaseq -r 4.0.0 \
     --max_memory '6.GB' \
     --max_time '6.h'
 ```
-:::
 
+:::
 
 ## Run the registration script
 
-
 After the pipeline has completed, a Python script registers inputs & outputs in LaminDB.
-
 
 ```{eval-rst}
 .. literalinclude:: register_scrnaseq_run.py
@@ -83,7 +79,6 @@ After the pipeline has completed, a Python script registers inputs & outputs in 
 ```
 
 ## Data lineage
-
 
 The output data could now be accessed (in a different notebook/script) for analysis with full lineage.
 
