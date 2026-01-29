@@ -441,11 +441,11 @@ final class LaminRunManager {
         )
 
         if (artifact == null) {
-            log.warn "Failed to create input artifact for path ${path.toUri()}"
+            log.warn "Failed to fetch or create input artifact for path ${path.toUri()}"
             return null
         }
 
-        log.debug "Created input artifact ${artifact?.get('uid')} for path ${path.toUri()}"
+        log.debug "Using input artifact ${artifact?.get('uid')} for path ${path.toUri()}"
 
         // Link artifact to current run as an input artifact
         Integer artifactId = (artifact.get('id') as Number)?.intValue()
