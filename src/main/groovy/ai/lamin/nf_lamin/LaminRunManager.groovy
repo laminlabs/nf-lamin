@@ -536,9 +536,7 @@ final class LaminRunManager {
 
         // If path is a LaminPath, resolve it to the underlying storage path
         if (path instanceof LaminPath) {
-            log.debug "Resolving LaminPath to underlying storage: ${path.toUri()}"
             path = ((LaminPath) path).resolveToStorage()
-            log.debug "Resolved to: ${path.toUri()}"
         }
 
         // Validate and extract optional parameters
