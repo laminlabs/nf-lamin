@@ -574,7 +574,7 @@ final class LaminRunManager {
         artifactLock.lock()
         try {
             // First, check if artifact already exists at this path
-            String remotePath = isLocalFile ? null : path.toUri().toString()
+            String remotePath = isLocalFile ? null : path.toUri().toString().replaceAll('^(\\w+)://*', '$1://')
             artifact = fetchArtifact(remotePath)
             if (artifact != null) {
                 // If artifact exists but needs to be linked to current run, link it
