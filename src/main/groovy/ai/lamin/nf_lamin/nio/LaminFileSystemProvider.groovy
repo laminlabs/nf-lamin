@@ -206,7 +206,7 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
             artifactPath = artifactPath.resolve(laminPath.subPath)
         }
 
-        log.debug "Resolved ${laminPath} to ${artifactPath}"
+        log.debug "Resolved ${laminPath.toUri()} to ${artifactPath.toUri()}"
         return artifactPath
     }
 
