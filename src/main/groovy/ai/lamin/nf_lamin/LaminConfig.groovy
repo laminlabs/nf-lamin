@@ -23,6 +23,8 @@ import nextflow.config.schema.ConfigScope
 import nextflow.config.schema.ScopeName
 import nextflow.script.dsl.Description
 
+import ai.lamin.nf_lamin.config.ArtifactConfig
+
 /**
  * Handle the configuration of the Lamin plugin
  *
@@ -111,6 +113,24 @@ class LaminConfig implements ConfigScope {
     ''')
     final Boolean dryRun
 
+    @ConfigOption
+    @Description('''
+        Configuration for artifact tracking (both inputs and outputs). Use this for rules that apply to all artifacts regardless of direction.
+    ''')
+    final ArtifactConfig artifacts
+
+    @ConfigOption
+    @Description('''
+        Configuration for input artifact tracking. Use this to control which input files are tracked and what metadata is attached.
+    ''')
+    final ArtifactConfig inputArtifacts
+
+    @ConfigOption
+    @Description('''
+        Configuration for output artifact tracking. Use this to control which output files are tracked and what metadata is attached.
+    ''')
+    final ArtifactConfig outputArtifacts
+
     /* required by extension point -- do not remove */
     LaminConfig() {}
 
@@ -132,6 +152,11 @@ class LaminConfig implements ConfigScope {
         this.transformUid = opts.containsKey('transform_uid') ? opts.transform_uid : System.getenv('LAMIN_TRANSFORM_UID')
         this.runUid = opts.containsKey('run_uid') ? opts.run_uid : System.getenv('LAMIN_RUN_UID')
         this.dryRun = opts.containsKey('dry_run') ? (opts.dry_run as Boolean) : ((System.getenv('LAMIN_DRY_RUN') as Boolean) ?: false)
+
+        // Parse artifact configurations
+        this.artifacts = opts.containsKey('artifacts') ? new ArtifactConfig(opts.artifacts as Map, 'both') : null
+        this.inputArtifacts = opts.containsKey('input_artifacts') ? new ArtifactConfig(opts.input_artifacts as Map, 'input') : null
+        this.outputArtifacts = opts.containsKey('output_artifacts') ? new ArtifactConfig(opts.output_artifacts as Map, 'output') : null
 
         validateConfiguration()
     }
@@ -168,6 +193,16 @@ class LaminConfig implements ConfigScope {
         // check if instance is <owner>/<repo>
         if (!this.instance.matches(/^[\w.-]+\/[\w.-]+$/)) {
             throw new IllegalArgumentException("Provided Lamin instance ${this.instance} is not valid. Please provide a valid instance in the format <owner>/<repo>.")
+        }
+
+        // Validate artifact config mutual exclusivity
+        boolean hasGlobalArtifacts = this.artifacts != null
+        boolean hasDirectionSpecific = this.inputArtifacts != null || this.outputArtifacts != null
+        if (hasGlobalArtifacts && hasDirectionSpecific) {
+            throw new IllegalArgumentException(
+                "Cannot use both 'artifacts' and 'input_artifacts'/'output_artifacts' configurations. " +
+                "Use 'artifacts' for rules that apply to all artifacts, or use 'input_artifacts' and/or 'output_artifacts' for direction-specific rules."
+            )
         }
     }
 
@@ -265,6 +300,38 @@ class LaminConfig implements ConfigScope {
      */
     String getRunUid() {
         return this.runUid
+    }
+
+    /**
+     * Get the dry-run mode setting
+     * @return true if dry-run mode is enabled
+     */
+    Boolean getDryRun() {
+        return this.dryRun
+    }
+
+    /**
+     * Get the artifact configuration (both inputs and outputs)
+     * @return the artifact configuration, or null if not set
+     */
+    ArtifactConfig getArtifacts() {
+        return this.artifacts
+    }
+
+    /**
+     * Get the input artifact configuration
+     * @return the input artifact configuration, or null if not set
+     */
+    ArtifactConfig getInputArtifacts() {
+        return this.inputArtifacts
+    }
+
+    /**
+     * Get the output artifact configuration
+     * @return the output artifact configuration, or null if not set
+     */
+    ArtifactConfig getOutputArtifacts() {
+        return this.outputArtifacts
     }
 
     /**
