@@ -21,17 +21,17 @@ import java.nio.file.Path
 import java.time.OffsetDateTime
 
 /**
- * Tests the Instance class with staging environment API calls
+ * Tests the Instance class with real production environment API calls
  *
  * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
-class InstanceStagingTest extends Specification {
+class InstanceTest extends Specification {
 
     // ==================== ENVIRONMENT CONFIGURATION ====================
     // Change these values when switching between production and staging
 
-    static final String TEST_ENV = 'staging'  // 'prod' or 'staging'
-    static final String TEST_API_KEY_ENV_VAR = 'LAMIN_STAGING_API_KEY'  // 'LAMIN_API_KEY' or 'LAMIN_STAGING_API_KEY'
+    static final String TEST_ENV = 'prod'  // 'prod' or 'staging'
+    static final String TEST_API_KEY_ENV_VAR = 'LAMIN_API_KEY'  // 'LAMIN_API_KEY' or 'LAMIN_STAGING_API_KEY'
     static final String TEST_INSTANCE = 'laminlabs/lamindata'
     static final String TEST_INSTANCE_OWNER = 'laminlabs'
     static final String TEST_INSTANCE_NAME = 'lamindata'
@@ -51,22 +51,22 @@ class InstanceStagingTest extends Specification {
     // These can be modified when switching between production and staging
 
     // S3 artifact (non-versioned uid)
-    static final String TEST_S3_ARTIFACT_UID = 'BhUU3Iwr2hkDBFJM'
-    static final String TEST_S3_ARTIFACT_UID_VERSIONED = 'BhUU3Iwr2hkDBFJM0000'
-    static final String TEST_S3_STORAGE_ROOT = 's3://lamindata-staging'
-    static final String TEST_S3_ARTIFACT_KEY = '.lamindb/BhUU3Iwr2hkDBFJM0000.txt'
+    static final String TEST_S3_ARTIFACT_UID = 's3rtK8wIzJNKvg5Q'
+    static final String TEST_S3_ARTIFACT_UID_VERSIONED = 's3rtK8wIzJNKvg5Q0000'
+    static final String TEST_S3_STORAGE_ROOT = 's3://lamindata'
+    static final String TEST_S3_ARTIFACT_KEY = '.lamindb/s3rtK8wIzJNKvg5Q0000.txt'
     static final String TEST_S3_ARTIFACT_SUFFIX = '.txt'
 
     // GCS artifact
-    static final String TEST_GS_ARTIFACT_UID = 'VkaFikyDdxoM8hmv0000'
+    static final String TEST_GS_ARTIFACT_UID = 'HOpnASIDDLx3pFYD0000'
     static final String TEST_GS_STORAGE_ROOT = 'gs://di-temporary-public'
-    static final String TEST_GS_ARTIFACT_KEY = 'scratch/temp-lamin/temp-bgzip/run_20260130_114442/run.bgzip.state.yaml'
+    static final String TEST_GS_ARTIFACT_KEY = 'scratch/temp-bgzip/run_20251015_120418/run.bgzip.state.yaml'
 
     // ==================== TEST TRANSFORM/RUN CONSTANTS ====================
     // For tests that create runs and artifacts
 
-    static final String TEST_TRANSFORM_UID = 'W818bFm1ecyM0002'
-    static final String TEST_RUN_UID = 'hbyHzItSez93K03NWfFf'
+    static final String TEST_TRANSFORM_UID = 'vplMRD5GZEzOB7PU'
+    static final String TEST_RUN_UID = 'K9zPTNu3CRQokJyjj3ut'
 
     def setupSpec() {
         if (apiKey) {
