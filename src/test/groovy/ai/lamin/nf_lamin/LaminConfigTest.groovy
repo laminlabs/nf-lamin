@@ -227,4 +227,68 @@ class LaminConfigTest extends Specification {
         config.apiKey == 'test-key'
         config.project == 'test-project'
     }
+
+    def "should allow global artifacts config only"() {
+        when:
+        def config = new LaminConfig([
+            instance: 'owner/repo',
+            api_key: 'test-key',
+            artifacts: [
+                enabled: true,
+                ulabel_uids: ['label1']
+            ]
+        ])
+
+        then:
+        config.artifacts != null
+        config.inputArtifacts == null
+        config.outputArtifacts == null
+    }
+
+    def "should allow direction-specific artifact configs only"() {
+        when:
+        def config = new LaminConfig([
+            instance: 'owner/repo',
+            api_key: 'test-key',
+            input_artifacts: [
+                enabled: true
+            ],
+            output_artifacts: [
+                enabled: true
+            ]
+        ])
+
+        then:
+        config.artifacts == null
+        config.inputArtifacts != null
+        config.outputArtifacts != null
+    }
+
+    def "should reject mixing global and direction-specific artifact configs"() {
+        when:
+        new LaminConfig([
+            instance: 'owner/repo',
+            api_key: 'test-key',
+            artifacts: [enabled: true],
+            input_artifacts: [enabled: true]
+        ])
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains("Cannot use both 'artifacts' and 'input_artifacts'/'output_artifacts'")
+    }
+
+    def "should reject global artifacts with output_artifacts"() {
+        when:
+        new LaminConfig([
+            instance: 'owner/repo',
+            api_key: 'test-key',
+            artifacts: [enabled: true],
+            output_artifacts: [enabled: true]
+        ])
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains("Cannot use both 'artifacts' and 'input_artifacts'/'output_artifacts'")
+    }
 }
