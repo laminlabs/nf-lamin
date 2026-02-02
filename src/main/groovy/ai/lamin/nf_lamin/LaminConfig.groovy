@@ -354,8 +354,8 @@ class LaminConfig implements ConfigScope {
      */
     @Deprecated
     String getSupabaseApiUrl() {
-        // Prefer new api config, fall back to deprecated field
-        return (api?.getSupabaseApiUrl() ?: this.supabaseApiUrl)
+        // Prefer deprecated field (for backward compatibility), then new api config
+        return (this.supabaseApiUrl ?: api?.getSupabaseApiUrl())
     }
 
     /**
@@ -365,8 +365,8 @@ class LaminConfig implements ConfigScope {
      */
     @Deprecated
     String getSupabaseAnonKey() {
-        // Prefer new api config, fall back to deprecated field
-        return (api?.getSupabaseAnonKey() ?: this.supabaseAnonKey)
+        // Prefer deprecated field (for backward compatibility), then new api config
+        return (this.supabaseAnonKey ?: api?.getSupabaseAnonKey())
     }
 
     /**
@@ -376,10 +376,12 @@ class LaminConfig implements ConfigScope {
      */
     @Deprecated
     Integer getMaxRetries() {
-        // Prefer new api config, fall back to deprecated field
-        return (api?.getMaxRetries() ?: this.maxRetries ?: 3)
+        // Prefer deprecated field (for backward compatibility), then new api config
+        return (this.maxRetries ?: api?.getMaxRetries() ?: 3)
     }
 
+    /**
+     * Get the delay between retries for API requests
     /**
      * Get the delay between retries for API requests
      * @return the delay between retries in milliseconds
@@ -387,8 +389,8 @@ class LaminConfig implements ConfigScope {
      */
     @Deprecated
     Integer getRetryDelay() {
-        // Prefer new api config, fall back to deprecated field
-        return (api?.getRetryDelay() ?: this.retryDelay ?: 100)
+        // Prefer deprecated field (for backward compatibility), then new api config
+        return (this.retryDelay ?: api?.getRetryDelay() ?: 100)
     }
 
     /**
