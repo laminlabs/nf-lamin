@@ -509,56 +509,44 @@ class Instance {
         if (!path) { throw new IllegalStateException('Path is null or empty. Please check the path.') }
 
         log.trace "GET /instances/{instance_id}/artifacts/by-path?path=${path}"
-        try {
-            Map<String, Object> response = callApi { String accessToken ->
-                try {
-                    // Inner try-catch is a workaround for API returning 500 instead of 404 when artifact doesn't exist
-                    // See: https://github.com/laminlabs/laminhub-public/issues/196
-                    this.artifactsApi.getArtifactByPathInstancesInstanceIdArtifactsByPathGet(
-                        this.settings.id(),
-                        path,
-                        accessToken
-                    ) as Map<String, Object>
-                } catch (ApiException innerEx) {
-                    // Handle 500 with DoesNotExist inside closure to prevent retries
-                    if (innerEx.getCode() == 500 && innerEx.getResponseBody()?.contains('DoesNotExist')) {
-                        log.trace "Artifact not found at path (500 DoesNotExist): ${path}"
-                        return null
-                    }
-                    throw innerEx
+
+        Map<String, Object> response = callApi { String accessToken ->
+            try {
+                // Inner try-catch is a workaround for older API versions returning 500 instead of 404
+                // when artifact doesn't exist. Newer API versions return 404 directly (handled by callApi).
+                // This workaround prevents retries on DoesNotExist errors from legacy API.
+                // See: https://github.com/laminlabs/laminhub-public/issues/196
+                this.artifactsApi.getArtifactByPathInstancesInstanceIdArtifactsByPathGet(
+                    this.settings.id(),
+                    path,
+                    accessToken
+                ) as Map<String, Object>
+            } catch (ApiException innerEx) {
+                // Handle 500 with DoesNotExist inside closure to prevent retries (legacy API behavior)
+                if (innerEx.getCode() == 500 && innerEx.getResponseBody()?.contains('DoesNotExist')) {
+                    log.trace "Artifact not found at path (500 DoesNotExist, legacy API): ${path}"
+                    return null
                 }
+                throw innerEx
             }
-
-            // If response is null (from DoesNotExist handling above), return null
-            if (response == null) {
-                return null
-            }
-
-            log.trace "Response from getArtifactByPath: ${response}"
-
-            // Successful response - extract artifact from body
-            Map<String, Object> body = response?.body as Map<String, Object>
-            if (body?.artifact) {
-                return body?.artifact as Map<String, Object>
-            }
-
-            // Unexpected response format
-            log.warn "Unexpected response format from getArtifactByPath: ${response}"
-            return null
-        } catch (ApiException e) {
-            // 404 is expected if artifact doesn't exist
-            if (e.getCode() == 404) {
-                log.trace "Artifact not found at path: ${path}"
-                return null
-            }
-            // 500 with DoesNotExist - artifact doesn't exist
-            if (e.getCode() == 500 && (e.getMessage()?.contains('DoesNotExist') || e.getResponseBody()?.contains('DoesNotExist'))) {
-                log.trace "Artifact not found at path: ${path}"
-                return null
-            }
-
-            throw e
         }
+
+        // If response is null (from DoesNotExist handling above or 404 from callApi), return null
+        if (response == null) {
+            return null
+        }
+
+        log.trace "Response from getArtifactByPath: ${response}"
+
+        // Successful response - extract artifact from body
+        Map<String, Object> body = response?.body as Map<String, Object>
+        if (body?.artifact) {
+            return body?.artifact as Map<String, Object>
+        }
+
+        // Unexpected response format
+        log.warn "Unexpected response format from getArtifactByPath: ${response}"
+        return null
     }
 
     /**
@@ -704,6 +692,14 @@ class Instance {
      * Call the Lamin API with the provided closure.
      * This method handles token expiration and refreshes the token if necessary.
      *
+     * Error handling follows the LaminDB API error mapping:
+     * - 401: Token expired - refresh and retry once
+     * - 404: Not found (DoesNotExist, UnknownStorageLocation, BlobHashNotFound) - return null
+     * - 400: Bad request (ValidationError, InvalidArgument, etc.) - throw immediately
+     * - 403: Forbidden (NoWriteAccess) - throw immediately
+     * - 409: Conflict (MultipleResultsFound, UpdateContext, IntegrityError) - throw immediately
+     * - 5xx: Server errors - retry up to maxRetries
+     *
      * @param closure The closure to call with the access token
      * @return the result of the closure call
      * @throws ApiException if an error occurs while calling the API
@@ -719,11 +715,27 @@ class Instance {
                 accessToken = getBearerToken()
                 return closure.call(accessToken)
             } else if (e.code == 404) {
-                // Not found, do not retry
-                log.debug "API call failed with status 404. Not retrying."
-
+                // Not found (DoesNotExist, UnknownStorageLocation, BlobHashNotFound)
+                // Do not retry - resource does not exist
+                log.debug "API call failed with status 404 (Not Found). Not retrying."
+                return null
+            } else if (e.code == 400) {
+                // Bad request (ValidationError, InvalidArgument, NotebookNotSaved, MissingContextUID, FieldValidationError)
+                // Do not retry - the request itself is invalid
+                log.debug "API call failed with status 400 (Bad Request). Not retrying."
+                throw e
+            } else if (e.code == 403) {
+                // Forbidden (NoWriteAccess)
+                // Do not retry - permission issue won't resolve with retry
+                log.debug "API call failed with status 403 (Forbidden). Not retrying."
+                throw e
+            } else if (e.code == 409) {
+                // Conflict (MultipleResultsFound, UpdateContext, IntegrityError)
+                // Do not retry - data conflict won't resolve with retry
+                log.debug "API call failed with status 409 (Conflict). Not retrying."
+                throw e
             } else if (retries < this.maxRetries) {
-                // Retry the API call
+                // Retry for 5xx server errors and other unexpected errors
                 log.warn "API call failed with status ${e.code}. Retrying (${retries + 1}/${this.maxRetries})..."
                 Thread.sleep(this.retryDelay)
                 return callApi(closure, retries + 1)
