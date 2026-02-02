@@ -17,11 +17,17 @@
 package ai.lamin.nf_lamin
 
 import groovy.transform.CompileStatic
+import groovy.util.logging.Slf4j
 import nextflow.Session
 import nextflow.config.schema.ConfigOption
 import nextflow.config.schema.ConfigScope
 import nextflow.config.schema.ScopeName
 import nextflow.script.dsl.Description
+
+import ai.lamin.nf_lamin.config.ArtifactConfig
+import ai.lamin.nf_lamin.config.ApiConfig
+import ai.lamin.nf_lamin.config.RunConfig
+import ai.lamin.nf_lamin.config.TransformConfig
 
 /**
  * Handle the configuration of the Lamin plugin
@@ -31,9 +37,18 @@ import nextflow.script.dsl.Description
  * lamin {
  *   instance = 'laminlabs/lamindata'
  *   api_key = System.getenv('LAMIN_API_KEY')
- *   project = System.getenv('LAMIN_CURRENT_PROJECT')
+ *   project_uids = ['proj123456789012']
+ *   ulabel_uids = ['ulab123456789012']
  *   env = 'prod'
  *   dry_run = false
+ *   run {
+ *     project_uids = ['proj123456789012']
+ *     ulabel_uids = ['ulab123456789012']
+ *   }
+ *   transform {
+ *     project_uids = ['proj123456789012']
+ *     ulabel_uids = ['ulab123456789012']
+ *   }
  * }
  *
  * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
@@ -42,6 +57,7 @@ import nextflow.script.dsl.Description
 @Description('''
     The `lamin` scope allows you to configure the `nf-lamin` plugin.
 ''')
+@Slf4j
 @CompileStatic
 class LaminConfig implements ConfigScope {
 
@@ -59,9 +75,21 @@ class LaminConfig implements ConfigScope {
 
     @ConfigOption
     @Description('''
-        The project for the Lamin API.
+        @deprecated Deprecated in 0.5.0. Use project_uids instead. This field will be removed in 0.6.0.
     ''')
     final String project
+
+    @ConfigOption
+    @Description('''
+        List of project UIDs to link to all artifacts, runs, and transforms.
+    ''')
+    final List<String> projectUids
+
+    @ConfigOption
+    @Description('''
+        List of ulabel UIDs to link to all artifacts, runs, and transforms.
+    ''')
+    final List<String> ulabelUids
 
     @ConfigOption
     @Description('''
@@ -71,27 +99,33 @@ class LaminConfig implements ConfigScope {
 
     @ConfigOption
     @Description('''
-        (Advanced) The Supabase API URL for the Lamin API.
+        @deprecated Deprecated in 0.5.0. Use api.supabase_api_url instead. This field will be removed in 0.6.0.
     ''')
     final String supabaseApiUrl
 
     @ConfigOption
     @Description('''
-        (Advanced) The Supabase Anon Key for the Lamin API.
+        @deprecated Deprecated in 0.5.0. Use api.supabase_anon_key instead. This field will be removed in 0.6.0.
     ''')
     final String supabaseAnonKey
 
     @ConfigOption
     @Description('''
-        (Advanced) Maximum number of retries for API requests (default: 3).
+        @deprecated Deprecated in 0.5.0. Use api.max_retries instead. This field will be removed in 0.6.0.
     ''')
     final Integer maxRetries
 
     @ConfigOption
     @Description('''
-        (Advanced) Delay between retries for API requests in milliseconds (default: 100).
+        @deprecated Deprecated in 0.5.0. Use api.retry_delay instead. This field will be removed in 0.6.0.
     ''')
     final Integer retryDelay
+
+    @ConfigOption
+    @Description('''
+        (Advanced) API connection settings including Supabase URL/key and retry configuration.
+    ''')
+    final ApiConfig api
 
     @ConfigOption
     @Description('''
@@ -111,6 +145,36 @@ class LaminConfig implements ConfigScope {
     ''')
     final Boolean dryRun
 
+    @ConfigOption
+    @Description('''
+        Configuration for artifact tracking (both inputs and outputs). Use this for rules that apply to all artifacts regardless of direction.
+    ''')
+    final ArtifactConfig artifacts
+
+    @ConfigOption
+    @Description('''
+        Configuration for input artifact tracking. Use this to control which input files are tracked and what metadata is attached.
+    ''')
+    final ArtifactConfig inputArtifacts
+
+    @ConfigOption
+    @Description('''
+        Configuration for output artifact tracking. Use this to control which output files are tracked and what metadata is attached.
+    ''')
+    final ArtifactConfig outputArtifacts
+
+    @ConfigOption
+    @Description('''
+        Configuration for run-specific metadata linking. Allows specifying project and ulabel UIDs to link to runs.
+    ''')
+    final RunConfig run
+
+    @ConfigOption
+    @Description('''
+        Configuration for transform-specific metadata linking. Allows specifying project and ulabel UIDs to link to transforms.
+    ''')
+    final TransformConfig transform
+
     /* required by extension point -- do not remove */
     LaminConfig() {}
 
@@ -123,15 +187,51 @@ class LaminConfig implements ConfigScope {
         // Use containsKey to distinguish between "not provided" vs "explicitly null/empty"
         this.instance = opts.containsKey('instance') ? opts.instance : System.getenv('LAMIN_CURRENT_INSTANCE')
         this.apiKey = opts.containsKey('api_key') ? opts.api_key : System.getenv('LAMIN_API_KEY')
-        this.project = opts.containsKey('project') ? opts.project : System.getenv('LAMIN_CURRENT_PROJECT')
+
+        // Handle deprecated 'project' field
+        this.project = opts.containsKey('project') ? opts.project : null
+        if (this.project) {
+            log.warn "The 'project' configuration option is deprecated in 0.5.0 and will be removed in 0.6.0. Use 'project_uids' instead."
+        }
+
+        // Parse project_uids and ulabel_uids
+        this.projectUids = parseUidList(opts.containsKey('project_uids') ? opts.project_uids : System.getenv('LAMIN_CURRENT_PROJECT'))
+        this.ulabelUids = parseUidList(opts.containsKey('ulabel_uids') ? opts.ulabel_uids : null)
+
         this.env = opts.containsKey('env') ? (opts.env ?: 'prod') : (System.getenv('LAMIN_ENV') ?: 'prod')
-        this.supabaseApiUrl = opts.containsKey('supabase_api_url') ? opts.supabase_api_url : System.getenv('SUPABASE_API_URL')
-        this.supabaseAnonKey = opts.containsKey('supabase_anon_key') ? opts.supabase_anon_key : System.getenv('SUPABASE_ANON_KEY')
-        this.maxRetries = opts.containsKey('max_retries') ? (opts.max_retries as Integer) : ((System.getenv('LAMIN_MAX_RETRIES') as Integer) ?: 3)
-        this.retryDelay = opts.containsKey('retry_delay') ? (opts.retry_delay as Integer) : ((System.getenv('LAMIN_RETRY_DELAY') as Integer) ?: 100)
+
+        // Handle deprecated API config fields with backward compatibility
+        boolean hasOldApiConfig = opts.containsKey('supabase_api_url') || opts.containsKey('supabase_anon_key') ||
+                                   opts.containsKey('max_retries') || opts.containsKey('retry_delay')
+        if (hasOldApiConfig) {
+            log.warn "The API configuration options (supabase_api_url, supabase_anon_key, max_retries, retry_delay) are deprecated in 0.5.0 and will be removed in 0.6.0. " +
+                     "Please use the 'api' section instead: lamin { api { supabase_api_url = '...', ... } }"
+            this.supabaseApiUrl = opts.containsKey('supabase_api_url') ? opts.supabase_api_url : System.getenv('SUPABASE_API_URL')
+            this.supabaseAnonKey = opts.containsKey('supabase_anon_key') ? opts.supabase_anon_key : System.getenv('SUPABASE_ANON_KEY')
+            this.maxRetries = opts.containsKey('max_retries') ? (opts.max_retries as Integer) : ((System.getenv('LAMIN_MAX_RETRIES') as Integer) ?: 3)
+            this.retryDelay = opts.containsKey('retry_delay') ? (opts.retry_delay as Integer) : ((System.getenv('LAMIN_RETRY_DELAY') as Integer) ?: 100)
+        } else {
+            this.supabaseApiUrl = null
+            this.supabaseAnonKey = null
+            this.maxRetries = null
+            this.retryDelay = null
+        }
+
+        // Parse api configuration (preferred approach)
+        this.api = opts.containsKey('api') ? new ApiConfig(opts.api as Map) : new ApiConfig()
+
         this.transformUid = opts.containsKey('transform_uid') ? opts.transform_uid : System.getenv('LAMIN_TRANSFORM_UID')
         this.runUid = opts.containsKey('run_uid') ? opts.run_uid : System.getenv('LAMIN_RUN_UID')
         this.dryRun = opts.containsKey('dry_run') ? (opts.dry_run as Boolean) : ((System.getenv('LAMIN_DRY_RUN') as Boolean) ?: false)
+
+        // Parse artifact configurations
+        this.artifacts = opts.containsKey('artifacts') ? new ArtifactConfig(opts.artifacts as Map, 'both') : null
+        this.inputArtifacts = opts.containsKey('input_artifacts') ? new ArtifactConfig(opts.input_artifacts as Map, 'input') : null
+        this.outputArtifacts = opts.containsKey('output_artifacts') ? new ArtifactConfig(opts.output_artifacts as Map, 'output') : null
+
+        // Parse run and transform configurations
+        this.run = opts.containsKey('run') ? new RunConfig(opts.run as Map) : new RunConfig()
+        this.transform = opts.containsKey('transform') ? new TransformConfig(opts.transform as Map) : new TransformConfig()
 
         validateConfiguration()
     }
@@ -168,6 +268,16 @@ class LaminConfig implements ConfigScope {
         // check if instance is <owner>/<repo>
         if (!this.instance.matches(/^[\w.-]+\/[\w.-]+$/)) {
             throw new IllegalArgumentException("Provided Lamin instance ${this.instance} is not valid. Please provide a valid instance in the format <owner>/<repo>.")
+        }
+
+        // Validate artifact config mutual exclusivity
+        boolean hasGlobalArtifacts = this.artifacts != null
+        boolean hasDirectionSpecific = this.inputArtifacts != null || this.outputArtifacts != null
+        if (hasGlobalArtifacts && hasDirectionSpecific) {
+            throw new IllegalArgumentException(
+                "Cannot use both 'artifacts' and 'input_artifacts'/'output_artifacts' configurations. " +
+                "Use 'artifacts' for rules that apply to all artifacts, or use 'input_artifacts' and/or 'output_artifacts' for direction-specific rules."
+            )
         }
     }
 
@@ -206,9 +316,27 @@ class LaminConfig implements ConfigScope {
     /**
      * Get the project for the Lamin API
      * @return the project
+     * @deprecated Deprecated in 0.5.0. Use getProjectUids() instead. This method will be removed in 0.6.0.
      */
+    @Deprecated
     String getProject() {
         return this.project
+    }
+
+    /**
+     * Get the list of project UIDs
+     * @return list of project UIDs
+     */
+    List<String> getProjectUids() {
+        return this.projectUids ?: []
+    }
+
+    /**
+     * Get the list of ulabel UIDs
+     * @return list of ulabel UIDs
+     */
+    List<String> getUlabelUids() {
+        return this.ulabelUids ?: []
     }
 
     /**
@@ -222,33 +350,59 @@ class LaminConfig implements ConfigScope {
     /**
      * Get the Supabase API URL for the Lamin API
      * @return the Supabase API URL
+     * @deprecated Deprecated in 0.5.0. Use getApiConfig().getSupabaseApiUrl() instead. This method will be removed in 0.6.0.
      */
+    @Deprecated
     String getSupabaseApiUrl() {
-        return this.supabaseApiUrl
+        // Prefer deprecated field (for backward compatibility), then new api config
+        return (this.supabaseApiUrl ?: api?.getSupabaseApiUrl())
     }
 
     /**
      * Get the Supabase Anon Key for the Lamin API
      * @return the Supabase Anon Key
+     * @deprecated Deprecated in 0.5.0. Use getApiConfig().getSupabaseAnonKey() instead. This method will be removed in 0.6.0.
      */
+    @Deprecated
     String getSupabaseAnonKey() {
-        return this.supabaseAnonKey
+        // Prefer deprecated field (for backward compatibility), then new api config
+        return (this.supabaseAnonKey ?: api?.getSupabaseAnonKey())
     }
 
     /**
      * Get the maximum number of retries for API requests
      * @return the maximum number of retries
+     * @deprecated Deprecated in 0.5.0. Use getApiConfig().getMaxRetries() instead. This method will be removed in 0.6.0.
      */
+    @Deprecated
     Integer getMaxRetries() {
-        return this.maxRetries
+        // Prefer deprecated field (for backward compatibility), then new api config
+        if (this.maxRetries != null) {
+            return this.maxRetries
+        }
+        Integer apiMaxRetries = api?.getMaxRetries()
+        if (apiMaxRetries != null) {
+            return apiMaxRetries
+        }
+        return 3
     }
 
     /**
      * Get the delay between retries for API requests
      * @return the delay between retries in milliseconds
+     * @deprecated Deprecated in 0.5.0. Use getApiConfig().getRetryDelay() instead. This method will be removed in 0.6.0.
      */
+    @Deprecated
     Integer getRetryDelay() {
-        return this.retryDelay
+        // Prefer deprecated field (for backward compatibility), then new api config
+        if (this.retryDelay != null) {
+            return this.retryDelay
+        }
+        Integer apiRetryDelay = api?.getRetryDelay()
+        if (apiRetryDelay != null) {
+            return apiRetryDelay
+        }
+        return 100
     }
 
     /**
@@ -265,6 +419,82 @@ class LaminConfig implements ConfigScope {
      */
     String getRunUid() {
         return this.runUid
+    }
+
+    /**
+     * Get the dry-run mode setting
+     * @return true if dry-run mode is enabled
+     */
+    Boolean getDryRun() {
+        return this.dryRun
+    }
+
+    /**
+     * Get the artifact configuration (both inputs and outputs)
+     * @return the artifact configuration, or null if not set
+     */
+    ArtifactConfig getArtifacts() {
+        return this.artifacts
+    }
+
+    /**
+     * Get the input artifact configuration
+     * @return the input artifact configuration, or null if not set
+     */
+    ArtifactConfig getInputArtifacts() {
+        return this.inputArtifacts
+    }
+
+    /**
+     * Get the output artifact configuration
+     * @return the output artifact configuration, or null if not set
+     */
+    ArtifactConfig getOutputArtifacts() {
+        return this.outputArtifacts
+    }
+
+    /**
+     * Get the run configuration
+     * @return the run configuration
+     */
+    RunConfig getRunConfig() {
+        return this.run ?: new RunConfig()
+    }
+
+    /**
+     * Get the transform configuration
+     * @return the transform configuration
+     */
+    TransformConfig getTransformConfig() {
+        return this.transform ?: new TransformConfig()
+    }
+
+    /**
+     * Get the API configuration
+     * @return the API configuration
+     */
+    ApiConfig getApiConfig() {
+        return this.api ?: new ApiConfig()
+    }
+
+    /**
+     * Parse a UID list from various input types.
+     *
+     * @param value The input value (can be null, String, or List)
+     * @return A list of UIDs
+     */
+    private static List<String> parseUidList(Object value) {
+        if (value == null) {
+            return []
+        }
+        if (value instanceof List) {
+            return value.collect { it?.toString() }.findAll { it }
+        }
+        if (value instanceof String) {
+            // Support comma-separated values from env var
+            return value.split(',').collect { it?.trim() }.findAll { it }
+        }
+        return []
     }
 
     /**
@@ -298,19 +528,18 @@ class LaminConfig implements ConfigScope {
     @Override
     String toString() {
         def maskedApiKey = apiKey?.size() > 6 ? apiKey[0..1] + '****' + apiKey[-2..-1] : 'ap****ed'
-        def maskedAnonKey = supabaseAnonKey?.size() > 6 ? supabaseAnonKey[0..1] + '****' + supabaseAnonKey[-2..-1] : 'an****ed'
 
         return "LaminConfig{" +
             "instance='${instance}', " +
             "apiKey='${maskedApiKey}', " +
-            "project='${project}', " +
+            "projectUids=${projectUids}, " +
+            "ulabelUids=${ulabelUids}, " +
             "env='${env}', " +
-            "supabaseApiUrl='${supabaseApiUrl}', " +
-            "supabaseAnonKey='${maskedAnonKey}', " +
-            "maxRetries=${maxRetries}, " +
-            "retryDelay=${retryDelay}, " +
+            "api=${api}, " +
             "transformUid='${transformUid}', " +
-            "runUid='${runUid}'" +
+            "runUid='${runUid}', " +
+            "run=${run}, " +
+            "transform=${transform}" +
             "}"
     }
 }
