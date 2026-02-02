@@ -59,6 +59,207 @@ lamin {
 }
 ```
 
+### Artifact Tracking Configuration
+
+Control which files are tracked as artifacts and attach metadata using pattern-based rules. You can configure tracking globally, or separately for inputs and outputs.
+
+#### Basic Artifact Tracking
+
+```groovy
+lamin {
+  // ... instance and api_key ...
+
+  // Control output artifact tracking
+  output_artifacts {
+    enabled = true
+    include_pattern = '.*\\.(fastq|bam|vcf)\\.gz$'  // Only track compressed files
+    exclude_pattern = '.*\\.tmp$'                   // Exclude temporary files
+  }
+
+  // Control input artifact tracking
+  input_artifacts {
+    enabled = true
+    exclude_pattern = '.*\\.log$'  // Don't track log files as inputs
+  }
+}
+```
+
+#### Advanced Artifact Tracking with Rules
+
+Use rules to apply different configurations based on file patterns:
+
+```groovy
+lamin {
+  // Global settings apply to all artifacts
+  artifacts {
+    enabled = true
+    ulabel_uids = ['project-wide-label']  // Attach to all artifacts
+  }
+
+  // Input-specific configuration
+  input_artifacts {
+    enabled = true
+
+    rules {
+      reference_data {
+        pattern = '.*reference.*\\.(fasta|gtf)$'
+        ulabel_uids = ['reference-data-label']
+        kind = 'reference'
+        order = 1  // Higher priority
+      }
+
+      sample_data {
+        pattern = '.*\\.fastq\\.gz$'
+        ulabel_uids = ['raw-reads-label']
+        project_uids = ['sequencing-project']
+        kind = 'dataset'
+        order = 2
+      }
+    }
+  }
+
+  // Output-specific configuration
+  output_artifacts {
+    enabled = true
+    exclude_pattern = '.*\\.(log|tmp)$'  // Exclude logs and temp files
+
+    rules {
+      // Exclude work-in-progress outputs
+      exclude_intermediate {
+        type = 'exclude'
+        pattern = '.*intermediate.*'
+        order = 1
+      }
+
+      // Track final BAM files
+      aligned_reads {
+        pattern = '.*\\.bam$'
+        ulabel_uids = ['aligned-reads-label']
+        kind = 'aligned_data'
+        order = 2
+      }
+
+      // Track variant calls with high priority
+      variants {
+        pattern = '.*\\.vcf\\.gz$'
+        ulabel_uids = ['variants-label']
+        project_uids = ['variant-calling-project']
+        kind = 'variants'
+        order = 3
+      }
+
+      // Disable tracking for specific file types
+      disable_fastqc {
+        enabled = false
+        pattern = '.*_fastqc\\.(html|zip)$'
+      }
+    }
+  }
+}
+```
+
+#### Configuration Options
+
+**Global Options** (apply to `artifacts`, `input_artifacts`, `output_artifacts`):
+
+- `enabled` (Boolean, default: `true`) - Enable or disable artifact tracking
+- `include_pattern` (String) - Java regex pattern. Files must match this pattern to be tracked
+- `exclude_pattern` (String) - Java regex pattern. Files matching this pattern will not be tracked
+- `ulabel_uids` (List<String> or String) - ULabel UIDs to attach to all matching artifacts
+- `project_uids` (List<String> or String) - Project UIDs to attach to all matching artifacts
+- `kind` (String) - Artifact kind (e.g., 'dataset', 'model', 'reference', 'report')
+- `rules` (Map) - Named rules for path-specific configurations
+
+**Rule Options** (apply to individual rules within `rules`):
+
+- `enabled` (Boolean, default: `true`) - Enable or disable this rule
+- `pattern` (String, **required**) - Java regex pattern to match file paths
+- `type` (String, default: `'include'`) - Rule type: `'include'` to track matching files, `'exclude'` to skip them
+- `direction` (String, default: inherited) - Apply rule to `'input'`, `'output'`, or `'both'`
+- `order` (Integer, default: `100`) - Rule evaluation priority (lower numbers = higher priority)
+- `ulabel_uids` (List<String> or String) - ULabel UIDs to attach to matching artifacts
+- `project_uids` (List<String> or String) - Project UIDs to attach to matching artifacts
+- `kind` (String) - Override artifact kind for matching files
+
+#### Rule Evaluation
+
+1. **Global patterns** are checked first (`include_pattern` and `exclude_pattern`)
+2. **Rules** are evaluated in order of priority (`order` field, lower numbers first)
+3. **All matching rules** are processed - each can modify the tracking decision and add metadata
+4. Later `include` rules can override earlier `exclude` rules, and vice versa
+5. If no rules match, the file is tracked using global settings
+6. **Metadata merging**: ULabels and Projects from global config and all matching rules are combined (duplicates removed)
+
+#### Pattern Syntax
+
+Patterns use Java regular expressions. Common patterns:
+
+- `.*\\.fastq$` - Match files ending with `.fastq`
+- `.*\\.fastq\\.gz$` - Match compressed FASTQ files
+- `.*/output/.*` - Match files in any `output` directory
+- `.*_(R1|R2)_.*` - Match paired-end read files
+- `^(?!.*temp).*$` - Match files NOT containing "temp"
+
+**Important**: Backslashes must be escaped in Groovy strings: `\\.` instead of `\.`
+
+#### Examples
+
+**Disable all artifact tracking:**
+
+```groovy
+lamin {
+  output_artifacts {
+    enabled = false
+  }
+  input_artifacts {
+    enabled = false
+  }
+}
+```
+
+**Track only specific file types:**
+
+```groovy
+lamin {
+  output_artifacts {
+    enabled = true
+    include_pattern = '.*\\.(bam|vcf\\.gz|h5ad)$'
+  }
+}
+```
+
+**Exclude temporary and intermediate files:**
+
+```groovy
+lamin {
+  output_artifacts {
+    enabled = true
+    exclude_pattern = '.*\\.(tmp|temp|intermediate).*'
+  }
+}
+```
+
+**Different labels for different file types:**
+
+```groovy
+lamin {
+  output_artifacts {
+    rules {
+      raw_data {
+        pattern = '.*\\.fastq\\.gz$'
+        ulabel_uids = ['raw-sequencing-data']
+        kind = 'raw_reads'
+      }
+      processed_data {
+        pattern = '.*\\.h5ad$'
+        ulabel_uids = ['processed-expression-matrix']
+        kind = 'expression_matrix'
+      }
+    }
+  }
+}
+```
+
 You can also set these using environment variables:
 
 ```bash

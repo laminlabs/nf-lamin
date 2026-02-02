@@ -78,8 +78,97 @@ lamin {
 
   // Optional: Dry-run mode - test configuration without creating records (default: false)
   dry_run = false
+
+  // Optional: Configure artifact tracking (see below for details)
+  output_artifacts {
+    enabled = true
+    include_pattern = '.*\\.(fastq|bam)$'
+    exclude_pattern = '.*temp.*'
+  }
 }
 ```
+
+#### Artifact Tracking Configuration
+
+Control which files are tracked and attach metadata to artifacts using pattern-based rules. You can configure tracking either globally (for all artifacts) or separately for inputs and outputs, but **not both** (they are mutually exclusive).
+
+**Option 1: Global configuration** (applies to both inputs and outputs)
+
+```groovy
+lamin {
+  artifacts {
+    enabled = true
+    ulabel_uids = ['global-label-uid']
+    project_uids = ['global-project-uid']
+    exclude_pattern = '.*\\.tmp$'
+
+    rules {
+      fastqs {
+        pattern = '.*\\.fastq\\.gz$'
+        ulabel_uids = ['fastq-label-uid']
+        kind = 'dataset'
+      }
+    }
+  }
+}
+```
+
+**Option 2: Direction-specific configuration** (separate configs for inputs and outputs)
+
+```groovy
+lamin {
+  input_artifacts {
+    enabled = true
+    include_pattern = '.*\\.(fastq|fq)\\.gz$'
+
+    rules {
+      reference_genomes {
+        pattern = '.*reference.*\\.fasta$'
+        ulabel_uids = ['reference-data-uid']
+        kind = 'reference'
+      }
+    }
+  }
+
+  output_artifacts {
+    enabled = true
+    exclude_pattern = '.*\\.tmp$'
+
+    rules {
+      bams {
+        enabled = false  // Disable tracking for BAM files
+        pattern = '.*\\.bam$'
+      }
+    }
+  }
+}
+```
+
+**Configuration options:**
+
+- `enabled` - Enable/disable tracking (default: true)
+- `include_pattern` - Regex pattern; files must match to be tracked
+- `exclude_pattern` - Regex pattern; matching files won't be tracked
+- `ulabel_uids` - List of ULabel UIDs to attach to artifacts
+- `project_uids` - List of Project UIDs to attach to artifacts
+- `kind` - Artifact kind (e.g., 'dataset', 'model', 'reference')
+- `rules` - Path-specific configurations:
+  - `pattern` - Regex pattern to match file paths (required)
+  - `enabled` - Enable/disable this rule (default: true)
+  - `type` - 'include' or 'exclude' (default: 'include')
+  - `direction` - 'input', 'output', or 'both' (default: inherited from parent config)
+  - `order` - Evaluation priority (lower numbers first, default: 100)
+  - `ulabel_uids` - List of ULabel UIDs to attach to matching artifacts
+  - `project_uids` - List of Project UIDs to attach to matching artifacts
+  - `kind` - Artifact kind for matching files
+
+**Evaluation order:**
+
+1. Global patterns (`include_pattern`, `exclude_pattern`) are checked first
+2. Rules are evaluated in order of priority (`order` field, lower numbers first)
+3. All matching rules are processed - each can modify the tracking decision
+4. Later `include` rules can override earlier `exclude` rules, and vice versa
+5. Metadata (ulabels, projects) from all matching rules is accumulated; `kind` uses the last match
 
 ### Using artifacts from LaminDB
 
