@@ -70,14 +70,35 @@ lamin {
   // Required: API key for authentication
   api_key = secrets.LAMIN_API_KEY
 
-  // Optional: Project namespace (defaults to environment variable LAMIN_CURRENT_PROJECT)
-  project = "my-project"
+  // Optional: Project UIDs to link to all artifacts, runs, and transforms
+  project_uids = ['proj123456789012']
+
+  // Optional: ULabel UIDs to link to all artifacts, runs, and transforms
+  ulabel_uids = ['ulab123456789012']
 
   // Optional: Environment selector - 'prod' or 'staging' (default: 'prod')
   env = "prod"
 
   // Optional: Dry-run mode - test configuration without creating records (default: false)
   dry_run = false
+
+  // Optional: Run-specific metadata linking
+  run {
+    project_uids = ['proj-run-specific']
+    ulabel_uids = ['ulab-run-specific']
+  }
+
+  // Optional: Transform-specific metadata linking
+  transform {
+    project_uids = ['proj-transform-specific']
+    ulabel_uids = ['ulab-transform-specific']
+  }
+
+  // Optional: API connection settings
+  api {
+    max_retries = 3
+    retry_delay = 100
+  }
 
   // Optional: Configure artifact tracking (see below for details)
   output_artifacts {
@@ -96,16 +117,19 @@ Control which files are tracked and attach metadata to artifacts using pattern-b
 
 ```groovy
 lamin {
+  // Root-level UIDs apply to all artifacts, runs, and transforms
+  project_uids = ['global-project-uid']
+  ulabel_uids = ['global-ulabel-uid']
+
   artifacts {
     enabled = true
-    ulabel_uids = ['global-label-uid']
-    project_uids = ['global-project-uid']
     exclude_pattern = '.*\\.tmp$'
 
     rules {
       fastqs {
         pattern = '.*\\.fastq\\.gz$'
         ulabel_uids = ['fastq-label-uid']
+        project_uids = ['fastq-project-uid']
         kind = 'dataset'
       }
     }

@@ -14,7 +14,8 @@ plugins {
 lamin {
   instance = "<your-lamin-org>/<your-lamin-instance>"
   api_key = secrets.LAMIN_API_KEY
-  project = "your-lamin-project" // optional
+  project_uids = ['proj123456789012'] // optional
+  ulabel_uids = ['ulab123456789012']  // optional
 }
 ```
 
@@ -22,14 +23,15 @@ lamin {
 
 - `lamin.instance`: **(Required)** The LaminDB instance to connect to, in the format `organization/instance`.
 - `lamin.api_key`: **(Required)** Your Lamin Hub API key. It is strongly recommended to set this using `nextflow secrets`.
-- `lamin.project`: (Optional) The project name in LaminDB to associate runs with.
+- `lamin.project_uids`: (Optional) List of project UIDs to link to all artifacts, runs, and transforms.
+- `lamin.ulabel_uids`: (Optional) List of ulabel UIDs to link to all artifacts, runs, and transforms.
 
 Alternatively, you can use environment variables, though this is less secure:
 
 ```bash
 export LAMIN_CURRENT_INSTANCE="laminlabs/lamindata"
 export LAMIN_API_KEY="your-lamin-api-key"
-export LAMIN_CURRENT_PROJECT="your-lamin-project"
+export LAMIN_CURRENT_PROJECT="proj123456789012"  # Project UID
 ```
 
 ### Advanced Configuration
@@ -40,18 +42,39 @@ The plugin offers advanced settings for custom deployments or for tuning its beh
 lamin {
   // ... basic settings ...
 
+  // Root-level UIDs apply to all artifacts, runs, and transforms
+  project_uids = ['proj123456789012']
+  ulabel_uids = ['ulab123456789012']
+
   // The environment name in LaminDB (e.g. "prod" or "staging")
   env = "prod"
   // Enable dry-run mode to test configuration without creating records
   dry_run = false
-  // The Supabase API URL for the LaminDB instance (if env is set to "custom")
-  supabase_api_url = "https://your-supabase-api-url.supabase.co"
-  // The Supabase anon key for the LaminDB instance (if env is set to "custom")
-  supabase_anon_key = secrets.SUPABASE_ANON_KEY
-  // The number of retries for API requests
-  max_retries = 3
-  // The delay between retries in milliseconds
-  retry_delay = 100
+
+  // API connection settings
+  api {
+    // The Supabase API URL for the LaminDB instance (if env is set to "custom")
+    supabase_api_url = "https://your-supabase-api-url.supabase.co"
+    // The Supabase anon key for the LaminDB instance (if env is set to "custom")
+    supabase_anon_key = secrets.SUPABASE_ANON_KEY
+    // The number of retries for API requests
+    max_retries = 3
+    // The delay between retries in milliseconds
+    retry_delay = 100
+  }
+
+  // Run-specific metadata linking
+  run {
+    project_uids = ['proj-run-specific']
+    ulabel_uids = ['ulab-run-specific']
+  }
+
+  // Transform-specific metadata linking
+  transform {
+    project_uids = ['proj-transform-specific']
+    ulabel_uids = ['ulab-transform-specific']
+  }
+
   // Manually specify a transform UID if known (advanced users only)
   transform_uid = "your-transform-uid"
   // Manually specify a run UID if known (advanced users only)
@@ -90,10 +113,13 @@ Use rules to apply different configurations based on file patterns:
 
 ```groovy
 lamin {
-  // Global settings apply to all artifacts
+  // Root-level UIDs apply to all artifacts, runs, and transforms
+  project_uids = ['global-project']
+  ulabel_uids = ['project-wide-label']
+
+  // Global artifact settings
   artifacts {
     enabled = true
-    ulabel_uids = ['project-wide-label']  // Attach to all artifacts
   }
 
   // Input-specific configuration
@@ -265,6 +291,7 @@ You can also set these using environment variables:
 ```bash
 export LAMIN_ENV="prod"
 export LAMIN_DRY_RUN="false"
+export LAMIN_CURRENT_PROJECT="proj123456789012"  # Used for project_uids
 export SUPABASE_API_URL="https://your-supabase-api-url.supabase.co"
 export SUPABASE_ANON_KEY="your-supabase-anon-key"
 export LAMIN_MAX_RETRIES=3
@@ -275,10 +302,13 @@ export LAMIN_RUN_UID="your-run-uid"
 
 **Advanced settings explained:**
 
+- `project_uids` & `ulabel_uids`: Root-level UIDs that apply to all artifacts, runs, and transforms. Can be combined with object-specific UIDs in `run` and `transform` sections.
+- `run` & `transform`: Object-specific metadata linking. UIDs specified here are merged with root-level UIDs.
 - `env`: Environment selector for LaminDB instance (e.g., "prod", "staging", or "custom")
 - `dry_run`: When `true`, the plugin validates configuration and connects to LaminDB but does not create or modify any records (transforms, runs, or artifacts). Useful for testing your setup without affecting the database.
-- `supabase_api_url` & `supabase_anon_key`: Custom Supabase connection details (only needed if `env = "custom"`)
-- `max_retries` & `retry_delay`: Control retry behavior for API requests
+- `api`: Advanced API connection settings including Supabase connection details and retry behavior
+  - `supabase_api_url` & `supabase_anon_key`: Custom Supabase connection details (only needed if `env = "custom"`)
+  - `max_retries` & `retry_delay`: Control retry behavior for API requests
 - `transform_uid` & `run_uid`: Manually override transform/run UIDs (advanced usage only)
 
 ## Functions
