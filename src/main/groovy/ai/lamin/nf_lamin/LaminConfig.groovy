@@ -75,7 +75,7 @@ class LaminConfig implements ConfigScope {
 
     @ConfigOption
     @Description('''
-        @deprecated Use project_uids instead. This field will be removed in a future version.
+        @deprecated Deprecated in 0.5.0. Use project_uids instead. This field will be removed in 0.6.0.
     ''')
     final String project
 
@@ -99,25 +99,25 @@ class LaminConfig implements ConfigScope {
 
     @ConfigOption
     @Description('''
-        @deprecated Use api.supabase_api_url instead. This field will be removed in a future version.
+        @deprecated Deprecated in 0.5.0. Use api.supabase_api_url instead. This field will be removed in 0.6.0.
     ''')
     final String supabaseApiUrl
 
     @ConfigOption
     @Description('''
-        @deprecated Use api.supabase_anon_key instead. This field will be removed in a future version.
+        @deprecated Deprecated in 0.5.0. Use api.supabase_anon_key instead. This field will be removed in 0.6.0.
     ''')
     final String supabaseAnonKey
 
     @ConfigOption
     @Description('''
-        @deprecated Use api.max_retries instead. This field will be removed in a future version.
+        @deprecated Deprecated in 0.5.0. Use api.max_retries instead. This field will be removed in 0.6.0.
     ''')
     final Integer maxRetries
 
     @ConfigOption
     @Description('''
-        @deprecated Use api.retry_delay instead. This field will be removed in a future version.
+        @deprecated Deprecated in 0.5.0. Use api.retry_delay instead. This field will be removed in 0.6.0.
     ''')
     final Integer retryDelay
 
@@ -191,7 +191,7 @@ class LaminConfig implements ConfigScope {
         // Handle deprecated 'project' field
         this.project = opts.containsKey('project') ? opts.project : null
         if (this.project) {
-            log.warn "The 'project' configuration option is deprecated and will be removed in a future version. Use 'project_uids' instead."
+            log.warn "The 'project' configuration option is deprecated in 0.5.0 and will be removed in 0.6.0. Use 'project_uids' instead."
         }
 
         // Parse project_uids and ulabel_uids
@@ -204,7 +204,7 @@ class LaminConfig implements ConfigScope {
         boolean hasOldApiConfig = opts.containsKey('supabase_api_url') || opts.containsKey('supabase_anon_key') ||
                                    opts.containsKey('max_retries') || opts.containsKey('retry_delay')
         if (hasOldApiConfig) {
-            log.warn "The API configuration options (supabase_api_url, supabase_anon_key, max_retries, retry_delay) are deprecated. " +
+            log.warn "The API configuration options (supabase_api_url, supabase_anon_key, max_retries, retry_delay) are deprecated in 0.5.0 and will be removed in 0.6.0. " +
                      "Please use the 'api' section instead: lamin { api { supabase_api_url = '...', ... } }"
             this.supabaseApiUrl = opts.containsKey('supabase_api_url') ? opts.supabase_api_url : System.getenv('SUPABASE_API_URL')
             this.supabaseAnonKey = opts.containsKey('supabase_anon_key') ? opts.supabase_anon_key : System.getenv('SUPABASE_ANON_KEY')
@@ -316,7 +316,7 @@ class LaminConfig implements ConfigScope {
     /**
      * Get the project for the Lamin API
      * @return the project
-     * @deprecated Use getProjectUids() instead
+     * @deprecated Deprecated in 0.5.0. Use getProjectUids() instead. This method will be removed in 0.6.0.
      */
     @Deprecated
     String getProject() {
@@ -350,7 +350,7 @@ class LaminConfig implements ConfigScope {
     /**
      * Get the Supabase API URL for the Lamin API
      * @return the Supabase API URL
-     * @deprecated Use getApiConfig().getSupabaseApiUrl() instead
+     * @deprecated Deprecated in 0.5.0. Use getApiConfig().getSupabaseApiUrl() instead. This method will be removed in 0.6.0.
      */
     @Deprecated
     String getSupabaseApiUrl() {
@@ -361,7 +361,7 @@ class LaminConfig implements ConfigScope {
     /**
      * Get the Supabase Anon Key for the Lamin API
      * @return the Supabase Anon Key
-     * @deprecated Use getApiConfig().getSupabaseAnonKey() instead
+     * @deprecated Deprecated in 0.5.0. Use getApiConfig().getSupabaseAnonKey() instead. This method will be removed in 0.6.0.
      */
     @Deprecated
     String getSupabaseAnonKey() {
@@ -372,7 +372,7 @@ class LaminConfig implements ConfigScope {
     /**
      * Get the maximum number of retries for API requests
      * @return the maximum number of retries
-     * @deprecated Use getApiConfig().getMaxRetries() instead
+     * @deprecated Deprecated in 0.5.0. Use getApiConfig().getMaxRetries() instead. This method will be removed in 0.6.0.
      */
     @Deprecated
     Integer getMaxRetries() {
@@ -385,7 +385,7 @@ class LaminConfig implements ConfigScope {
     /**
      * Get the delay between retries for API requests
      * @return the delay between retries in milliseconds
-     * @deprecated Use getApiConfig().getRetryDelay() instead
+     * @deprecated Deprecated in 0.5.0. Use getApiConfig().getRetryDelay() instead. This method will be removed in 0.6.0.
      */
     @Deprecated
     Integer getRetryDelay() {
