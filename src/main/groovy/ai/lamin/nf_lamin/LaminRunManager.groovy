@@ -497,11 +497,11 @@ final class LaminRunManager {
         Map<String, Object> artifact = fetchOrCreateArtifact(params)
 
         if (artifact == null) {
-            log.warn "Failed to create input artifact for path ${path.toUri()}"
+            log.warn "Failed to fetch or create input artifact for path ${path.toUri()}"
             return null
         }
 
-        log.debug "Created input artifact ${artifact?.get('uid')} for path ${path.toUri()}"
+        log.debug "Using input artifact ${artifact?.get('uid')} for path ${path.toUri()}"
 
         // TODO: Link metadata (kind, ulabel_uids, project_uids) to artifact
         // These are relational mappings that need to be set after artifact creation
@@ -623,9 +623,7 @@ final class LaminRunManager {
 
         // If path is a LaminPath, resolve it to the underlying storage path
         if (path instanceof LaminPath) {
-            log.debug "Resolving LaminPath to underlying storage: ${path.toUri()}"
             path = ((LaminPath) path).resolveToStorage()
-            log.debug "Resolved to: ${path.toUri()}"
         }
 
         // Validate and extract optional parameters
@@ -654,7 +652,7 @@ final class LaminRunManager {
         artifactLock.lock()
         try {
             // First, check if artifact already exists at this path
-            String remotePath = isLocalFile ? null : path.toUri().toString()
+            String remotePath = isLocalFile ? null : path.toUri().toString().replaceAll('^(\\w+)://*', '$1://')
             artifact = fetchArtifact(remotePath)
             if (artifact != null) {
                 // If artifact exists but needs to be linked to current run, link it

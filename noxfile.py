@@ -3,7 +3,7 @@ import shutil
 from pathlib import Path
 
 import nox
-from laminci import upload_docs_artifact
+from laminci import convert_executable_md_files, upload_docs_artifact
 from laminci.nox import build_docs, login_testuser1, run, run_pre_commit, run_pytest
 
 # we'd like to aggregate coverage information across sessions
@@ -41,6 +41,7 @@ def build(session, group):
         "lamindb[jupyter,bionty]",
     )
     session.run(*"pip install -e .[dev]".split())
+    convert_executable_md_files("./docs")
     login_testuser1(session)
     run(session, f"pytest -s ./tests/test_notebooks.py::test_{group}")
 
