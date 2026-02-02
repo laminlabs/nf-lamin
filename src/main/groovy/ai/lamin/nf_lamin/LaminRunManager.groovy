@@ -38,6 +38,8 @@ import ai.lamin.nf_lamin.instance.InstanceSettings
 import ai.lamin.nf_lamin.model.RunStatus
 import ai.lamin.nf_lamin.nio.LaminPath
 import ai.lamin.nf_lamin.util.TransformInfoHelper
+import ai.lamin.nf_lamin.config.ArtifactConfig
+import ai.lamin.nf_lamin.config.ArtifactEvaluation
 
 /**
  * Holds shared state about the currently active Lamin transform and run.
@@ -313,6 +315,13 @@ final class LaminRunManager {
             description: description
         )
         updateTransform(transformRecord)
+
+        // Link transform to projects and ulabels from config
+        List<String> transformProjectUids = mergeUidLists(config.getProjectUids(), config.getTransformConfig()?.getProjectUids())
+        List<String> transformUlabelUids = mergeUidLists(config.getUlabelUids(), config.getTransformConfig()?.getUlabelUids())
+        linkTransformToProjects(transformRecord, transformProjectUids)
+        linkTransformToUlabels(transformRecord, transformUlabelUids)
+
         printTransformMessage(transformRecord, "Created new transform ${transformRecord.get('uid')}")
         return transformRecord
     }
@@ -373,6 +382,13 @@ final class LaminRunManager {
             ]
         )
         updateRun(runRecord)
+
+        // Link run to projects and ulabels from config
+        List<String> runProjectUids = mergeUidLists(config.getProjectUids(), config.getRunConfig()?.getProjectUids())
+        List<String> runUlabelUids = mergeUidLists(config.getUlabelUids(), config.getRunConfig()?.getUlabelUids())
+        linkRunToProjects(runRecord, runProjectUids)
+        linkRunToUlabels(runRecord, runUlabelUids)
+
         printRunMessage(runRecord, 'Created new run')
         return runRecord
     }
@@ -420,6 +436,48 @@ final class LaminRunManager {
         updateRun(updatedRun)
     }
 
+    /**
+     * Evaluate an artifact path against configuration rules.
+     *
+     * Returns a combined result with tracking decision and accumulated metadata.
+     * Uses either the global 'artifacts' config OR the direction-specific config
+     * (input_artifacts/output_artifacts), as they are mutually exclusive.
+     *
+     * @param path File path to evaluate
+     * @param direction 'input' or 'output'
+     * @return ArtifactEvaluation with shouldTrack flag and metadata
+     */
+    ArtifactEvaluation evaluateArtifact(Path path, String direction) {
+        if (config == null) {
+            // Default to tracking with empty metadata if no config
+            return new ArtifactEvaluation(true, [:])
+        }
+
+        String pathStr = path.toUri().toString()
+
+        // Use global artifacts config if defined, otherwise use direction-specific config
+        // Note: These are mutually exclusive (validated in LaminConfig)
+        ArtifactConfig artifactConfig = config.getArtifacts()
+        if (artifactConfig == null) {
+            artifactConfig = direction == 'input' ? config.getInputArtifacts() : config.getOutputArtifacts()
+        }
+
+        // If no config defined, default to tracking with empty metadata
+        if (artifactConfig == null) {
+            log.debug "No artifact config defined, tracking '${pathStr}' as ${direction} with default settings"
+            return new ArtifactEvaluation(true, [:])
+        }
+
+        // Evaluate the path against the config
+        ArtifactEvaluation evaluation = artifactConfig.evaluate(pathStr, direction)
+        if (evaluation.shouldTrack) {
+            log.debug "Artifact '${pathStr}' will be tracked as ${direction} with metadata: ${evaluation.metadata}"
+        } else {
+            log.debug "Artifact '${pathStr}' excluded by artifact config"
+        }
+        return evaluation
+    }
+
     Map<String, Object> createInputArtifact(Path path) {
         if (laminInstance == null || config.dryRun) {
             return null
@@ -433,12 +491,24 @@ final class LaminRunManager {
             return null
         }
 
+        // Evaluate artifact against configuration rules
+        ArtifactEvaluation evaluation = evaluateArtifact(path, 'input')
+        if (!evaluation.shouldTrack) {
+            log.debug "Skipping input artifact creation for ${path.toUri()} (excluded by config)"
+            return null
+        }
+
         String description = "Input artifact at ${path.toUri()}"
 
-        Map<String, Object> artifact = fetchOrCreateArtifact(
+        Map<String, Object> params = [
             path: path,
             description: description
-        )
+        ]
+        if (evaluation.kind) {
+            params.kind = evaluation.kind
+        }
+
+        Map<String, Object> artifact = fetchOrCreateArtifact(params)
 
         if (artifact == null) {
             log.warn "Failed to fetch or create input artifact for path ${path.toUri()}"
@@ -447,30 +517,12 @@ final class LaminRunManager {
 
         log.debug "Using input artifact ${artifact?.get('uid')} for path ${path.toUri()}"
 
-        // Link artifact to current run as an input artifact
-        Integer artifactId = (artifact.get('id') as Number)?.intValue()
-        Integer runId = (run?.get('id') as Number)?.intValue()
-
-        if (artifactId == null) {
-            log.warn "Artifact ID is null for artifact ${artifact.get('uid')}"
-        } else if (runId == null) {
-            log.warn "Run ID is null; cannot link artifact ${artifact.get('uid')} to run"
-        } else {
-            try {
-                laminInstance.createRecord(
-                    moduleName: 'core',
-                    modelName: 'artifact_input_of_runs',
-                    data: [
-                        artifact_id: artifactId,
-                        run_id: runId
-                    ]
-                )
-                log.debug "Linked artifact ${artifact.get('uid')} as input to run ${run.get('uid')}"
-            } catch (Exception e) {
-                // Link may already exist if artifact was previously used as input
-                log.debug "Could not link artifact ${artifact.get('uid')} to run: ${e.getMessage()}"
-            }
-        }
+        // Link artifact to run and metadata (merge root-level and rule-level UIDs)
+        linkInputArtifactToRun(artifact)
+        List<String> artifactProjectUids = mergeUidLists(config.getProjectUids(), evaluation.projectUids)
+        List<String> artifactUlabelUids = mergeUidLists(config.getUlabelUids(), evaluation.ulabelUids)
+        linkArtifactToProjects(artifact, artifactProjectUids)
+        linkArtifactToUlabels(artifact, artifactUlabelUids)
 
         return artifact
     }
@@ -480,17 +532,464 @@ final class LaminRunManager {
             return null
         }
 
+        // Evaluate artifact against configuration rules
+        ArtifactEvaluation evaluation = evaluateArtifact(path, 'output')
+        if (!evaluation.shouldTrack) {
+            log.debug "Skipping output artifact creation for ${path.toUri()} (excluded by config)"
+            return null
+        }
+
         Integer runId = (run.get('id') as Number)?.intValue()
         if (runId == null) {
             return null
         }
 
         String description = "Output artifact for run ${runId}"
-        return fetchOrCreateArtifact(
+
+        Map<String, Object> params = [
             path: path,
             run_id: runId,
             description: description
-        )
+        ]
+        if (evaluation.kind) {
+            params.kind = evaluation.kind
+        }
+
+        Map<String, Object> artifact = fetchOrCreateArtifact(params)
+
+        if (artifact == null) {
+            log.warn "Failed to create output artifact for path ${path.toUri()}"
+            return null
+        }
+
+        // Link artifact metadata (projects, ulabels) - run is already linked via run_id
+        // Merge root-level and rule-level UIDs
+        List<String> artifactProjectUids = mergeUidLists(config.getProjectUids(), evaluation.projectUids)
+        List<String> artifactUlabelUids = mergeUidLists(config.getUlabelUids(), evaluation.ulabelUids)
+        linkArtifactToProjects(artifact, artifactProjectUids)
+        linkArtifactToUlabels(artifact, artifactUlabelUids)
+
+        return artifact
+    }
+
+    /**
+     * Link an input artifact to the current run.
+     *
+     * @param artifact The artifact map (must contain 'id' and 'uid')
+     */
+    private void linkInputArtifactToRun(Map<String, Object> artifact) {
+        if (artifact == null || laminInstance == null) {
+            return
+        }
+
+        Integer artifactId = (artifact.get('id') as Number)?.intValue()
+        String artifactUid = artifact.get('uid') as String
+        Integer runId = (run?.get('id') as Number)?.intValue()
+
+        if (artifactId == null) {
+            log.warn "Artifact ID is null for artifact ${artifactUid}"
+            return
+        }
+
+        if (runId == null) {
+            log.warn "Run ID is null; cannot link artifact ${artifactUid} to run"
+            return
+        }
+
+        try {
+            // Check if link already exists
+            List<Map> existingLinks = laminInstance.getRecords(
+                moduleName: 'core',
+                modelName: 'artifact_input_of_runs',
+                filter: [and: [[artifact_id: [eq: artifactId]], [run_id: [eq: runId]]]]
+            )
+            if (existingLinks) {
+                log.debug "Artifact ${artifactUid} is already linked as input to run ${run.get('uid')}"
+                return
+            }
+
+            laminInstance.createRecord(
+                moduleName: 'core',
+                modelName: 'artifact_input_of_runs',
+                data: [
+                    artifact_id: artifactId,
+                    run_id: runId
+                ]
+            )
+            log.debug "Linked artifact ${artifactUid} as input to run ${run.get('uid')}"
+        } catch (Exception e) {
+            log.debug "Could not link artifact ${artifactUid} to run: ${e.getMessage()}"
+        }
+    }
+
+    /**
+     * Link artifact to projects.
+     *
+     * @param artifact The artifact map (must contain 'id' and 'uid')
+     * @param projectUids List of project UIDs to link
+     */
+    private void linkArtifactToProjects(Map<String, Object> artifact, List<String> projectUids) {
+        if (artifact == null || laminInstance == null || !projectUids) {
+            return
+        }
+
+        Integer artifactId = (artifact.get('id') as Number)?.intValue()
+        String artifactUid = artifact.get('uid') as String
+
+        if (artifactId == null) {
+            log.warn "Artifact ID is null for artifact ${artifactUid}"
+            return
+        }
+
+        for (String projectUid : projectUids) {
+            try {
+                // Look up project by UID to get numeric ID
+                Map<String, Object> project = laminInstance.getRecord(
+                    moduleName: 'core',
+                    modelName: 'project',
+                    idOrUid: projectUid
+                )
+                Integer projectId = (project?.get('id') as Number)?.intValue()
+                if (projectId == null) {
+                    log.warn "Could not find project with UID ${projectUid}"
+                    continue
+                }
+
+                // Check if link already exists
+                List<Map> existingLinks = laminInstance.getRecords(
+                    moduleName: 'core',
+                    modelName: 'artifactproject',
+                    filter: [and: [[artifact_id: [eq: artifactId]], [project_id: [eq: projectId]]]]
+                )
+                if (existingLinks) {
+                    log.debug "Artifact ${artifactUid} is already linked to project ${projectUid}"
+                    continue
+                }
+
+                laminInstance.createRecord(
+                    moduleName: 'core',
+                    modelName: 'artifactproject',
+                    data: [
+                        artifact_id: artifactId,
+                        project_id: projectId
+                    ]
+                )
+                log.debug "Linked artifact ${artifactUid} to project ${projectUid}"
+            } catch (Exception e) {
+                log.debug "Could not link artifact ${artifactUid} to project ${projectUid}: ${e.getMessage()}"
+            }
+        }
+    }
+
+    /**
+     * Link artifact to ulabels.
+     *
+     * @param artifact The artifact map (must contain 'id' and 'uid')
+     * @param ulabelUids List of ulabel UIDs to link
+     */
+    private void linkArtifactToUlabels(Map<String, Object> artifact, List<String> ulabelUids) {
+        if (artifact == null || laminInstance == null || !ulabelUids) {
+            return
+        }
+
+        Integer artifactId = (artifact.get('id') as Number)?.intValue()
+        String artifactUid = artifact.get('uid') as String
+
+        if (artifactId == null) {
+            log.warn "Artifact ID is null for artifact ${artifactUid}"
+            return
+        }
+
+        for (String ulabelUid : ulabelUids) {
+            try {
+                // Look up ulabel by UID to get numeric ID
+                Map<String, Object> ulabel = laminInstance.getRecord(
+                    moduleName: 'core',
+                    modelName: 'ulabel',
+                    idOrUid: ulabelUid
+                )
+                Integer ulabelId = (ulabel?.get('id') as Number)?.intValue()
+                if (ulabelId == null) {
+                    log.warn "Could not find ulabel with UID ${ulabelUid}"
+                    continue
+                }
+
+                // Check if link already exists
+                List<Map> existingLinks = laminInstance.getRecords(
+                    moduleName: 'core',
+                    modelName: 'artifactulabel',
+                    filter: [and: [[artifact_id: [eq: artifactId]], [ulabel_id: [eq: ulabelId]]]]
+                )
+                if (existingLinks) {
+                    log.debug "Artifact ${artifactUid} is already linked to ulabel ${ulabelUid}"
+                    continue
+                }
+
+                laminInstance.createRecord(
+                    moduleName: 'core',
+                    modelName: 'artifactulabel',
+                    data: [
+                        artifact_id: artifactId,
+                        ulabel_id: ulabelId
+                    ]
+                )
+                log.debug "Linked artifact ${artifactUid} to ulabel ${ulabelUid}"
+            } catch (Exception e) {
+                log.debug "Could not link artifact ${artifactUid} to ulabel ${ulabelUid}: ${e.getMessage()}"
+            }
+        }
+    }
+
+    /**
+     * Merge multiple UID lists into a single deduplicated list.
+     *
+     * @param lists Variable number of UID lists to merge
+     * @return Combined list with duplicates removed
+     */
+    private static List<String> mergeUidLists(List<String>... lists) {
+        Set<String> merged = new LinkedHashSet<>()
+        for (List<String> list : lists) {
+            if (list != null) {
+                merged.addAll(list)
+            }
+        }
+        return merged.toList()
+    }
+
+    /**
+     * Link transform to projects.
+     *
+     * @param transformRecord The transform map (must contain 'id' and 'uid')
+     * @param projectUids List of project UIDs to link
+     */
+    private void linkTransformToProjects(Map<String, Object> transformRecord, List<String> projectUids) {
+        if (transformRecord == null || laminInstance == null || !projectUids) {
+            return
+        }
+
+        Integer transformId = (transformRecord.get('id') as Number)?.intValue()
+        String transformUid = transformRecord.get('uid') as String
+
+        if (transformId == null) {
+            log.warn "Transform ID is null for transform ${transformUid}"
+            return
+        }
+
+        for (String projectUid : projectUids) {
+            try {
+                // Look up project by UID to get numeric ID
+                Map<String, Object> project = laminInstance.getRecord(
+                    moduleName: 'core',
+                    modelName: 'project',
+                    idOrUid: projectUid
+                )
+                Integer projectId = (project?.get('id') as Number)?.intValue()
+                if (projectId == null) {
+                    log.warn "Could not find project with UID ${projectUid}"
+                    continue
+                }
+
+                // Check if link already exists
+                List<Map> existingLinks = laminInstance.getRecords(
+                    moduleName: 'core',
+                    modelName: 'transformproject',
+                    filter: [and: [[transform_id: [eq: transformId]], [project_id: [eq: projectId]]]]
+                )
+                if (existingLinks) {
+                    log.debug "Transform ${transformUid} is already linked to project ${projectUid}"
+                    continue
+                }
+
+                laminInstance.createRecord(
+                    moduleName: 'core',
+                    modelName: 'transformproject',
+                    data: [
+                        transform_id: transformId,
+                        project_id: projectId
+                    ]
+                )
+                log.debug "Linked transform ${transformUid} to project ${projectUid}"
+            } catch (Exception e) {
+                log.debug "Could not link transform ${transformUid} to project ${projectUid}: ${e.getMessage()}"
+            }
+        }
+    }
+
+    /**
+     * Link transform to ulabels.
+     *
+     * @param transformRecord The transform map (must contain 'id' and 'uid')
+     * @param ulabelUids List of ulabel UIDs to link
+     */
+    private void linkTransformToUlabels(Map<String, Object> transformRecord, List<String> ulabelUids) {
+        if (transformRecord == null || laminInstance == null || !ulabelUids) {
+            return
+        }
+
+        Integer transformId = (transformRecord.get('id') as Number)?.intValue()
+        String transformUid = transformRecord.get('uid') as String
+
+        if (transformId == null) {
+            log.warn "Transform ID is null for transform ${transformUid}"
+            return
+        }
+
+        for (String ulabelUid : ulabelUids) {
+            try {
+                // Look up ulabel by UID to get numeric ID
+                Map<String, Object> ulabel = laminInstance.getRecord(
+                    moduleName: 'core',
+                    modelName: 'ulabel',
+                    idOrUid: ulabelUid
+                )
+                Integer ulabelId = (ulabel?.get('id') as Number)?.intValue()
+                if (ulabelId == null) {
+                    log.warn "Could not find ulabel with UID ${ulabelUid}"
+                    continue
+                }
+
+                // Check if link already exists
+                List<Map> existingLinks = laminInstance.getRecords(
+                    moduleName: 'core',
+                    modelName: 'transformulabel',
+                    filter: [and: [[transform_id: [eq: transformId]], [ulabel_id: [eq: ulabelId]]]]
+                )
+                if (existingLinks) {
+                    log.debug "Transform ${transformUid} is already linked to ulabel ${ulabelUid}"
+                    continue
+                }
+
+                laminInstance.createRecord(
+                    moduleName: 'core',
+                    modelName: 'transformulabel',
+                    data: [
+                        transform_id: transformId,
+                        ulabel_id: ulabelId
+                    ]
+                )
+                log.debug "Linked transform ${transformUid} to ulabel ${ulabelUid}"
+            } catch (Exception e) {
+                log.debug "Could not link transform ${transformUid} to ulabel ${ulabelUid}: ${e.getMessage()}"
+            }
+        }
+    }
+
+    /**
+     * Link run to projects.
+     *
+     * @param runRecord The run map (must contain 'id' and 'uid')
+     * @param projectUids List of project UIDs to link
+     */
+    private void linkRunToProjects(Map<String, Object> runRecord, List<String> projectUids) {
+        if (runRecord == null || laminInstance == null || !projectUids) {
+            return
+        }
+
+        Integer runId = (runRecord.get('id') as Number)?.intValue()
+        String runUid = runRecord.get('uid') as String
+
+        if (runId == null) {
+            log.warn "Run ID is null for run ${runUid}"
+            return
+        }
+
+        for (String projectUid : projectUids) {
+            try {
+                // Look up project by UID to get numeric ID
+                Map<String, Object> project = laminInstance.getRecord(
+                    moduleName: 'core',
+                    modelName: 'project',
+                    idOrUid: projectUid
+                )
+                Integer projectId = (project?.get('id') as Number)?.intValue()
+                if (projectId == null) {
+                    log.warn "Could not find project with UID ${projectUid}"
+                    continue
+                }
+
+                // Check if link already exists
+                List<Map> existingLinks = laminInstance.getRecords(
+                    moduleName: 'core',
+                    modelName: 'runproject',
+                    filter: [and: [[run_id: [eq: runId]], [project_id: [eq: projectId]]]]
+                )
+                if (existingLinks) {
+                    log.debug "Run ${runUid} is already linked to project ${projectUid}"
+                    continue
+                }
+
+                laminInstance.createRecord(
+                    moduleName: 'core',
+                    modelName: 'runproject',
+                    data: [
+                        run_id: runId,
+                        project_id: projectId
+                    ]
+                )
+                log.debug "Linked run ${runUid} to project ${projectUid}"
+            } catch (Exception e) {
+                log.debug "Could not link run ${runUid} to project ${projectUid}: ${e.getMessage()}"
+            }
+        }
+    }
+
+    /**
+     * Link run to ulabels.
+     *
+     * @param runRecord The run map (must contain 'id' and 'uid')
+     * @param ulabelUids List of ulabel UIDs to link
+     */
+    private void linkRunToUlabels(Map<String, Object> runRecord, List<String> ulabelUids) {
+        if (runRecord == null || laminInstance == null || !ulabelUids) {
+            return
+        }
+
+        Integer runId = (runRecord.get('id') as Number)?.intValue()
+        String runUid = runRecord.get('uid') as String
+
+        if (runId == null) {
+            log.warn "Run ID is null for run ${runUid}"
+            return
+        }
+
+        for (String ulabelUid : ulabelUids) {
+            try {
+                // Look up ulabel by UID to get numeric ID
+                Map<String, Object> ulabel = laminInstance.getRecord(
+                    moduleName: 'core',
+                    modelName: 'ulabel',
+                    idOrUid: ulabelUid
+                )
+                Integer ulabelId = (ulabel?.get('id') as Number)?.intValue()
+                if (ulabelId == null) {
+                    log.warn "Could not find ulabel with UID ${ulabelUid}"
+                    continue
+                }
+
+                // Check if link already exists
+                List<Map> existingLinks = laminInstance.getRecords(
+                    moduleName: 'core',
+                    modelName: 'runulabel',
+                    filter: [and: [[run_id: [eq: runId]], [ulabel_id: [eq: ulabelId]]]]
+                )
+                if (existingLinks) {
+                    log.debug "Run ${runUid} is already linked to ulabel ${ulabelUid}"
+                    continue
+                }
+
+                laminInstance.createRecord(
+                    moduleName: 'core',
+                    modelName: 'runulabel',
+                    data: [
+                        run_id: runId,
+                        ulabel_id: ulabelId
+                    ]
+                )
+                log.debug "Linked run ${runUid} to ulabel ${ulabelUid}"
+            } catch (Exception e) {
+                log.debug "Could not link run ${runUid} to ulabel ${ulabelUid}: ${e.getMessage()}"
+            }
+        }
     }
 
     /**
@@ -516,7 +1015,7 @@ final class LaminRunManager {
      *   - path (Path, required): The local or remote path of the artifact
      *   - run_id (Integer, optional): The ID of the run to associate the artifact with
      *   - description (String, optional): A description for the artifact
-     *   - kind (String, optional): The kind of artifact
+     *   - kind (String, optional): The artifact kind (e.g., 'dataset', 'model')
      * @return the artifact map if created or found, null on failure
      */
     Map<String, Object> fetchOrCreateArtifact(Map<String, Object> params) {
