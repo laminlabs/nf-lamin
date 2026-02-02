@@ -157,22 +157,6 @@ class ArtifactRule {
         return this.direction == 'both' || this.direction == artifactDirection
     }
 
-    /**
-     * Check if this is an include rule
-     * @return true if type is 'include'
-     */
-    boolean isIncludeRule() {
-        return this.type == 'include'
-    }
-
-    /**
-     * Check if this is an exclude rule
-     * @return true if type is 'exclude'
-     */
-    boolean isExcludeRule() {
-        return this.type == 'exclude'
-    }
-
     @Override
     String toString() {
         return "ArtifactRule{" +

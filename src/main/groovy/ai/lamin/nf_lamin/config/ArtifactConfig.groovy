@@ -190,7 +190,8 @@ class ArtifactConfig {
      *
      * For ulabel_uids and project_uids: values are accumulated (merged) from all sources.
      * For kind: later rules override earlier values.
-     * For shouldTrack: any exclude rule or pattern sets it to false.
+     * For shouldTrack: each matching rule can override the decision - include rules set it to true,
+     *                  exclude rules set it to false. The last matching rule with a type wins.
      *
      * @param path File path to evaluate
      * @param artifactDirection 'input' or 'output'
@@ -230,14 +231,17 @@ class ArtifactConfig {
             if (rule.matches(path) && rule.appliesToDirection(artifactDirection)) {
                 log.debug "Path '${path}' matched rule: ${rule}"
 
-                // Check for exclude rule
-                if (rule.isExcludeRule()) {
-                    log.debug "Path '${path}' excluded by rule: ${rule}"
-                    shouldTrack = false
-                    continue
+                if (rule.type) {
+                    if (rule.type == "exclude") {
+                        log.debug "Path '${path}' excluded by rule"
+                        shouldTrack = false
+                    } else if (rule.type == "include") {
+                        log.debug "Path '${path}' included by rule"
+                        shouldTrack = true
+                    }
                 }
 
-                // Accumulate metadata from include rules
+                // Accumulate metadata from matching rules
                 if (rule.ulabelUids) {
                     ulabels.addAll(rule.ulabelUids)
                 }
