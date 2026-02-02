@@ -377,11 +377,16 @@ class LaminConfig implements ConfigScope {
     @Deprecated
     Integer getMaxRetries() {
         // Prefer deprecated field (for backward compatibility), then new api config
-        return (this.maxRetries ?: api?.getMaxRetries() ?: 3)
+        if (this.maxRetries != null) {
+            return this.maxRetries
+        }
+        Integer apiMaxRetries = api?.getMaxRetries()
+        if (apiMaxRetries != null) {
+            return apiMaxRetries
+        }
+        return 3
     }
 
-    /**
-     * Get the delay between retries for API requests
     /**
      * Get the delay between retries for API requests
      * @return the delay between retries in milliseconds
@@ -390,7 +395,14 @@ class LaminConfig implements ConfigScope {
     @Deprecated
     Integer getRetryDelay() {
         // Prefer deprecated field (for backward compatibility), then new api config
-        return (this.retryDelay ?: api?.getRetryDelay() ?: 100)
+        if (this.retryDelay != null) {
+            return this.retryDelay
+        }
+        Integer apiRetryDelay = api?.getRetryDelay()
+        if (apiRetryDelay != null) {
+            return apiRetryDelay
+        }
+        return 100
     }
 
     /**

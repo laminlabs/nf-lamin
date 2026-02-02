@@ -498,9 +498,6 @@ final class LaminRunManager {
             return null
         }
 
-        // Get metadata from evaluation
-        Map<String, Object> metadata = evaluation.metadata
-
         String description = "Input artifact at ${path.toUri()}"
 
         Map<String, Object> params = [
@@ -541,9 +538,6 @@ final class LaminRunManager {
             log.debug "Skipping output artifact creation for ${path.toUri()} (excluded by config)"
             return null
         }
-
-        // Get metadata from evaluation
-        Map<String, Object> metadata = evaluation.metadata
 
         Integer runId = (run.get('id') as Number)?.intValue()
         if (runId == null) {

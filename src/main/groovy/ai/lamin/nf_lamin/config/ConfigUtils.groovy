@@ -29,6 +29,7 @@ class ConfigUtils {
 
     /**
      * Parse a value that can be either a String or a List of Strings into a List.
+     * Normalizes list inputs by converting each element to string and filtering null/empty values.
      * @param value The value to parse (String, List, or null)
      * @return List of strings (empty list if null or invalid type)
      */
@@ -37,10 +38,11 @@ class ConfigUtils {
             return []
         }
         if (value instanceof String) {
-            return [value as String]
+            return value ? [value as String] : []
         }
         if (value instanceof List) {
-            return value as List<String>
+            // Normalize list: convert each element to string and filter null/empty values
+            return (value as List).collect { it?.toString() }.findAll { it } as List<String>
         }
         return []
     }

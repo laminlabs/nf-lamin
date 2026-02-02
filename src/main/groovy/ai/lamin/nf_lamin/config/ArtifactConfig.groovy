@@ -115,26 +115,28 @@ class ArtifactConfig {
 
     /**
      * Create a new ArtifactConfig from configuration map
-     * @param opts Configuration options
+     * @param opts Configuration options (null treated as empty map)
      * @param direction Direction ('input', 'output', or 'both')
      */
     ArtifactConfig(Map opts, String direction = 'both') {
+        // Treat null as empty map to prevent NPE
+        Map safeOpts = opts ?: [:]
         this.direction = direction
-        this.enabled = opts.containsKey('enabled') ? (opts.enabled as Boolean) : true
-        this.includePattern = opts.include_pattern as String
-        this.excludePattern = opts.exclude_pattern as String
-        this.kind = opts.kind as String
+        this.enabled = safeOpts.containsKey('enabled') ? (safeOpts.enabled as Boolean) : true
+        this.includePattern = safeOpts.include_pattern as String
+        this.excludePattern = safeOpts.exclude_pattern as String
+        this.kind = safeOpts.kind as String
 
         // Parse list fields (can be String or List)
-        this.ulabelUids = ConfigUtils.parseStringOrList(opts.ulabel_uids)
-        this.projectUids = ConfigUtils.parseStringOrList(opts.project_uids)
+        this.ulabelUids = ConfigUtils.parseStringOrList(safeOpts.ulabel_uids)
+        this.projectUids = ConfigUtils.parseStringOrList(safeOpts.project_uids)
 
         // Compile patterns
         this.compiledIncludePattern = ConfigUtils.compilePattern(this.includePattern, 'include_pattern')
         this.compiledExcludePattern = ConfigUtils.compilePattern(this.excludePattern, 'exclude_pattern')
 
         // Parse rules
-        this.rules = parseRules(opts.rules as Map, direction)
+        this.rules = parseRules(safeOpts.rules as Map, direction)
         this.sortedRules = this.rules.values().toList().sort { it.order }
 
         log.debug "Created ArtifactConfig with ${this.rules.size()} rules for direction '${direction}'"
