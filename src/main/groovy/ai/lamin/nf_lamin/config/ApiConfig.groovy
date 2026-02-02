@@ -108,7 +108,7 @@ class ApiConfig {
      * @return The maximum number of retries
      */
     Integer getMaxRetries() {
-        return this.maxRetries ?: 3
+        return this.maxRetries != null ? this.maxRetries : 3
     }
 
     /**
@@ -116,7 +116,7 @@ class ApiConfig {
      * @return The delay between retries in milliseconds
      */
     Integer getRetryDelay() {
-        return this.retryDelay ?: 100
+        return this.retryDelay != null ? this.retryDelay : 100
     }
 
     @Override
