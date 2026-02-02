@@ -36,11 +36,6 @@ class InstanceTest extends Specification {
     static final String TEST_INSTANCE_OWNER = 'laminlabs'
     static final String TEST_INSTANCE_NAME = 'lamindata'
 
-    // Helper method for @Requires annotations - only change TEST_API_KEY_ENV_VAR above
-    static boolean hasApiKey() {
-        System.getenv(TEST_API_KEY_ENV_VAR) != null
-    }
-
     @Shared
     String apiKey = System.getenv(TEST_API_KEY_ENV_VAR)
 
@@ -91,7 +86,7 @@ class InstanceTest extends Specification {
 
     // ==================== CONSTRUCTOR TESTS ====================
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for null hub"() {
         given:
         def config = LaminConfig.parseConfig([
@@ -117,7 +112,7 @@ class InstanceTest extends Specification {
         thrown(IllegalStateException)
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for null settings"() {
         given:
         def config = LaminConfig.parseConfig([
@@ -141,7 +136,7 @@ class InstanceTest extends Specification {
 
     // ==================== GETTER TESTS ====================
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should get owner correctly"() {
         when:
         def owner = instance.getOwner()
@@ -150,7 +145,7 @@ class InstanceTest extends Specification {
         owner == TEST_INSTANCE_OWNER
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should get name correctly"() {
         when:
         def name = instance.getName()
@@ -159,7 +154,7 @@ class InstanceTest extends Specification {
         name == TEST_INSTANCE_NAME
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should get hub correctly"() {
         when:
         def hub = instance.getHub()
@@ -169,7 +164,7 @@ class InstanceTest extends Specification {
         hub instanceof LaminHub
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should get settings correctly"() {
         when:
         def settings = instance.getSettings()
@@ -185,7 +180,7 @@ class InstanceTest extends Specification {
         settings.schemaId() instanceof UUID
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should get maxRetries correctly"() {
         when:
         def maxRetries = instance.getMaxRetries()
@@ -195,7 +190,7 @@ class InstanceTest extends Specification {
         maxRetries instanceof Integer
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should get retryDelay correctly"() {
         when:
         def retryDelay = instance.getRetryDelay()
@@ -205,7 +200,7 @@ class InstanceTest extends Specification {
         retryDelay instanceof Integer
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should get API client configured correctly"() {
         when:
         def client = instance.getApiClient()
@@ -221,7 +216,7 @@ class InstanceTest extends Specification {
 
     // ==================== STATISTICS API TESTS ====================
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should fetch instance statistics"() {
         when:
         def statistics = instance.getInstanceStatistics()
@@ -231,7 +226,7 @@ class InstanceTest extends Specification {
         statistics instanceof Map || statistics instanceof Object
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should get non-empty tables"() {
         when:
         def nonEmptyTables = instance.getNonEmptyTables()
@@ -243,7 +238,7 @@ class InstanceTest extends Specification {
 
     // ==================== ACCOUNT API TESTS ====================
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should get account information"() {
         when:
         def account = instance.getAccount()
@@ -257,7 +252,7 @@ class InstanceTest extends Specification {
 
     // ==================== RECORDS API TESTS ====================
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should get records with pagination"() {
         when:
         def records = instance.getRecords([
@@ -273,7 +268,7 @@ class InstanceTest extends Specification {
         records.size() <= 5
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should get records with filter"() {
         when:
         def records = instance.getRecords([
@@ -292,7 +287,7 @@ class InstanceTest extends Specification {
         records.every { it.suffix == '.txt' || records.isEmpty() }
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should get single record by uid"() {
         when:
         // First get a record to know a valid uid
@@ -320,7 +315,7 @@ class InstanceTest extends Specification {
         record.uid == uid
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should handle getRecord with nonexistent id"() {
         when:
         instance.getRecord([
@@ -333,7 +328,7 @@ class InstanceTest extends Specification {
         thrown(Exception)
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for getRecord with null moduleName"() {
         when:
         instance.getRecord([
@@ -346,7 +341,7 @@ class InstanceTest extends Specification {
         thrown(IllegalStateException)
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for getRecord with null modelName"() {
         when:
         instance.getRecord([
@@ -359,7 +354,7 @@ class InstanceTest extends Specification {
         thrown(IllegalStateException)
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for getRecord with null idOrUid"() {
         when:
         instance.getRecord([
@@ -372,7 +367,7 @@ class InstanceTest extends Specification {
         thrown(IllegalStateException)
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for getRecords with null moduleName"() {
         when:
         instance.getRecords([
@@ -384,7 +379,7 @@ class InstanceTest extends Specification {
         thrown(IllegalStateException)
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for getRecords with null modelName"() {
         when:
         instance.getRecords([
@@ -398,7 +393,7 @@ class InstanceTest extends Specification {
 
     // ==================== ARTIFACT STORAGE INFO TESTS ====================
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should get artifact storage info using non-versioned uid"() {
         when:
         def storageInfo = instance.getArtifactStorageInfo(TEST_S3_ARTIFACT_UID)
@@ -411,7 +406,7 @@ class InstanceTest extends Specification {
         storageInfo.artifactUid.startsWith(TEST_S3_ARTIFACT_UID)
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should get artifact storage info using versioned uid"() {
         when:
         def storageInfo = instance.getArtifactStorageInfo(TEST_S3_ARTIFACT_UID_VERSIONED)
@@ -423,7 +418,7 @@ class InstanceTest extends Specification {
         storageInfo.artifactUid == TEST_S3_ARTIFACT_UID_VERSIONED
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should get artifact storage info with gs service"() {
         when:
         def storageInfo = instance.getArtifactStorageInfo(TEST_GS_ARTIFACT_UID)
@@ -435,7 +430,7 @@ class InstanceTest extends Specification {
         storageInfo.artifactUid == TEST_GS_ARTIFACT_UID
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for null uid in getArtifactStorageInfo"() {
         when:
         instance.getArtifactStorageInfo(null)
@@ -444,7 +439,7 @@ class InstanceTest extends Specification {
         thrown(IllegalStateException)
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for empty uid in getArtifactStorageInfo"() {
         when:
         instance.getArtifactStorageInfo("")
@@ -453,7 +448,7 @@ class InstanceTest extends Specification {
         thrown(IllegalStateException)
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for invalid uid length in getArtifactStorageInfo"() {
         when:
         instance.getArtifactStorageInfo("short")
@@ -462,7 +457,7 @@ class InstanceTest extends Specification {
         thrown(IllegalStateException)
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for nonexistent uid in getArtifactStorageInfo"() {
         when:
         instance.getArtifactStorageInfo("aaaaaaaaaaaaaaaa")  // 16 chars but doesn't exist
@@ -476,7 +471,7 @@ class InstanceTest extends Specification {
     // which are not available in unit tests. The method is tested indirectly through
     // getArtifactStorageInfo tests above.
 
-    // @Requires({ InstanceTest.hasApiKey() })
+    // @Requires({ shared.instance })
     // def "should get artifact from uid as Path"() {
     //     when:
     //     def path = instance.getArtifactFromUid(TEST_S3_ARTIFACT_UID)
@@ -490,7 +485,7 @@ class InstanceTest extends Specification {
 
     // ==================== ARTIFACT BY PATH TESTS ====================
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should return null for nonexistent artifact path"() {
         when:
         def artifact = instance.getArtifactByPath("nonexistent/path/to/file.txt")
@@ -499,7 +494,7 @@ class InstanceTest extends Specification {
         artifact == null
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for null path in getArtifactByPath"() {
         when:
         instance.getArtifactByPath(null)
@@ -508,7 +503,7 @@ class InstanceTest extends Specification {
         thrown(IllegalStateException)
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for empty path in getArtifactByPath"() {
         when:
         instance.getArtifactByPath("")
@@ -517,7 +512,7 @@ class InstanceTest extends Specification {
         thrown(IllegalStateException)
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should get artifact by existing path"() {
         // Note: getArtifactByPath looks up artifacts by their storage path.
         // This test verifies the API call works and returns expected format.
@@ -532,7 +527,7 @@ class InstanceTest extends Specification {
 
     // ==================== CREATE/UPDATE RECORD TESTS ====================
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for createRecord with null moduleName"() {
         when:
         instance.createRecord([
@@ -545,7 +540,7 @@ class InstanceTest extends Specification {
         thrown(IllegalStateException)
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for createRecord with null modelName"() {
         when:
         instance.createRecord([
@@ -558,7 +553,7 @@ class InstanceTest extends Specification {
         thrown(IllegalStateException)
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for updateRecord with null uid"() {
         when:
         instance.updateRecord([
@@ -574,7 +569,7 @@ class InstanceTest extends Specification {
 
     // ==================== CREATE ARTIFACT TESTS ====================
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for createArtifact with null path"() {
         when:
         instance.createArtifact([
@@ -585,7 +580,7 @@ class InstanceTest extends Specification {
         thrown(IllegalStateException)
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for createArtifact with empty path"() {
         when:
         instance.createArtifact([
@@ -598,7 +593,7 @@ class InstanceTest extends Specification {
 
     // ==================== UPLOAD ARTIFACT TESTS ====================
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for uploadArtifact with null file"() {
         when:
         instance.uploadArtifact([
@@ -609,7 +604,7 @@ class InstanceTest extends Specification {
         thrown(IllegalStateException)
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for uploadArtifact with nonexistent file"() {
         when:
         instance.uploadArtifact([
@@ -622,7 +617,7 @@ class InstanceTest extends Specification {
 
     // ==================== CREATE TRANSFORM TESTS ====================
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for createTransform with null key"() {
         when:
         instance.createTransform([
@@ -635,7 +630,7 @@ class InstanceTest extends Specification {
         thrown(IllegalStateException)
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for createTransform with null kind"() {
         when:
         instance.createTransform([
@@ -648,7 +643,7 @@ class InstanceTest extends Specification {
         thrown(IllegalStateException)
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should throw exception for createTransform with null source_code"() {
         when:
         instance.createTransform([
@@ -663,7 +658,7 @@ class InstanceTest extends Specification {
 
     // ==================== TRANSFORM/RUN RETRIEVAL TESTS ====================
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should get transform by uid"() {
         when:
         def transform = instance.getRecord([
@@ -678,7 +673,7 @@ class InstanceTest extends Specification {
         transform.uid == TEST_TRANSFORM_UID
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should get run by uid"() {
         when:
         def run = instance.getRecord([
@@ -695,7 +690,7 @@ class InstanceTest extends Specification {
 
     // ==================== CREATE RUN TESTS ====================
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should create run linked to transform"() {
         given:
         // First get the transform to get its id
@@ -738,7 +733,7 @@ class InstanceTest extends Specification {
 
     // ==================== CREATE/UPLOAD ARTIFACT TESTS ====================
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should create artifact linked to run"() {
         given:
         // Get the run to get its id
@@ -772,7 +767,7 @@ class InstanceTest extends Specification {
         ((artifact.run ?: artifact.run_id) as Number)?.intValue() == runId
     }
 
-    @Requires({ InstanceTest.hasApiKey() })
+    @Requires({ shared.instance })
     def "should upload artifact file linked to run"() {
         given:
         // Get the run to get its id
