@@ -105,6 +105,7 @@ class LaminExtensionTest extends Specification {
     }
 
     // ========== getArtifactFromUid(artifactUid) tests ==========
+    // Note: getArtifactFromUid is deprecated since 0.5.0, use file('lamin://...') instead
 
     def 'getArtifactFromUid with single arg throws when no instance is set'() {
         when:

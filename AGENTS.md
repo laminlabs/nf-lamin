@@ -230,11 +230,12 @@ lamin {
 ### DSL Extension Functions
 
 ```groovy
-include { getRunUid; getTransformUid; getInstanceSlug; getArtifactFromUid } from 'plugin/nf-lamin'
+include { getRunUid; getTransformUid; getInstanceSlug } from 'plugin/nf-lamin'
 
 def runUid = getRunUid()                                    // Current run UID
 def transformUid = getTransformUid()                        // Current transform UID
 def slug = getInstanceSlug()                                // "org/instance"
-def path = getArtifactFromUid('uid16chars1234')             // Fetch from current instance
-def path2 = getArtifactFromUid('org', 'inst', 'uid1234')    // Fetch from specific instance
+
+// Use lamin:// URI instead of getArtifactFromUid (deprecated in 0.5.0)
+def path = file('lamin://org/instance/artifact/uid16chars1234')
 ```

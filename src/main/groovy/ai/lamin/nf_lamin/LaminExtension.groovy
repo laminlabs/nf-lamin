@@ -17,6 +17,7 @@
 package ai.lamin.nf_lamin
 
 import groovy.transform.CompileStatic
+import groovy.util.logging.Slf4j
 import nextflow.Session
 import nextflow.plugin.extension.Function
 import nextflow.plugin.extension.PluginExtensionPoint
@@ -29,6 +30,7 @@ import ai.lamin.nf_lamin.instance.InstanceSettings
  * Implements a custom function which can be imported by
  * Nextflow scripts.
  */
+@Slf4j
 @CompileStatic
 class LaminExtension extends PluginExtensionPoint {
 
@@ -69,9 +71,12 @@ class LaminExtension extends PluginExtensionPoint {
      * @param instanceName The name of the LaminDB instance
      * @param artifactUid The UID of the artifact (16 or 20 characters)
      * @return A Path object pointing to the artifact's storage location
+     * @deprecated since 0.5.0, will be removed in 0.6.0. Use {@code file('lamin://owner/instance/artifact/uid')} instead.
      */
+    @Deprecated
     @Function
     Path getArtifactFromUid(String instanceOwner, String instanceName, String artifactUid) {
+        log.warn "getArtifactFromUid() is deprecated since 0.5.0 and will be removed in 0.6.0. Use file('lamin://${instanceOwner}/${instanceName}/artifact/${artifactUid}') instead."
         Instance instance = LaminRunManager.instance.getInstance(instanceOwner, instanceName)
         return instance.getArtifactFromUid(artifactUid)
     }
@@ -85,9 +90,12 @@ class LaminExtension extends PluginExtensionPoint {
      *
      * @param artifactUid The UID of the artifact (16 or 20 characters)
      * @return A Path object pointing to the artifact's storage location
+     * @deprecated since 0.5.0, will be removed in 0.6.0. Use {@code file('lamin://owner/instance/artifact/uid')} instead.
      */
+    @Deprecated
     @Function
     Path getArtifactFromUid(String artifactUid) {
+        log.warn "getArtifactFromUid() is deprecated since 0.5.0 and will be removed in 0.6.0. Use file('lamin://owner/instance/artifact/${artifactUid}') instead."
         Instance instance = LaminRunManager.instance.getCurrentInstance()
         if (instance == null) {
             throw new IllegalStateException("No current LaminDB instance available. Ensure the plugin is properly configured.")

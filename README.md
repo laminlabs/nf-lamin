@@ -13,9 +13,10 @@ LaminDB integrates with Nextflow through:
 
 | nf-lamin  | LaminDB       | Nextflow   | Status         | Key Features                                                          |
 | --------- | ------------- | ---------- | -------------- | --------------------------------------------------------------------- |
-| **0.4.x** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Input artifact tracking                                               |
+| **0.5.0** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Improved Lamin config, configure artifact tracking, link to metadata  |
+| **0.4.0** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Input artifact tracking                                               |
 | **0.3.0** | >= 2.0        | >= 25.04.0 | ✅ Supported   | Upgrade to LaminDB v2, Add support for `lamin://` URI support         |
-| **0.2.2** | >= 1.0, < 2.0 | >= 25.04.0 | ✅ Supported   | Added `getInstanceSlug()`                                             |
+| 0.2.2     | >= 1.0, < 2.0 | >= 25.04.0 | ❌ Unsupported | Added `getInstanceSlug()`                                             |
 | 0.2.1     | >= 1.0, < 2.0 | >= 25.04.0 | ❌ Unsupported | Added report upload, `getRunUid()`, `getTransformUid()`, dry-run mode |
 | 0.2.0     | >= 1.0, < 2.0 | >= 25.04.0 | ❌ Unsupported | Specify transform/run UID                                             |
 | 0.1.0     | >= 1.0, < 2.0 | >= 24.04.0 | ❌ Unsupported | Added Transform & Run tracking, output artifact registration          |
