@@ -455,12 +455,8 @@ final class LaminRunManager {
 
         String pathStr = path.toUri().toString()
 
-        // Use global artifacts config if defined, otherwise use direction-specific config
-        // Note: These are mutually exclusive (validated in LaminConfig)
-        ArtifactConfig artifactConfig = config.getArtifacts()
-        if (artifactConfig == null) {
-            artifactConfig = direction == 'input' ? config.getInputArtifacts() : config.getOutputArtifacts()
-        }
+        // Resolve the effective artifact config for this direction
+        ArtifactConfig artifactConfig = resolveArtifactConfig(direction)
 
         // If no config defined, default to tracking with empty metadata
         if (artifactConfig == null) {
@@ -483,11 +479,8 @@ final class LaminRunManager {
             return null
         }
 
-        // if path is a local file, skip creating input artifact
-        // This will happen quite often so we avoid logging a warning
-        boolean isLocalFile = (path.toUri().getScheme() ?: 'file') == 'file'
-        if (isLocalFile) {
-            // log.debug "Skipping input artifact creation for local file at ${path.toUri()}"
+        // Check path-type exclusions (local, workdir, assets) based on config
+        if (shouldSkipArtifact(path, 'input')) {
             return null
         }
 
@@ -529,6 +522,11 @@ final class LaminRunManager {
 
     Map<String, Object> createOutputArtifact(Path path) {
         if (run == null || laminInstance == null || config.dryRun) {
+            return null
+        }
+
+        // Check path-type exclusions (local) based on config
+        if (shouldSkipArtifact(path, 'output')) {
             return null
         }
 
@@ -754,6 +752,128 @@ final class LaminRunManager {
             }
         }
         return merged.toList()
+    }
+
+    /**
+     * Resolve the effective ArtifactConfig for a given direction.
+     *
+     * Checks the shared 'artifacts' config first, then falls back to
+     * direction-specific config (input_artifacts / output_artifacts).
+     *
+     * @param direction 'input' or 'output'
+     * @return the ArtifactConfig to use, or null if none is configured
+     */
+    private ArtifactConfig resolveArtifactConfig(String direction) {
+        if (config == null) {
+            return null
+        }
+        ArtifactConfig ac = config.getArtifacts()
+        if (ac != null) {
+            return ac
+        }
+        return direction == 'input' ? config.getInputArtifacts() : config.getOutputArtifacts()
+    }
+
+    /**
+     * Check whether an artifact should be skipped based on its path type
+     * and the resolved config values for include_local, include_work_dir,
+     * and include_assets_dir.
+     *
+     * Defaults when no config is present:
+     *   include_local      = true
+     *   exclude_work_dir   = true
+     *   exclude_assets_dir = true
+     *
+     * @param path The artifact path
+     * @param direction 'input' or 'output'
+     * @return true if the artifact should be skipped
+     */
+    private boolean shouldSkipArtifact(Path path, String direction) {
+        ArtifactConfig ac = resolveArtifactConfig(direction)
+        boolean includeLocal     = ac != null ? ac.includeLocal     : true
+        boolean excludeWorkDir   = ac != null ? ac.excludeWorkDir   : true
+        boolean excludeAssetsDir = ac != null ? ac.excludeAssetsDir : true
+
+        if (!includeLocal && isLocalPath(path)) {
+            log.debug "Skipping ${direction} artifact creation for local file at ${path.toUri()} (include_local=false)"
+            return true
+        }
+
+        if (excludeWorkDir && isInWorkDir(path)) {
+            log.debug "Skipping ${direction} artifact creation for workdir file at ${path.toUri()} (exclude_work_dir=true)"
+            return true
+        }
+
+        if (excludeAssetsDir && isInAssetsDir(path)) {
+            log.debug "Skipping ${direction} artifact creation for assets file at ${path.toUri()} (exclude_assets_dir=true)"
+            return true
+        }
+
+        return false
+    }
+
+    private boolean isLocalPath(Path path) {
+        return (path.toUri().getScheme() ?: 'file') == 'file'
+    }
+
+    /**
+     * Check if a path is within the workdir.
+     */
+    private boolean isInWorkDir(Path path) {
+        if (session == null) {
+            return false
+        }
+        Path workDir = session.workDir
+        if (workDir == null) {
+            return false
+        }
+        return isInDir(path, workDir, 'workdir')
+    }
+
+    /**
+     * Check if a path is within ~/.nextflow/assets.
+     */
+    private boolean isInAssetsDir(Path path) {
+        String homeDir = System.getProperty('user.home')
+        if (homeDir == null || homeDir.trim().isEmpty()) {
+            return false
+        }
+        Path assetsDir = Path.of(homeDir, '.nextflow', 'assets')
+        return isInDir(path, assetsDir, 'assets')
+    }
+
+    /**
+     * Check whether a path lives under a base directory, handling different filesystems.
+     */
+    private boolean isInDir(Path path, Path baseDir, String label) {
+        if (path == null || baseDir == null) {
+            return false
+        }
+
+        if (path.getFileSystem() == baseDir.getFileSystem()) {
+            try {
+                Path normalizedPath = path.toAbsolutePath().normalize()
+                Path normalizedBase = baseDir.toAbsolutePath().normalize()
+                return normalizedPath.startsWith(normalizedBase)
+            } catch (Exception e) {
+                log.debug "Error checking if ${path.toUri()} is in ${label}: ${e.message}"
+                return false
+            }
+        }
+
+        try {
+            String pathUri = path.toUri().toString()
+            String baseUri = baseDir.toUri().toString()
+
+            if (!baseUri.endsWith('/')) {
+                baseUri += '/'
+            }
+
+            return pathUri.startsWith(baseUri)
+        } catch (Exception e) {
+            log.debug "Error comparing URIs for ${path.toUri()} and ${label}: ${e.message}"
+            return false
+        }
     }
 
     /**

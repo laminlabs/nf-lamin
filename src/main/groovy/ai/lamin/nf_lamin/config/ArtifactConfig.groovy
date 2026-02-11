@@ -63,6 +63,23 @@ class ArtifactConfig {
     final Boolean enabled
 
     /**
+     * Whether to track local (file://) artifacts (default: true)
+     */
+    final Boolean includeLocal
+
+    /**
+     * Whether to exclude artifacts in the Nextflow workdir (default: true).
+     * Intermediate files between processes live here.
+     */
+    final Boolean excludeWorkDir
+
+    /**
+     * Whether to exclude artifacts in ~/.nextflow/assets (default: true).
+     * Pipeline source files live here.
+     */
+    final Boolean excludeAssetsDir
+
+    /**
      * Global include pattern (regex). Files must match this to be tracked.
      */
     final String includePattern
@@ -123,6 +140,9 @@ class ArtifactConfig {
         Map safeOpts = opts ?: [:]
         this.direction = direction
         this.enabled = safeOpts.containsKey('enabled') ? (safeOpts.enabled as Boolean) : true
+        this.includeLocal = safeOpts.containsKey('include_local') ? (safeOpts.include_local as Boolean) : true
+        this.excludeWorkDir = safeOpts.containsKey('exclude_work_dir') ? (safeOpts.exclude_work_dir as Boolean) : true
+        this.excludeAssetsDir = safeOpts.containsKey('exclude_assets_dir') ? (safeOpts.exclude_assets_dir as Boolean) : true
         this.includePattern = safeOpts.include_pattern as String
         this.excludePattern = safeOpts.exclude_pattern as String
         this.kind = safeOpts.kind as String
@@ -271,6 +291,9 @@ class ArtifactConfig {
     String toString() {
         return "ArtifactConfig{" +
             "enabled=${enabled}, " +
+            "includeLocal=${includeLocal}, " +
+            "excludeWorkDir=${excludeWorkDir}, " +
+            "excludeAssetsDir=${excludeAssetsDir}, " +
             "direction='${direction}', " +
             "includePattern='${includePattern}', " +
             "excludePattern='${excludePattern}', " +

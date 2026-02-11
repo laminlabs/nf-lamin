@@ -189,6 +189,9 @@ lamin {
 **Global Options** (apply to `artifacts`, `input_artifacts`, `output_artifacts`):
 
 - `enabled` (Boolean, default: `true`) - Enable or disable artifact tracking
+- `include_local` (Boolean, default: `true`) - Whether to track local (`file://`) artifacts. Set to `false` to skip local files entirely
+- `exclude_work_dir` (Boolean, default: `true`) - Only for input artifacts. Whether to exclude artifacts located in the Nextflow work directory. This prevents intermediate files between processes from being tracked, which is especially important when the work directory is on a remote filesystem (S3, GCS)
+- `exclude_assets_dir` (Boolean, default: `true`) - Only for input artifacts. Whether to exclude artifacts located in `~/.nextflow/assets`. Pipeline source files downloaded by Nextflow live here
 - `include_pattern` (String) - Java regex pattern. Files must match this pattern to be tracked
 - `exclude_pattern` (String) - Java regex pattern. Files matching this pattern will not be tracked
 - `ulabel_uids` (List<String> or String) - ULabel UIDs to attach to all matching artifacts

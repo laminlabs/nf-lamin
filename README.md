@@ -13,9 +13,10 @@ LaminDB integrates with Nextflow through:
 
 | nf-lamin  | LaminDB       | Nextflow   | Status         | Key Features                                                          |
 | --------- | ------------- | ---------- | -------------- | --------------------------------------------------------------------- |
-| **0.5.0** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Improved Lamin config, configure artifact tracking, link to metadata  |
-| **0.4.0** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Input artifact tracking                                               |
-| **0.3.0** | >= 2.0        | >= 25.04.0 | ✅ Supported   | Upgrade to LaminDB v2, Add support for `lamin://` URI support         |
+| **0.5.1** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Track local input files, exclude artifacts from work and assets dirs  |
+| 0.5.0     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Improved Lamin config, configure artifact tracking, link to metadata  |
+| 0.4.0     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Input artifact tracking                                               |
+| 0.3.0     | >= 2.0        | >= 25.04.0 | ❌ Unsupported | Upgrade to LaminDB v2, Add support for `lamin://` URI support         |
 | 0.2.2     | >= 1.0, < 2.0 | >= 25.04.0 | ❌ Unsupported | Added `getInstanceSlug()`                                             |
 | 0.2.1     | >= 1.0, < 2.0 | >= 25.04.0 | ❌ Unsupported | Added report upload, `getRunUid()`, `getTransformUid()`, dry-run mode |
 | 0.2.0     | >= 1.0, < 2.0 | >= 25.04.0 | ❌ Unsupported | Specify transform/run UID                                             |
@@ -172,6 +173,9 @@ lamin {
 **Configuration options:**
 
 - `enabled` - Enable/disable tracking (default: true)
+- `include_local` - Whether to track local (`file://`) artifacts (default: true). Set to `false` to skip local files
+- `exclude_work_dir` - Only for input artifacts. Whether to exclude artifacts in the Nextflow work directory (default: true). Prevents intermediate files between processes from being tracked, which is especially important when the work directory is on S3/GCS
+- `exclude_assets_dir` - Only for input artifacts. Whether to exclude artifacts in `~/.nextflow/assets` (default: true). Pipeline source files live here
 - `include_pattern` - Regex pattern; files must match to be tracked
 - `exclude_pattern` - Regex pattern; matching files won't be tracked
 - `ulabel_uids` - List of ULabel UIDs to attach to artifacts
