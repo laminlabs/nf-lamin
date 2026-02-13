@@ -1318,7 +1318,7 @@ final class LaminRunManager {
                 Integer artifactId = (artifact.get('id') as Number)?.intValue()
                 String artifactUid = artifact.get('uid') as String
 
-                // If id is missing, fetch it using the uid
+                // Workaround: If id is missing, fetch it using the uid
                 if (artifactId == null && artifactUid != null) {
                     log.debug "Artifact ID missing from API response, looking up artifact by UID: ${artifactUid}"
                     try {
