@@ -5,11 +5,11 @@ import groovy.util.logging.Slf4j
 
 import ai.lamin.lamin_api_client.ApiClient
 import ai.lamin.lamin_api_client.ApiException
-import ai.lamin.lamin_api_client.Configuration
 import ai.lamin.lamin_api_client.model.*
 import ai.lamin.lamin_api_client.api.AccountsApi
 import ai.lamin.lamin_api_client.api.InstanceArtifactsApi
 import ai.lamin.lamin_api_client.api.InstanceRecordsApi
+import ai.lamin.lamin_api_client.api.InstanceSchemaApi
 import ai.lamin.lamin_api_client.api.InstanceStatisticsApi
 import ai.lamin.lamin_api_client.api.InstanceTransformsApi
 
@@ -38,6 +38,7 @@ class Instance {
     final protected AccountsApi accountsApi
     final protected InstanceArtifactsApi artifactsApi
     final protected InstanceRecordsApi recordsApi
+    final protected InstanceSchemaApi schemaApi
     final protected InstanceStatisticsApi statisticsApi
     final protected InstanceTransformsApi transformsApi
     final protected Integer maxRetries
@@ -77,6 +78,7 @@ class Instance {
         this.accountsApi = new AccountsApi(this.apiClient)
         this.artifactsApi = new InstanceArtifactsApi(this.apiClient)
         this.recordsApi = new InstanceRecordsApi(this.apiClient)
+        this.schemaApi = new InstanceSchemaApi(this.apiClient)
         this.statisticsApi = new InstanceStatisticsApi(this.apiClient)
         this.transformsApi = new InstanceTransformsApi(this.apiClient)
 
@@ -177,6 +179,27 @@ class Instance {
 
         log.trace "Response from getNonEmptyTables: ${response}"
 
+        return response
+    }
+
+    /**
+     * Fetch the full instance schema from the Lamin API.
+     * Returns the schema for all modules/models in the instance, including
+     * field definitions, foreign keys, and many-to-many relationships.
+     * @return a Map containing the instance schema
+     * @throws ApiException if an error occurs while fetching the schema
+     */
+    Map getSchema() throws ApiException {
+        log.trace "GET getSchema"
+
+        Map response = callApi { String accessToken ->
+            this.schemaApi.getSchemaInstancesInstanceIdSchemaGet(
+                this.settings.id(),
+                accessToken
+            )
+        } as Map
+
+        log.trace "Response from getSchema: ${response}"
         return response
     }
 
@@ -374,6 +397,130 @@ class Instance {
         }
         log.trace "Response from updateRecord: ${response}"
         return response
+    }
+
+    /**
+     * Delete a record from the Lamin API
+     * @param args A map containing the following keys:
+     *    - moduleName: The name of the module (required)
+     *    - modelName: The name of the model (required)
+     *    - uid: The UID of the record (required)
+     * @return true if the record was deleted successfully
+     * @throws IllegalStateException if any of the required arguments are null
+     * @throws ApiException if an error occurs while deleting the record
+     */
+    Boolean deleteRecord(Map args) {
+        // required args
+        String moduleName = args.moduleName as String
+        String modelName = args.modelName as String
+        String uid = args.uid as String
+
+        if (!moduleName) { throw new IllegalStateException('Module name is null. Please check the module name.') }
+        if (!modelName) { throw new IllegalStateException('Model name is null. Please check the model name.') }
+        if (!uid) { throw new IllegalStateException('uid is null. Please check the uid.') }
+
+        // Do call
+        log.trace "DELETE deleteRecord: ${moduleName}.${modelName}, uid=${uid}"
+        callApi { String accessToken ->
+            this.recordsApi.deleteRecordInstancesInstanceIdModulesModuleNameModelNameUidDelete(
+                moduleName,
+                modelName,
+                uid,
+                this.settings.id(),
+                accessToken
+            )
+        }
+        log.trace "Successfully deleted record: ${moduleName}.${modelName}.${uid}"
+        return true
+    }
+
+    /**
+     * Fetch a transform by its UID from the Lamin API.
+     * @param uid The UID of the transform (required)
+     * @return a map containing the transform data, or null if not found
+     * @throws IllegalStateException if the UID is null
+     * @throws ApiException if an error occurs while fetching the transform
+     */
+    Map fetchTransform(String uid) {
+        if (!uid) { throw new IllegalStateException('Transform UID is null. Please check the UID.') }
+
+        return getRecord(
+            moduleName: 'core',
+            modelName: 'transform',
+            idOrUid: uid,
+            includeForeignKeys: true
+        )
+    }
+
+    /**
+     * Find transforms matching the given filter conditions.
+     * @param filter A map of filter conditions in the API format,
+     *    e.g. [and: [[key: [eq: 'my-transform']], [version: [eq: '1.0.0']]]]
+     * @return a list of maps containing matching transform data (may be empty)
+     * @throws ApiException if an error occurs while searching for transforms
+     */
+    List<Map> findTransforms(Map filter = [:]) {
+        return getRecords(
+            moduleName: 'core',
+            modelName: 'transform',
+            filter: filter,
+            includeForeignKeys: true
+        )
+    }
+
+    /**
+     * Fetch a run by its UID from the Lamin API.
+     * @param uid The UID of the run (required)
+     * @return a map containing the run data, or null if not found
+     * @throws IllegalStateException if the UID is null
+     * @throws ApiException if an error occurs while fetching the run
+     */
+    Map fetchRun(String uid) {
+        if (!uid) { throw new IllegalStateException('Run UID is null. Please check the UID.') }
+
+        return getRecord(
+            moduleName: 'core',
+            modelName: 'run',
+            idOrUid: uid,
+            includeForeignKeys: true
+        )
+    }
+
+    /**
+     * Find runs matching the given filter conditions.
+     * @param filter A map of filter conditions in the API format,
+     *    e.g. [and: [[transform_id: [eq: 123]], [status: [eq: 0]]]]
+     * @return a list of maps containing matching run data (may be empty)
+     * @throws ApiException if an error occurs while searching for runs
+     */
+    List<Map> findRuns(Map filter = [:]) {
+        return getRecords(
+            moduleName: 'core',
+            modelName: 'run',
+            filter: filter,
+            includeForeignKeys: true
+        )
+    }
+
+    /**
+     * Create a run in the Lamin API.
+     * @param data A map containing the run data (e.g., transform_id, started_at, status)
+     *    - transform_id: The ID of the associated transform (required in most cases)
+     *    - started_at: The start time (ISO format string)
+     *    - status: The run status (int, e.g., RunStatus.STARTED.value)
+     *    - Any other fields supported by the Run model
+     * @return a map containing the created run data
+     * @throws IllegalStateException if data is null
+     * @throws ApiException if an error occurs while creating the run
+     */
+    Map createRun(Map data) {
+        if (!data) { throw new IllegalStateException('Run data is null. Please provide run data.') }
+
+        return createRecord(
+            moduleName: 'core',
+            modelName: 'run',
+            data: data
+        )
     }
 
     /**
