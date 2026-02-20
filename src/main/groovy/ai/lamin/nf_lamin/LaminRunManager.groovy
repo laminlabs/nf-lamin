@@ -245,11 +245,7 @@ final class LaminRunManager {
         if (config.transformUid) {
             log.debug "Using manually specified transform UID: ${config.transformUid}"
             try {
-                Map transformRecord = laminInstance.getRecord(
-                    moduleName: 'core',
-                    modelName: 'transform',
-                    idOrUid: config.transformUid
-                )
+                Map transformRecord = laminInstance.fetchTransform(config.transformUid)
                 updateTransform(transformRecord)
                 printTransformMessage(transformRecord, "Received transform ${transformRecord.get('uid')} from config")
                 return transformRecord
@@ -270,11 +266,7 @@ final class LaminRunManager {
         List filterConditions = [[key: [eq: key]], [version_tag: [eq: version]]]
 
         log.debug "Searching for existing Transform with key ${key} and version_tag ${version}"
-        List<Map> existingTransforms = laminInstance.getRecords(
-            moduleName: 'core',
-            modelName: 'transform',
-            filter: [and: filterConditions]
-        )
+        List<Map> existingTransforms = laminInstance.findTransforms([and: filterConditions])
         log.debug "Found ${existingTransforms.size()} existing Transform(s) with key ${key} and version_tag ${version}"
 
         Map transformRecord = null
@@ -332,12 +324,7 @@ final class LaminRunManager {
         if (config.runUid) {
             log.debug "Using manually specified run UID: ${config.runUid}"
             try {
-                Map runRecord = laminInstance.getRecord(
-                    moduleName: 'core',
-                    modelName: 'run',
-                    idOrUid: config.runUid,
-                    includeForeignKeys: true
-                )
+                Map runRecord = laminInstance.fetchRun(config.runUid)
 
                 Integer expectedTransformId = (transform?.get('id') as Number)?.intValue()
                 Integer runTransformId = (runRecord.transform_id as Number)?.intValue()
@@ -370,17 +357,13 @@ final class LaminRunManager {
 
         WorkflowMetadata wfMetadata = session.getWorkflowMetadata()
         Integer transformId = (transform?.get('id') as Number)?.intValue()
-        Map<String, Object> runRecord = laminInstance.createRecord(
-            moduleName: 'core',
-            modelName: 'run',
-            data: [
+        Map<String, Object> runRecord = laminInstance.createRun([
                 transform_id: transformId,
                 name: wfMetadata.runName,
                 created_at: wfMetadata.start,
                 started_at: wfMetadata.start,
                 _status_code: RunStatus.SCHEDULED.code
-            ]
-        )
+            ])
         updateRun(runRecord)
 
         // Link run to projects and ulabels from config
