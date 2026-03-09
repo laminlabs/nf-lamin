@@ -504,17 +504,51 @@ class Instance {
 
     /**
      * Create a run in the Lamin API.
-     * @param data A map containing the run data (e.g., transform_id, started_at, status)
-     *    - transform_id: The ID of the associated transform (required in most cases)
-     *    - started_at: The start time (ISO format string)
-     *    - status: The run status (int, e.g., RunStatus.STARTED.value)
-     *    - Any other fields supported by the Run model
+     * @param data A map containing the run data (e.g., transform_id, started_at, status).
+     *    Required fields:
+     *    - transform_id: The ID of the associated transform (int)
+     *    Recommended fields:
+     *    - created_at: The creation time (ISO string with microseconds + timezone, e.g. "2026-02-20T10:30:00.000000+00:00")
+     *    - started_at: The start time (same format as created_at)
+     *    - _status_code: The run status code (int, e.g. RunStatus.STARTED.code)
+     *    Optional fields:
+     *    - name: Run name (String — must be a plain String, not a GString)
+     *    - space_id: Space ID (int)
+     *    - branch_id: Branch ID (int)
+     *
+     *    IMPORTANT: All values must be plain types. Groovy GStrings, java.util.Date
+     *    objects, and non-int numeric types will be rejected. See the API Pitfalls
+     *    section in AGENTS.md for details.
+     *
      * @return a map containing the created run data
-     * @throws IllegalStateException if data is null
+     * @throws IllegalStateException if data is null or contains invalid types
      * @throws ApiException if an error occurs while creating the run
      */
     Map createRun(Map data) {
         if (!data) { throw new IllegalStateException('Run data is null. Please provide run data.') }
+
+        // Validate date fields are Strings (not Date objects)
+        for (String dateField : ['created_at', 'started_at', 'finished_at']) {
+            Object val = data.get(dateField)
+            if (val != null && !(val instanceof String)) {
+                throw new IllegalArgumentException(
+                    "createRun field '${dateField}' must be an ISO 8601 String with microsecond precision " +
+                    "(e.g. '2026-02-20T10:30:00.000000+00:00'), got ${val.getClass().simpleName}. " +
+                    "Use OffsetDateTime.now().format(DateTimeFormatter.ofPattern(\"yyyy-MM-dd'T'HH:mm:ss.SSSSSSxxx\")) to format."
+                )
+            }
+        }
+
+        // Validate numeric fields are int
+        for (String intField : ['_status_code', 'transform_id', 'space_id', 'branch_id']) {
+            Object val = data.get(intField)
+            if (val != null && !(val instanceof Integer)) {
+                throw new IllegalArgumentException(
+                    "createRun field '${intField}' must be an int, got ${val.getClass().simpleName}. " +
+                    "Cast with (int) value or (value as Number).intValue()."
+                )
+            }
+        }
 
         return createRecord(
             moduleName: 'core',
@@ -572,7 +606,7 @@ class Instance {
         );
 
         // Optional args
-        for (field in ["version_tag", "reference", "reference_type", "description"]) {
+        for (field in ["version_tag", "reference", "reference_type", "description", "space_id", "branch_id"]) {
             if (args.containsKey(field)) {
                 body.putKwargsItem(field, args[field])
             }

@@ -346,14 +346,12 @@ class LaminConfigTest extends Specification {
             instance: 'owner/repo',
             api_key: 'test-key',
             run: [
-                project_uids: ['proj111111111111'],
                 ulabel_uids: ['ulab111111111111']
             ]
         ])
 
         then:
         config.run != null
-        config.run.projectUids == ['proj111111111111']
         config.run.ulabelUids == ['ulab111111111111']
     }
 
@@ -363,14 +361,12 @@ class LaminConfigTest extends Specification {
             instance: 'owner/repo',
             api_key: 'test-key',
             transform: [
-                project_uids: ['proj222222222222'],
                 ulabel_uids: ['ulab222222222222']
             ]
         ])
 
         then:
         config.transform != null
-        config.transform.projectUids == ['proj222222222222']
         config.transform.ulabelUids == ['ulab222222222222']
     }
 
@@ -403,11 +399,9 @@ class LaminConfigTest extends Specification {
             project_uids: ['proj000000000000'],
             ulabel_uids: ['ulab000000000000'],
             run: [
-                project_uids: ['proj111111111111'],
                 ulabel_uids: ['ulab111111111111']
             ],
             transform: [
-                project_uids: ['proj222222222222'],
                 ulabel_uids: ['ulab222222222222']
             ],
             api: [
@@ -418,11 +412,13 @@ class LaminConfigTest extends Specification {
 
         then:
         config.projectUids == ['proj000000000000']
+        config.projectNames == []
         config.ulabelUids == ['ulab000000000000']
-        config.run.projectUids == ['proj111111111111']
+        config.ulabelNames == []
         config.run.ulabelUids == ['ulab111111111111']
-        config.transform.projectUids == ['proj222222222222']
+        config.run.ulabelNames == []
         config.transform.ulabelUids == ['ulab222222222222']
+        config.transform.ulabelNames == []
         config.api.maxRetries == 10
         config.api.retryDelay == 500
     }
@@ -484,5 +480,112 @@ class LaminConfigTest extends Specification {
 
         then:
         config.projectUids == ['proj999999999999']
+    }
+
+    def "should parse space and branch config fields"() {
+        when:
+        def config = new LaminConfig([
+            instance: 'owner/repo',
+            api_key: 'test-key',
+            space_uid: 'spce000000000000',
+            space_name: 'my-space',
+            branch_uid: 'brch000000000000',
+            branch_name: 'my-branch'
+        ])
+
+        then:
+        config.spaceUid == 'spce000000000000'
+        config.spaceName == 'my-space'
+        config.branchUid == 'brch000000000000'
+        config.branchName == 'my-branch'
+    }
+
+    def "should default space and branch to null"() {
+        when:
+        def config = new LaminConfig([
+            instance: 'owner/repo',
+            api_key: 'test-key'
+        ])
+
+        then:
+        config.spaceUid == null
+        config.spaceName == null
+        config.branchUid == null
+        config.branchName == null
+    }
+
+    def "should parse project_names and ulabel_names"() {
+        when:
+        def config = new LaminConfig([
+            instance: 'owner/repo',
+            api_key: 'test-key',
+            project_names: ['my-project', 'other-project'],
+            ulabel_names: ['my-label', 'other-label']
+        ])
+
+        then:
+        config.projectNames == ['my-project', 'other-project']
+        config.ulabelNames == ['my-label', 'other-label']
+    }
+
+    def "should default project_names and ulabel_names to empty list"() {
+        when:
+        def config = new LaminConfig([
+            instance: 'owner/repo',
+            api_key: 'test-key'
+        ])
+
+        then:
+        config.projectNames == []
+        config.ulabelNames == []
+    }
+
+    def "should parse comma-separated project_names string"() {
+        when:
+        def config = new LaminConfig([
+            instance: 'owner/repo',
+            api_key: 'test-key',
+            project_names: 'project-a, project-b'
+        ])
+
+        then:
+        config.projectNames == ['project-a', 'project-b']
+    }
+
+    def "should parse run and transform config with name fields"() {
+        when:
+        def config = new LaminConfig([
+            instance: 'owner/repo',
+            api_key: 'test-key',
+            project_names: ['global-project'],
+            ulabel_names: ['global-label'],
+            run: [
+                ulabel_names: ['run-label']
+            ],
+            transform: [
+                ulabel_names: ['transform-label']
+            ]
+        ])
+
+        then:
+        config.projectNames == ['global-project']
+        config.ulabelNames == ['global-label']
+        config.run.ulabelNames == ['run-label']
+        config.transform.ulabelNames == ['transform-label']
+    }
+
+    def "should include space and branch in toString"() {
+        when:
+        def config = new LaminConfig([
+            instance: 'owner/repo',
+            api_key: 'test-key-1234567890',
+            space_name: 'my-space',
+            branch_name: 'my-branch'
+        ])
+        def str = config.toString()
+
+        then:
+        str.contains("spaceName='my-space'")
+        str.contains("branchName='my-branch'")
     }
 }

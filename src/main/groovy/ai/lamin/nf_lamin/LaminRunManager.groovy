@@ -20,6 +20,9 @@ import java.io.File
 import java.net.URI
 import java.nio.file.Files
 import java.nio.file.Path
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.util.Collections
 import java.util.concurrent.locks.Lock
 import java.util.concurrent.locks.ReentrantLock
@@ -66,6 +69,10 @@ final class LaminRunManager {
     // Cache for Instance objects keyed by "owner/name"
     private final Map<String, Instance> instanceCache = Collections.synchronizedMap(new LinkedHashMap<String, Instance>())
 
+    // Cached resolved space and branch IDs (resolved once at initialization)
+    private volatile Integer resolvedSpaceId
+    private volatile Integer resolvedBranchId
+
     private LaminRunManager() {
     }
 
@@ -81,6 +88,8 @@ final class LaminRunManager {
         laminInstance = null
         transform = null
         run = null
+        resolvedSpaceId = null
+        resolvedBranchId = null
         instanceCache.clear()
     }
 
@@ -194,6 +203,7 @@ final class LaminRunManager {
         }
 
         try {
+            resolveSpaceAndBranch()
             fetchOrCreateTransform()
             fetchOrCreateRun()
         } catch (Exception e) {
@@ -236,6 +246,36 @@ final class LaminRunManager {
         } catch (ApiException e) {
             log.error "✗ Could not connect lamindb: '${instanceString}'!"
             log.error 'API call failed: ' + e.getMessage()
+        }
+    }
+
+    /**
+     * Resolve space and branch to numeric IDs at initialization time.
+     * These are cached and reused for all record creation operations.
+     */
+    void resolveSpaceAndBranch() {
+        ensureInitialized('resolveSpaceAndBranch requires config and instance to be initialised')
+
+        // Resolve space by UID
+        if (config.spaceUid) {
+            Map spaceRecord = laminInstance.getRecord(moduleName: 'core', modelName: 'space', idOrUid: config.spaceUid)
+            if (spaceRecord) {
+                resolvedSpaceId = (spaceRecord.get('id') as Number)?.intValue()
+                log.debug "Resolved space to id=${resolvedSpaceId} (uid=${spaceRecord.uid}, name=${spaceRecord.name})"
+            } else {
+                log.warn "Could not resolve space (uid=${config.spaceUid})"
+            }
+        }
+
+        // Resolve branch by UID
+        if (config.branchUid) {
+            Map branchRecord = laminInstance.getRecord(moduleName: 'core', modelName: 'branch', idOrUid: config.branchUid)
+            if (branchRecord) {
+                resolvedBranchId = (branchRecord.get('id') as Number)?.intValue()
+                log.debug "Resolved branch to id=${resolvedBranchId} (uid=${branchRecord.uid}, name=${branchRecord.name})"
+            } else {
+                log.warn "Could not resolve branch (uid=${config.branchUid})"
+            }
         }
     }
 
@@ -297,7 +337,7 @@ final class LaminRunManager {
         String sourceCode = TransformInfoHelper.generateTransformSourceCode(metadata)
         String description = TransformInfoHelper.generateTransformDescription(metadata)
 
-        transformRecord = laminInstance.createTransform(
+        Map<String, Object> createArgs = [
             key: key,
             source_code: sourceCode,
             version_tag: version,
@@ -305,11 +345,19 @@ final class LaminRunManager {
             reference: metadata.repository,
             reference_type: 'url',
             description: description
-        )
+        ]
+        if (resolvedSpaceId != null) {
+            createArgs.put('space_id', resolvedSpaceId)
+        }
+        if (resolvedBranchId != null) {
+            createArgs.put('branch_id', resolvedBranchId)
+        }
+
+        transformRecord = laminInstance.createTransform(createArgs)
         updateTransform(transformRecord)
 
         // Link transform to projects and ulabels from config
-        List<String> transformProjectUids = mergeUidLists(config.getProjectUids(), config.getTransformConfig()?.getProjectUids())
+        List<String> transformProjectUids = mergeUidLists(config.getProjectUids())
         List<String> transformUlabelUids = mergeUidLists(config.getUlabelUids(), config.getTransformConfig()?.getUlabelUids())
         linkTransformToProjects(transformRecord, transformProjectUids)
         linkTransformToUlabels(transformRecord, transformUlabelUids)
@@ -356,18 +404,27 @@ final class LaminRunManager {
         }
 
         WorkflowMetadata wfMetadata = session.getWorkflowMetadata()
-        Integer transformId = (transform?.get('id') as Number)?.intValue()
-        Map<String, Object> runRecord = laminInstance.createRun([
+        int transformId = (transform?.get('id') as Number)?.intValue()
+        DateTimeFormatter isoMicros = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSSSSxxx")
+        String startIso = OffsetDateTime.ofInstant(wfMetadata.start.toInstant(), ZoneOffset.UTC).format(isoMicros)
+        Map<String, Object> runData = [
                 transform_id: transformId,
-                name: wfMetadata.runName,
-                created_at: wfMetadata.start,
-                started_at: wfMetadata.start,
-                _status_code: RunStatus.SCHEDULED.code
-            ])
+                name: wfMetadata.runName as String,
+                created_at: startIso,
+                started_at: startIso,
+                _status_code: (int) RunStatus.SCHEDULED.code
+            ]
+        if (resolvedSpaceId != null) {
+            runData.put('space_id', resolvedSpaceId)
+        }
+        if (resolvedBranchId != null) {
+            runData.put('branch_id', resolvedBranchId)
+        }
+        Map<String, Object> runRecord = laminInstance.createRun(runData)
         updateRun(runRecord)
 
         // Link run to projects and ulabels from config
-        List<String> runProjectUids = mergeUidLists(config.getProjectUids(), config.getRunConfig()?.getProjectUids())
+        List<String> runProjectUids = mergeUidLists(config.getProjectUids())
         List<String> runUlabelUids = mergeUidLists(config.getUlabelUids(), config.getRunConfig()?.getUlabelUids())
         linkRunToProjects(runRecord, runProjectUids)
         linkRunToUlabels(runRecord, runUlabelUids)
@@ -433,7 +490,7 @@ final class LaminRunManager {
     ArtifactEvaluation evaluateArtifact(Path path, String direction) {
         if (config == null) {
             // Default to tracking with empty metadata if no config
-            return new ArtifactEvaluation(true, [:])
+            return new ArtifactEvaluation(true, [], null)
         }
 
         String pathStr = path.toUri().toString()
@@ -444,13 +501,13 @@ final class LaminRunManager {
         // If no config defined, default to tracking with empty metadata
         if (artifactConfig == null) {
             log.debug "No artifact config defined, tracking '${pathStr}' as ${direction} with default settings"
-            return new ArtifactEvaluation(true, [:])
+            return new ArtifactEvaluation(true, [], null)
         }
 
         // Evaluate the path against the config
         ArtifactEvaluation evaluation = artifactConfig.evaluate(pathStr, direction)
         if (evaluation.shouldTrack) {
-            log.debug "Artifact '${pathStr}' will be tracked as ${direction} with metadata: ${evaluation.metadata}"
+            log.debug "Artifact '${pathStr}' will be tracked as ${direction} with evaluation: ${evaluation}"
         } else {
             log.debug "Artifact '${pathStr}' excluded by artifact config"
         }
@@ -493,9 +550,9 @@ final class LaminRunManager {
 
         log.debug "Using input artifact ${artifact?.get('uid')} for path ${path.toUri()}"
 
-        // Link artifact to run and metadata (merge root-level and rule-level UIDs)
+        // Link artifact to run and metadata
         linkInputArtifactToRun(artifact)
-        List<String> artifactProjectUids = mergeUidLists(config.getProjectUids(), evaluation.projectUids)
+        List<String> artifactProjectUids = mergeUidLists(config.getProjectUids())
         List<String> artifactUlabelUids = mergeUidLists(config.getUlabelUids(), evaluation.ulabelUids)
         linkArtifactToProjects(artifact, artifactProjectUids)
         linkArtifactToUlabels(artifact, artifactUlabelUids)
@@ -544,8 +601,7 @@ final class LaminRunManager {
         }
 
         // Link artifact metadata (projects, ulabels) - run is already linked via run_id
-        // Merge root-level and rule-level UIDs
-        List<String> artifactProjectUids = mergeUidLists(config.getProjectUids(), evaluation.projectUids)
+        List<String> artifactProjectUids = mergeUidLists(config.getProjectUids())
         List<String> artifactUlabelUids = mergeUidLists(config.getUlabelUids(), evaluation.ulabelUids)
         linkArtifactToProjects(artifact, artifactProjectUids)
         linkArtifactToUlabels(artifact, artifactUlabelUids)
