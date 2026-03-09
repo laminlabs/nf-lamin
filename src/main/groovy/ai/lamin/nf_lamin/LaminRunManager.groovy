@@ -73,6 +73,9 @@ final class LaminRunManager {
     private volatile Integer resolvedSpaceId
     private volatile Integer resolvedBranchId
 
+    // Cache for resolved record lookups (key: "module/model/uidOrName", value: record map)
+    private final Map<String, Map> recordResolutionCache = Collections.synchronizedMap(new LinkedHashMap<String, Map>())
+
     private LaminRunManager() {
     }
 
@@ -91,6 +94,7 @@ final class LaminRunManager {
         resolvedSpaceId = null
         resolvedBranchId = null
         instanceCache.clear()
+        recordResolutionCache.clear()
     }
 
     /**
@@ -250,31 +254,100 @@ final class LaminRunManager {
     }
 
     /**
+     * Resolve a UID-or-name reference to a record map.
+     *
+     * If the value starts with '?', the rest is treated as a name and looked up
+     * (or created if it doesn't exist) via {@link Instance#findOrCreateByName}.
+     * Otherwise, the value is treated as a UID and looked up via
+     * {@link Instance#getRecord}.
+     *
+     * Results are cached to avoid repeated API calls for the same reference.
+     *
+     * @param moduleName The module name (e.g., 'core')
+     * @param modelName The model name (e.g., 'project', 'ulabel', 'space', 'branch')
+     * @param uidOrName The UID or '?name' reference to resolve
+     * @return the resolved record map, or null if the reference is null/empty or not found
+     */
+    private Map resolveRecord(String moduleName, String modelName, String uidOrName) {
+        if (!uidOrName) return null
+
+        String cacheKey = "${moduleName}/${modelName}/${uidOrName}" as String
+        Map cached = recordResolutionCache.get(cacheKey)
+        if (cached != null) return cached
+
+        Map record
+        if (uidOrName.startsWith('?')) {
+            String name = uidOrName.substring(1)
+            log.debug "Resolving ${moduleName}.${modelName} by name: '${name}'"
+            record = laminInstance.findOrCreateByName(moduleName, modelName, name)
+        } else {
+            record = laminInstance.getRecord(
+                moduleName: moduleName,
+                modelName: modelName,
+                idOrUid: uidOrName
+            )
+        }
+
+        if (record != null) {
+            recordResolutionCache.put(cacheKey, record)
+            String resolvedUid = record.get('uid') as String
+            String resolvedName = record.get('name') as String
+            log.debug "Resolved ${moduleName}.${modelName} '${uidOrName}' → uid=${resolvedUid}, name=${resolvedName}"
+        }
+        return record
+    }
+
+    /**
+     * Resolve a UID-or-name reference to a UID string.
+     *
+     * Convenience wrapper around {@link #resolveRecord} that returns just the UID.
+     *
+     * @param moduleName The module name (e.g., 'core')
+     * @param modelName The model name (e.g., 'project', 'ulabel')
+     * @param uidOrName The UID or '?name' reference to resolve
+     * @return the resolved UID string, or null if not found
+     */
+    private String resolveRecordUid(String moduleName, String modelName, String uidOrName) {
+        Map record = resolveRecord(moduleName, modelName, uidOrName)
+        return record?.get('uid') as String
+    }
+
+    /**
      * Resolve space and branch to numeric IDs at initialization time.
      * These are cached and reused for all record creation operations.
+     *
+     * Supports both UID values and '?name' references (e.g., '?my-space').
      */
     void resolveSpaceAndBranch() {
         ensureInitialized('resolveSpaceAndBranch requires config and instance to be initialised')
 
-        // Resolve space by UID
+        // Resolve space by UID or ?name
         if (config.spaceUid) {
-            Map spaceRecord = laminInstance.getRecord(moduleName: 'core', modelName: 'space', idOrUid: config.spaceUid)
-            if (spaceRecord) {
-                resolvedSpaceId = (spaceRecord.get('id') as Number)?.intValue()
-                log.debug "Resolved space to id=${resolvedSpaceId} (uid=${spaceRecord.uid}, name=${spaceRecord.name})"
-            } else {
-                log.warn "Could not resolve space (uid=${config.spaceUid})"
+            try {
+                Map spaceRecord = resolveRecord('core', 'space', config.spaceUid)
+                if (spaceRecord) {
+                    resolvedSpaceId = (spaceRecord.get('id') as Number)?.intValue()
+                    log.debug "Resolved space to id=${resolvedSpaceId} (uid=${spaceRecord.uid}, name=${spaceRecord.name})"
+                } else {
+                    log.warn "Could not resolve space '${config.spaceUid}'"
+                }
+            } catch (Exception e) {
+                log.error "Failed to resolve space '${config.spaceUid}': ${e.getMessage()}"
             }
         }
 
-        // Resolve branch by UID
+        // Resolve branch by UID or ?name
         if (config.branchUid) {
-            Map branchRecord = laminInstance.getRecord(moduleName: 'core', modelName: 'branch', idOrUid: config.branchUid)
-            if (branchRecord) {
-                resolvedBranchId = (branchRecord.get('id') as Number)?.intValue()
-                log.debug "Resolved branch to id=${resolvedBranchId} (uid=${branchRecord.uid}, name=${branchRecord.name})"
-            } else {
-                log.warn "Could not resolve branch (uid=${config.branchUid})"
+            try {
+                Map branchRecord = resolveRecord('core', 'branch', config.branchUid)
+                if (branchRecord) {
+                    resolvedBranchId = (branchRecord.get('id') as Number)?.intValue()
+                    log.debug "Resolved branch to id=${resolvedBranchId} (uid=${branchRecord.uid}, name=${branchRecord.name})"
+                } else {
+                    log.warn "Could not resolve branch '${config.branchUid}'"
+                }
+            } catch (Exception e) {
+                log.error "Failed to resolve branch '${config.branchUid}': ${e.getMessage()}"
             }
         }
     }
@@ -663,7 +736,7 @@ final class LaminRunManager {
      * Link artifact to projects.
      *
      * @param artifact The artifact map (must contain 'id' and 'uid')
-     * @param projectUids List of project UIDs to link
+     * @param projectUids List of project UIDs or '?name' references to link
      */
     private void linkArtifactToProjects(Map<String, Object> artifact, List<String> projectUids) {
         if (artifact == null || laminInstance == null || !projectUids) {
@@ -680,15 +753,11 @@ final class LaminRunManager {
 
         for (String projectUid : projectUids) {
             try {
-                // Look up project by UID to get numeric ID
-                Map<String, Object> project = laminInstance.getRecord(
-                    moduleName: 'core',
-                    modelName: 'project',
-                    idOrUid: projectUid
-                )
+                // Look up project by UID or ?name to get numeric ID
+                Map<String, Object> project = resolveRecord('core', 'project', projectUid)
                 Integer projectId = (project?.get('id') as Number)?.intValue()
                 if (projectId == null) {
-                    log.warn "Could not find project with UID ${projectUid}"
+                    log.warn "Could not find project '${projectUid}'"
                     continue
                 }
 
@@ -722,7 +791,7 @@ final class LaminRunManager {
      * Link artifact to ulabels.
      *
      * @param artifact The artifact map (must contain 'id' and 'uid')
-     * @param ulabelUids List of ulabel UIDs to link
+     * @param ulabelUids List of ulabel UIDs or '?name' references to link
      */
     private void linkArtifactToUlabels(Map<String, Object> artifact, List<String> ulabelUids) {
         if (artifact == null || laminInstance == null || !ulabelUids) {
@@ -739,15 +808,11 @@ final class LaminRunManager {
 
         for (String ulabelUid : ulabelUids) {
             try {
-                // Look up ulabel by UID to get numeric ID
-                Map<String, Object> ulabel = laminInstance.getRecord(
-                    moduleName: 'core',
-                    modelName: 'ulabel',
-                    idOrUid: ulabelUid
-                )
+                // Look up ulabel by UID or ?name to get numeric ID
+                Map<String, Object> ulabel = resolveRecord('core', 'ulabel', ulabelUid)
                 Integer ulabelId = (ulabel?.get('id') as Number)?.intValue()
                 if (ulabelId == null) {
-                    log.warn "Could not find ulabel with UID ${ulabelUid}"
+                    log.warn "Could not find ulabel '${ulabelUid}'"
                     continue
                 }
 
@@ -919,7 +984,7 @@ final class LaminRunManager {
      * Link transform to projects.
      *
      * @param transformRecord The transform map (must contain 'id' and 'uid')
-     * @param projectUids List of project UIDs to link
+     * @param projectUids List of project UIDs or '?name' references to link
      */
     private void linkTransformToProjects(Map<String, Object> transformRecord, List<String> projectUids) {
         if (transformRecord == null || laminInstance == null || !projectUids) {
@@ -936,15 +1001,11 @@ final class LaminRunManager {
 
         for (String projectUid : projectUids) {
             try {
-                // Look up project by UID to get numeric ID
-                Map<String, Object> project = laminInstance.getRecord(
-                    moduleName: 'core',
-                    modelName: 'project',
-                    idOrUid: projectUid
-                )
+                // Look up project by UID or ?name to get numeric ID
+                Map<String, Object> project = resolveRecord('core', 'project', projectUid)
                 Integer projectId = (project?.get('id') as Number)?.intValue()
                 if (projectId == null) {
-                    log.warn "Could not find project with UID ${projectUid}"
+                    log.warn "Could not find project '${projectUid}'"
                     continue
                 }
 
@@ -978,7 +1039,7 @@ final class LaminRunManager {
      * Link transform to ulabels.
      *
      * @param transformRecord The transform map (must contain 'id' and 'uid')
-     * @param ulabelUids List of ulabel UIDs to link
+     * @param ulabelUids List of ulabel UIDs or '?name' references to link
      */
     private void linkTransformToUlabels(Map<String, Object> transformRecord, List<String> ulabelUids) {
         if (transformRecord == null || laminInstance == null || !ulabelUids) {
@@ -995,15 +1056,11 @@ final class LaminRunManager {
 
         for (String ulabelUid : ulabelUids) {
             try {
-                // Look up ulabel by UID to get numeric ID
-                Map<String, Object> ulabel = laminInstance.getRecord(
-                    moduleName: 'core',
-                    modelName: 'ulabel',
-                    idOrUid: ulabelUid
-                )
+                // Look up ulabel by UID or ?name to get numeric ID
+                Map<String, Object> ulabel = resolveRecord('core', 'ulabel', ulabelUid)
                 Integer ulabelId = (ulabel?.get('id') as Number)?.intValue()
                 if (ulabelId == null) {
-                    log.warn "Could not find ulabel with UID ${ulabelUid}"
+                    log.warn "Could not find ulabel '${ulabelUid}'"
                     continue
                 }
 
@@ -1037,7 +1094,7 @@ final class LaminRunManager {
      * Link run to projects.
      *
      * @param runRecord The run map (must contain 'id' and 'uid')
-     * @param projectUids List of project UIDs to link
+     * @param projectUids List of project UIDs or '?name' references to link
      */
     private void linkRunToProjects(Map<String, Object> runRecord, List<String> projectUids) {
         if (runRecord == null || laminInstance == null || !projectUids) {
@@ -1054,15 +1111,11 @@ final class LaminRunManager {
 
         for (String projectUid : projectUids) {
             try {
-                // Look up project by UID to get numeric ID
-                Map<String, Object> project = laminInstance.getRecord(
-                    moduleName: 'core',
-                    modelName: 'project',
-                    idOrUid: projectUid
-                )
+                // Look up project by UID or ?name to get numeric ID
+                Map<String, Object> project = resolveRecord('core', 'project', projectUid)
                 Integer projectId = (project?.get('id') as Number)?.intValue()
                 if (projectId == null) {
-                    log.warn "Could not find project with UID ${projectUid}"
+                    log.warn "Could not find project '${projectUid}'"
                     continue
                 }
 
@@ -1096,7 +1149,7 @@ final class LaminRunManager {
      * Link run to ulabels.
      *
      * @param runRecord The run map (must contain 'id' and 'uid')
-     * @param ulabelUids List of ulabel UIDs to link
+     * @param ulabelUids List of ulabel UIDs or '?name' references to link
      */
     private void linkRunToUlabels(Map<String, Object> runRecord, List<String> ulabelUids) {
         if (runRecord == null || laminInstance == null || !ulabelUids) {
@@ -1113,15 +1166,11 @@ final class LaminRunManager {
 
         for (String ulabelUid : ulabelUids) {
             try {
-                // Look up ulabel by UID to get numeric ID
-                Map<String, Object> ulabel = laminInstance.getRecord(
-                    moduleName: 'core',
-                    modelName: 'ulabel',
-                    idOrUid: ulabelUid
-                )
+                // Look up ulabel by UID or ?name to get numeric ID
+                Map<String, Object> ulabel = resolveRecord('core', 'ulabel', ulabelUid)
                 Integer ulabelId = (ulabel?.get('id') as Number)?.intValue()
                 if (ulabelId == null) {
-                    log.warn "Could not find ulabel with UID ${ulabelUid}"
+                    log.warn "Could not find ulabel '${ulabelUid}'"
                     continue
                 }
 

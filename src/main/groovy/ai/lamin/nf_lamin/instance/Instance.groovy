@@ -558,6 +558,53 @@ class Instance {
     }
 
     /**
+     * Find a record by name, or create it if it doesn't exist.
+     *
+     * Searches for a record with an exact name match. If no record is found,
+     * creates a new one with the provided name (and optional extra fields).
+     * Useful for resolving user-friendly names (e.g., project names, ulabel names) to records.
+     *
+     * @param moduleName The module name (e.g., 'core')
+     * @param modelName The model name (e.g., 'project', 'ulabel', 'space')
+     * @param name The name to search for or create with
+     * @param extraData Optional additional fields to include when creating a new record
+     *                  (e.g., [branch_id: 42]). Ignored when an existing record is found.
+     * @return the found or newly created record map
+     * @throws IllegalStateException if moduleName, modelName, or name is null
+     * @throws ApiException if an error occurs while querying or creating the record
+     */
+    Map findOrCreateByName(String moduleName, String modelName, String name, Map<String, Object> extraData = null) {
+        if (!moduleName) { throw new IllegalStateException('Module name is null.') }
+        if (!modelName) { throw new IllegalStateException('Model name is null.') }
+        if (!name) { throw new IllegalStateException('Name is null.') }
+
+        log.trace "findOrCreateByName: ${moduleName}.${modelName}, name='${name}'"
+
+        List<Map> existing = getRecords(
+            moduleName: moduleName,
+            modelName: modelName,
+            filter: [name: [eq: name]]
+        )
+        if (existing) {
+            log.trace "Found existing ${moduleName}.${modelName} with name='${name}': uid=${existing[0].uid}"
+            return existing[0]
+        }
+
+        log.trace "No ${moduleName}.${modelName} found with name='${name}', creating new record"
+        Map<String, Object> data = [name: name] as Map<String, Object>
+        if (extraData) {
+            data.putAll(extraData)
+        }
+        Map created = createRecord(
+            moduleName: moduleName,
+            modelName: modelName,
+            data: data
+        )
+        log.trace "Created new ${moduleName}.${modelName} with name='${name}': uid=${created.uid}"
+        return created
+    }
+
+    /**
      * Get the account information from the Lamin API.
      * @return a map containing the account information
      * @throws ApiException if an error occurs while fetching the account information
