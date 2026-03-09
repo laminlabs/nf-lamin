@@ -123,6 +123,10 @@ class LaminObserverIntegrationTest extends Specification {
         )
         assert transform?.id : 'Expected manual transform to exist in LaminDB'
 
+        // Resolve the test branch so we can set branch_id on the manually created run
+        Map<String, Object> testBranch = apiClient.findOrCreateByName('core', 'branch', 'nf-lamin-test-branch')
+        Integer testBranchId = (testBranch.get('id') as Number)?.intValue()
+
         String runName = "nf-lamin-manual-${UUID.randomUUID().toString().substring(0, 8)}"
         OffsetDateTime runStart = OffsetDateTime.now().minusMinutes(2)
         Map<String, Object> manualRun = apiClient.createRecord(
@@ -133,7 +137,8 @@ class LaminObserverIntegrationTest extends Specification {
                 name: runName,
                 created_at: runStart,
                 started_at: runStart,
-                _status_code: RunStatus.SCHEDULED.code
+                _status_code: RunStatus.SCHEDULED.code,
+                branch_id: testBranchId
             ]
         )
 
@@ -142,7 +147,8 @@ class LaminObserverIntegrationTest extends Specification {
             api_key: apiKey,
             env: 'prod',
             transform_uid: transform.uid,
-            run_uid: manualRun.uid
+            run_uid: manualRun.uid,
+            branch_uid: '?nf-lamin-test-branch'
         ]
 
         WorkflowMetadata metadata = buildMetadata([
@@ -209,7 +215,8 @@ class LaminObserverIntegrationTest extends Specification {
         Map<String, Object> sessionConfig = [
             instance: INSTANCE_NAME,
             api_key: apiKey,
-            env: 'staging'
+            env: 'staging',
+            branch_uid: '?nf-lamin-test-branch'
         ]
 
         WorkflowMetadata metadata = buildMetadata([

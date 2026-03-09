@@ -265,8 +265,6 @@ class ArtifactConfigTest extends Specification {
         then:
         // Labels accumulated from global + both matching rules
         result.ulabelUids.containsAll(['global-label', 'fastq-label', 'all-files-label'])
-        // Names from all_files rule
-        result.ulabelNames == ['all-files-name']
         // Kind from last matching rule with kind (all_files has order=10, processed last)
         result.kind == 'fastq-kind'  // actually fastq has order=1, so all_files comes later but doesn't have kind
     }

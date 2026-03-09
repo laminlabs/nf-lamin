@@ -51,7 +51,7 @@ class ArtifactRuleTest extends Specification {
 
         then:
         rule.enabled == false
-        rule.pattern == '.*\.bam$'
+        rule.pattern == '.*\\.bam$'
         rule.type == 'exclude'
         rule.direction == 'output'
         rule.kind == 'dataset'
