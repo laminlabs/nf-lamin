@@ -256,17 +256,22 @@ final class LaminRunManager {
     /**
      * Resolve a UID-or-name reference to a record map.
      *
-     * If the value starts with '?', the rest is treated as a name and looked up
-     * (or created if it doesn't exist) via {@link Instance#findOrCreateByName}.
-     * Otherwise, the value is treated as a UID and looked up via
+     * Named references use a prefix to indicate the resolution mode:
+     * <ul>
+     *   <li>{@code ?name} – look up by name; if not found, log a warning and return null (skip)</li>
+     *   <li>{@code !name} – look up by name; if not found, throw an error</li>
+     *   <li>{@code +name} – look up by name; if not found, create a new record</li>
+     * </ul>
+     * Values without a prefix are treated as UIDs and looked up via
      * {@link Instance#getRecord}.
      *
      * Results are cached to avoid repeated API calls for the same reference.
      *
      * @param moduleName The module name (e.g., 'core')
      * @param modelName The model name (e.g., 'project', 'ulabel', 'space', 'branch')
-     * @param uidOrName The UID or '?name' reference to resolve
-     * @return the resolved record map, or null if the reference is null/empty or not found
+     * @param uidOrName The UID or prefixed name reference to resolve
+     * @return the resolved record map, or null if the reference is null/empty or not found (in '?' mode)
+     * @throws IllegalStateException if '!' mode is used and the record is not found
      */
     private Map resolveRecord(String moduleName, String modelName, String uidOrName) {
         if (!uidOrName) return null
@@ -276,10 +281,28 @@ final class LaminRunManager {
         if (cached != null) return cached
 
         Map record
-        if (uidOrName.startsWith('?')) {
+        if (uidOrName.startsWith('+') || uidOrName.startsWith('!') || uidOrName.startsWith('?')) {
+            char mode = uidOrName.charAt(0)
             String name = uidOrName.substring(1)
-            log.debug "Resolving ${moduleName}.${modelName} by name: '${name}'"
-            record = laminInstance.findOrCreateByName(moduleName, modelName, name)
+            log.debug "Resolving ${moduleName}.${modelName} by name: '${name}' (mode='${mode}')"
+
+            if (mode == '+' as char) {
+                record = laminInstance.findOrCreateByName(moduleName, modelName, name)
+            } else {
+                // '?' and '!' both look up only, differ in error handling
+                record = laminInstance.findByName(moduleName, modelName, name)
+                if (record == null) {
+                    if (mode == '!' as char) {
+                        throw new IllegalStateException(
+                            "Required ${moduleName}.${modelName} with name '${name}' not found. " +
+                            "Use '+${name}' to create it automatically, or '?${name}' to skip if missing."
+                        )
+                    } else {
+                        // '?' mode – warn and skip
+                        log.warn "Optional ${moduleName}.${modelName} with name '${name}' not found – skipping"
+                    }
+                }
+            }
         } else {
             record = laminInstance.getRecord(
                 moduleName: moduleName,
@@ -316,12 +339,12 @@ final class LaminRunManager {
      * Resolve space and branch to numeric IDs at initialization time.
      * These are cached and reused for all record creation operations.
      *
-     * Supports both UID values and '?name' references (e.g., '?my-space').
+     * Supports both UID values and named references (e.g., '!my-space', '+my-branch').
      */
     void resolveSpaceAndBranch() {
         ensureInitialized('resolveSpaceAndBranch requires config and instance to be initialised')
 
-        // Resolve space by UID or ?name
+        // Resolve space by UID or named reference
         if (config.spaceUid) {
             try {
                 Map spaceRecord = resolveRecord('core', 'space', config.spaceUid)

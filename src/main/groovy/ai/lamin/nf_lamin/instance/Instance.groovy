@@ -558,6 +558,39 @@ class Instance {
     }
 
     /**
+     * Find a record by name (lookup only, no creation).
+     *
+     * Searches for a record with an exact name match in the given module/model.
+     *
+     * @param moduleName The module name (e.g., 'core')
+     * @param modelName The model name (e.g., 'project', 'ulabel', 'space')
+     * @param name The name to search for
+     * @return the found record map, or null if no record exists with the given name
+     * @throws IllegalStateException if moduleName, modelName, or name is null
+     * @throws ApiException if an error occurs while querying
+     */
+    Map findByName(String moduleName, String modelName, String name) {
+        if (!moduleName) { throw new IllegalStateException('Module name is null.') }
+        if (!modelName) { throw new IllegalStateException('Model name is null.') }
+        if (!name) { throw new IllegalStateException('Name is null.') }
+
+        log.trace "findByName: ${moduleName}.${modelName}, name='${name}'"
+
+        List<Map> existing = getRecords(
+            moduleName: moduleName,
+            modelName: modelName,
+            filter: [name: [eq: name]]
+        )
+        if (existing) {
+            log.trace "Found existing ${moduleName}.${modelName} with name='${name}': uid=${existing[0].uid}"
+            return existing[0]
+        }
+
+        log.trace "No ${moduleName}.${modelName} found with name='${name}'"
+        return null
+    }
+
+    /**
      * Find a record by name, or create it if it doesn't exist.
      *
      * Searches for a record with an exact name match. If no record is found,

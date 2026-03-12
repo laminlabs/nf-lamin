@@ -51,6 +51,26 @@ import ai.lamin.nf_lamin.config.TransformConfig
  *   }
  * }
  *
+ * <h3>Named record resolution</h3>
+ *
+ * Fields that accept UIDs (project_uids, ulabel_uids, space_uid, branch_uid,
+ * and ulabel_uids inside run/transform/artifact rule blocks) also accept
+ * name-based references using a prefix:
+ *
+ * <ul>
+ *   <li>{@code ?name} – look up by name; if not found, log a warning and skip</li>
+ *   <li>{@code !name} – look up by name; if not found, throw an error</li>
+ *   <li>{@code +name} – look up by name; if not found, create the record</li>
+ * </ul>
+ *
+ * Example:
+ * <pre>
+ *   project_uids = ['+my-project']     // create if missing
+ *   ulabel_uids  = ['!my-label']       // fail if missing
+ *   space_uid    = '?my-space'         // skip if missing
+ *   branch_uid   = '!my-branch'        // fail if missing
+ * </pre>
+ *
  * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
 @ScopeName('lamin')
@@ -82,24 +102,28 @@ class LaminConfig implements ConfigScope {
     @ConfigOption
     @Description('''
         List of project UIDs to link to all artifacts, runs, and transforms.
+        Also accepts named references (see "Named record resolution" above).
     ''')
     final List<String> projectUids
 
     @ConfigOption
     @Description('''
         List of ulabel UIDs to link to all artifacts, runs, and transforms.
+        Also accepts named references (see "Named record resolution" above).
     ''')
     final List<String> ulabelUids
 
     @ConfigOption
     @Description('''
         The UID of the space to use for all transforms, runs, and artifacts.
+        Also accepts named references (see "Named record resolution" above).
     ''')
     final String spaceUid
 
     @ConfigOption
     @Description('''
         The UID of the branch to use for all transforms, runs, and artifacts.
+        Also accepts named references (see "Named record resolution" above).
     ''')
     final String branchUid
 

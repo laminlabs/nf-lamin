@@ -148,7 +148,7 @@ class LaminObserverIntegrationTest extends Specification {
             env: 'prod',
             transform_uid: transform.uid,
             run_uid: manualRun.uid,
-            branch_uid: '?nf-lamin-test-branch'
+            branch_uid: '!nf-lamin-test-branch'
         ]
 
         WorkflowMetadata metadata = buildMetadata([
@@ -216,7 +216,7 @@ class LaminObserverIntegrationTest extends Specification {
             instance: INSTANCE_NAME,
             api_key: apiKey,
             env: 'staging',
-            branch_uid: '?nf-lamin-test-branch'
+            branch_uid: '!nf-lamin-test-branch'
         ]
 
         WorkflowMetadata metadata = buildMetadata([
