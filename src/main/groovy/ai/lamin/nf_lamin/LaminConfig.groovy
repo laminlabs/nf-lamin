@@ -39,17 +39,37 @@ import ai.lamin.nf_lamin.config.TransformConfig
  *   api_key = System.getenv('LAMIN_API_KEY')
  *   project_uids = ['proj123456789012']
  *   ulabel_uids = ['ulab123456789012']
+ *   space_uid = 'spce123456789012'
+ *   branch_uid = 'brch123456789012'
  *   env = 'prod'
  *   dry_run = false
  *   run {
- *     project_uids = ['proj123456789012']
  *     ulabel_uids = ['ulab123456789012']
  *   }
  *   transform {
- *     project_uids = ['proj123456789012']
  *     ulabel_uids = ['ulab123456789012']
  *   }
  * }
+ *
+ * <h3>Named record resolution</h3>
+ *
+ * Fields that accept UIDs (project_uids, ulabel_uids, space_uid, branch_uid,
+ * and ulabel_uids inside run/transform/artifact rule blocks) also accept
+ * name-based references using a prefix:
+ *
+ * <ul>
+ *   <li>{@code ?name} – look up by name; if not found, log a warning and skip</li>
+ *   <li>{@code !name} – look up by name; if not found, throw an error</li>
+ *   <li>{@code +name} – look up by name; if not found, create the record</li>
+ * </ul>
+ *
+ * Example:
+ * <pre>
+ *   project_uids = ['+my-project']     // create if missing
+ *   ulabel_uids  = ['!my-label']       // fail if missing
+ *   space_uid    = '?my-space'         // skip if missing
+ *   branch_uid   = '!my-branch'        // fail if missing
+ * </pre>
  *
  * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
@@ -82,14 +102,30 @@ class LaminConfig implements ConfigScope {
     @ConfigOption
     @Description('''
         List of project UIDs to link to all artifacts, runs, and transforms.
+        Also accepts named references (see "Named record resolution" above).
     ''')
     final List<String> projectUids
 
     @ConfigOption
     @Description('''
         List of ulabel UIDs to link to all artifacts, runs, and transforms.
+        Also accepts named references (see "Named record resolution" above).
     ''')
     final List<String> ulabelUids
+
+    @ConfigOption
+    @Description('''
+        The UID of the space to use for all transforms, runs, and artifacts.
+        Also accepts named references (see "Named record resolution" above).
+    ''')
+    final String spaceUid
+
+    @ConfigOption
+    @Description('''
+        The UID of the branch to use for all transforms, runs, and artifacts.
+        Also accepts named references (see "Named record resolution" above).
+    ''')
+    final String branchUid
 
     @ConfigOption
     @Description('''
@@ -194,9 +230,13 @@ class LaminConfig implements ConfigScope {
             log.warn "The 'project' configuration option is deprecated in 0.5.0 and will be removed in 0.6.0. Use 'project_uids' instead."
         }
 
-        // Parse project_uids and ulabel_uids
+        // Parse project_uids, ulabel_uids
         this.projectUids = parseUidList(opts.containsKey('project_uids') ? opts.project_uids : System.getenv('LAMIN_CURRENT_PROJECT'))
         this.ulabelUids = parseUidList(opts.containsKey('ulabel_uids') ? opts.ulabel_uids : null)
+
+        // Parse space and branch (UID only)
+        this.spaceUid = opts.space_uid
+        this.branchUid = opts.branch_uid
 
         this.env = opts.containsKey('env') ? (opts.env ?: 'prod') : (System.getenv('LAMIN_ENV') ?: 'prod')
 
@@ -337,6 +377,22 @@ class LaminConfig implements ConfigScope {
      */
     List<String> getUlabelUids() {
         return this.ulabelUids ?: []
+    }
+
+    /**
+     * Get the space UID
+     * @return the space UID, or null if not set
+     */
+    String getSpaceUid() {
+        return this.spaceUid
+    }
+
+    /**
+     * Get the branch UID
+     * @return the branch UID, or null if not set
+     */
+    String getBranchUid() {
+        return this.branchUid
     }
 
     /**
@@ -534,6 +590,8 @@ class LaminConfig implements ConfigScope {
             "apiKey='${maskedApiKey}', " +
             "projectUids=${projectUids}, " +
             "ulabelUids=${ulabelUids}, " +
+            "spaceUid='${spaceUid}', " +
+            "branchUid='${branchUid}', " +
             "env='${env}', " +
             "api=${api}, " +
             "transformUid='${transformUid}', " +

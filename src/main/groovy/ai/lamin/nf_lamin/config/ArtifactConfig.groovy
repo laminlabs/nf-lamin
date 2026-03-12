@@ -33,14 +33,12 @@ import java.util.regex.Pattern
  *   include_pattern = '.*\\.(fastq|bam)$'
  *   exclude_pattern = '.*temp.*'
  *   ulabel_uids = ['global-label']
- *   project_uids = ['global-project']
  *
  *   rules {
  *     fastqs {
  *       enabled = true
  *       pattern = '.*\\.fastq\\.gz$'
  *       ulabel_uids = ['fastq-label']
- *       project_uids = ['fastq-project']
  *       kind = 'dataset'
  *     }
  *     bams {
@@ -105,11 +103,6 @@ class ArtifactConfig {
     final List<String> ulabelUids
 
     /**
-     * Global list of Project UIDs to attach to all artifacts
-     */
-    final List<String> projectUids
-
-    /**
      * Global artifact kind (e.g., 'dataset', 'model')
      */
     final String kind
@@ -149,7 +142,6 @@ class ArtifactConfig {
 
         // Parse list fields (can be String or List)
         this.ulabelUids = ConfigUtils.parseStringOrList(safeOpts.ulabel_uids)
-        this.projectUids = ConfigUtils.parseStringOrList(safeOpts.project_uids)
 
         // Compile patterns
         this.compiledIncludePattern = ConfigUtils.compilePattern(this.includePattern, 'include_pattern')
@@ -205,12 +197,12 @@ class ArtifactConfig {
      *
      * Evaluation flow:
      * 1. If disabled or direction doesn't match → return (false, empty metadata)
-     * 2. Initialize state with global metadata (ulabels, projects, kind) and shouldTrack=true
+     * 2. Initialize state with global metadata (ulabels, kind) and shouldTrack=true
      * 3. Apply global exclude_pattern → if matches, set shouldTrack=false
      * 4. Apply global include_pattern → if set and doesn't match, set shouldTrack=false
      * 5. Iterate through rules in priority order, each can modify shouldTrack and metadata
      *
-     * For ulabel_uids and project_uids: values are accumulated (merged) from all sources.
+     * For ulabel_uids: values are accumulated (merged) from all sources.
      * For kind: later rules override earlier values.
      * For shouldTrack: each matching rule can override the decision - include rules set it to true,
      *                  exclude rules set it to false. The last matching rule with a type wins.
@@ -223,16 +215,15 @@ class ArtifactConfig {
         // Early exit if disabled or direction doesn't match
         if (!enabled) {
             log.debug "Path '${path}' not tracked: artifact tracking is disabled"
-            return new ArtifactEvaluation(false, [:])
+            return ArtifactEvaluation.notTracked()
         }
         if (this.direction != 'both' && this.direction != artifactDirection) {
             log.debug "Path '${path}' not tracked: direction '${artifactDirection}' doesn't match config direction '${this.direction}'"
-            return new ArtifactEvaluation(false, [:])
+            return ArtifactEvaluation.notTracked()
         }
 
         // Initialize state with global metadata
         List<String> ulabels = new ArrayList<>(this.ulabelUids)
-        List<String> projects = new ArrayList<>(this.projectUids)
         String artifactKind = this.kind
         boolean shouldTrack = true
 
@@ -267,24 +258,21 @@ class ArtifactConfig {
                 if (rule.ulabelUids) {
                     ulabels.addAll(rule.ulabelUids)
                 }
-                if (rule.projectUids) {
-                    projects.addAll(rule.projectUids)
-                }
                 if (rule.kind) {
                     artifactKind = rule.kind
                 }
             }
         }
 
-        // Build metadata map (always return accumulated metadata)
-        Map<String, Object> metadata = [:]
-        metadata.ulabel_uids = ulabels.unique()
-        metadata.project_uids = projects.unique()
-        if (artifactKind) {
-            metadata.kind = artifactKind
+        if (!shouldTrack) {
+            return ArtifactEvaluation.notTracked()
         }
 
-        return new ArtifactEvaluation(shouldTrack, metadata)
+        return new ArtifactEvaluation(
+            shouldTrack,
+            ulabels.unique(),
+            artifactKind
+        )
     }
 
     @Override
@@ -298,7 +286,6 @@ class ArtifactConfig {
             "includePattern='${includePattern}', " +
             "excludePattern='${excludePattern}', " +
             "ulabelUids=${ulabelUids}, " +
-            "projectUids=${projectUids}, " +
             "kind='${kind}', " +
             "rules=${rules.size()} rules" +
             "}"

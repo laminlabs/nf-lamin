@@ -35,7 +35,6 @@ class ArtifactRuleTest extends Specification {
         rule.direction == 'both'
         rule.order == 100
         rule.ulabelUids == []
-        rule.projectUids == []
     }
 
     def "should create rule with full config"() {
@@ -47,7 +46,6 @@ class ArtifactRuleTest extends Specification {
             direction: 'output',
             kind: 'dataset',
             ulabel_uids: ['uid1', 'uid2'],
-            project_uids: ['proj1'],
             order: 5
         ])
 
@@ -58,7 +56,6 @@ class ArtifactRuleTest extends Specification {
         rule.direction == 'output'
         rule.kind == 'dataset'
         rule.ulabelUids == ['uid1', 'uid2']
-        rule.projectUids == ['proj1']
         rule.order == 5
     }
 
@@ -73,16 +70,6 @@ class ArtifactRuleTest extends Specification {
         rule.ulabelUids == ['single-uid']
     }
 
-    def "should handle single string for project_uids"() {
-        when:
-        def rule = new ArtifactRule([
-            pattern: '.*\\.txt$',
-            project_uids: 'single-proj'
-        ])
-
-        then:
-        rule.projectUids == ['single-proj']
-    }
 
     def "should throw error for missing pattern"() {
         when:

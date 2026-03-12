@@ -21,8 +21,8 @@ import groovy.transform.CompileStatic
 /**
  * Result of evaluating an artifact path against configuration rules.
  *
- * Contains both the tracking decision and the accumulated metadata
- * from global config and all matching rules.
+ * Contains the tracking decision and the accumulated metadata from artifact
+ * config and all matching rules (ulabel UIDs, kind).
  *
  * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
@@ -35,47 +35,37 @@ class ArtifactEvaluation {
     final boolean shouldTrack
 
     /**
-     * Accumulated metadata from global config and matching rules.
-     * May contain: ulabel_uids, project_uids, kind
+     * Accumulated ULabel UIDs from artifact config and matching rules.
      */
-    final Map<String, Object> metadata
+    final List<String> ulabelUids
 
     /**
-     * Create a new ArtifactEvaluation
+     * Artifact kind (e.g., 'dataset', 'model'), or null if not specified.
+     */
+    final String kind
+
+    /**
+     * Create a new ArtifactEvaluation with typed fields.
+     *
      * @param shouldTrack Whether the artifact should be tracked
-     * @param metadata Accumulated metadata
+     * @param ulabelUids Accumulated ULabel UIDs
+     * @param kind Artifact kind, or null
      */
-    ArtifactEvaluation(boolean shouldTrack, Map<String, Object> metadata) {
+    ArtifactEvaluation(boolean shouldTrack, List<String> ulabelUids, String kind) {
         this.shouldTrack = shouldTrack
-        this.metadata = metadata ?: [:]
+        this.ulabelUids = ulabelUids ?: []
+        this.kind = kind
     }
 
     /**
-     * Get ULabel UIDs from metadata
-     * @return List of ULabel UIDs (may be empty)
+     * Factory for a "not tracked" result with empty metadata.
      */
-    List<String> getUlabelUids() {
-        return (metadata.ulabel_uids as List<String>) ?: []
-    }
-
-    /**
-     * Get Project UIDs from metadata
-     * @return List of Project UIDs (may be empty)
-     */
-    List<String> getProjectUids() {
-        return (metadata.project_uids as List<String>) ?: []
-    }
-
-    /**
-     * Get artifact kind from metadata
-     * @return Artifact kind or null
-     */
-    String getKind() {
-        return metadata.kind as String
+    static ArtifactEvaluation notTracked() {
+        return new ArtifactEvaluation(false, [], null)
     }
 
     @Override
     String toString() {
-        return "ArtifactEvaluation{shouldTrack=${shouldTrack}, metadata=${metadata}}"
+        return "ArtifactEvaluation{shouldTrack=${shouldTrack}, ulabelUids=${ulabelUids}, kind=${kind}}"
     }
 }

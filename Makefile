@@ -32,7 +32,7 @@ validate:
 		-r $$BRANCH \
 		-latest \
 		-main-script validation/main.nf \
-		-config validation/nextflow.config \
+		-config configs/ci.config \
 		-plugins "nf-lamin@$$VERSION" \
 		--output-dir results \
 		$(ARGS)

@@ -23,14 +23,13 @@ import nextflow.script.dsl.Description
 /**
  * Configuration for run-specific metadata linking.
  *
- * This configuration allows specifying project and ulabel UIDs that will be
+ * This configuration allows specifying ulabel UIDs and names that will be
  * linked to the run when it is created.
  *
  * Example usage in nextflow.config:
  * <pre>
  * lamin {
  *   run {
- *     project_uids = ['proj123456789012']
  *     ulabel_uids = ['ulab123456789012']
  *   }
  * }
@@ -38,12 +37,6 @@ import nextflow.script.dsl.Description
  */
 @CompileStatic
 class RunConfig {
-
-    @ConfigOption
-    @Description('''
-        List of project UIDs to link to the run.
-    ''')
-    final List<String> projectUids
 
     @ConfigOption
     @Description('''
@@ -55,17 +48,15 @@ class RunConfig {
      * Default constructor required for extension point
      */
     RunConfig() {
-        this.projectUids = []
         this.ulabelUids = []
     }
 
     /**
      * Create a RunConfig from a configuration map.
      *
-     * @param opts Configuration map with keys: project_uids, ulabel_uids
+     * @param opts Configuration map with keys: ulabel_uids
      */
     RunConfig(Map opts) {
-        this.projectUids = parseUidList(opts?.project_uids)
         this.ulabelUids = parseUidList(opts?.ulabel_uids)
     }
 
@@ -89,14 +80,6 @@ class RunConfig {
     }
 
     /**
-     * Get the list of project UIDs to link.
-     * @return List of project UIDs
-     */
-    List<String> getProjectUids() {
-        return this.projectUids
-    }
-
-    /**
      * Get the list of ulabel UIDs to link.
      * @return List of ulabel UIDs
      */
@@ -106,6 +89,6 @@ class RunConfig {
 
     @Override
     String toString() {
-        return "RunConfig{projectUids=${projectUids}, ulabelUids=${ulabelUids}}"
+        return "RunConfig{ulabelUids=${ulabelUids}}"
     }
 }
