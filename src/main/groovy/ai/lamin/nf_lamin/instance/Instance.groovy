@@ -699,9 +699,10 @@ class Instance {
         )
 
         // Pass all other args as kwargs (excluding 'path')
+        // Cast GString values to String to avoid Jackson serialization issues
         args.each { String key, Object value ->
             if (key != 'path') {
-                body.putKwargsItem(key, value)
+                body.putKwargsItem(key, value instanceof GString ? value.toString() : value)
             }
         }
 
@@ -794,10 +795,11 @@ class Instance {
         }
 
         // Create kwargs from all args (excluding 'file')
+        // Cast GString values to String to avoid Jackson serialization issues
         Map<String, Object> kwargs = [:]
         args.each { String key, Object value ->
             if (key != 'file') {
-                kwargs[key] = value
+                kwargs[key] = value instanceof GString ? value.toString() : value
             }
         }
         String kwargsString = kwargs ? groovy.json.JsonOutput.toJson(kwargs) : '{}'
