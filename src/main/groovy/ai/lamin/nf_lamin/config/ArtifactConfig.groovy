@@ -18,6 +18,7 @@ package ai.lamin.nf_lamin.config
 
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
+import java.nio.file.Path
 import java.util.regex.Pattern
 
 /**
@@ -113,6 +114,15 @@ class ArtifactConfig {
     final String kind
 
     /**
+     * Global key for deriving artifact keys from file paths.
+     * Can be a String template (supports {basename}, {filename}, {ext},
+     * {parent}, {parent.parent}, etc.) or a Closure that receives a
+     * Path and returns the key as a String.
+     * Default is null, which means use the file basename as the key.
+     */
+    final Object key
+
+    /**
      * Path-specific rules (map of rule name to ArtifactRule)
      */
     final Map<String, ArtifactRule> rules
@@ -144,6 +154,7 @@ class ArtifactConfig {
         this.includePattern = safeOpts.include_pattern as String
         this.excludePattern = safeOpts.exclude_pattern as String
         this.kind = safeOpts.kind as String
+        this.key = safeOpts.key  // keep as-is: String template or Closure
 
         // Parse list fields (can be String or List)
         this.ulabelUids = ConfigUtils.parseStringOrList(safeOpts.ulabel_uids)
@@ -213,11 +224,12 @@ class ArtifactConfig {
      * For shouldTrack: each matching rule can override the decision - include rules set it to true,
      *                  exclude rules set it to false. The last matching rule with a type wins.
      *
-     * @param path File path to evaluate
+     * @param path File path string (URI) to evaluate
      * @param artifactDirection 'input' or 'output'
+     * @param pathObject The Path object (passed to Closures); may be null
      * @return ArtifactEvaluation with shouldTrack flag and metadata map
      */
-    ArtifactEvaluation evaluate(String path, String artifactDirection) {
+    ArtifactEvaluation evaluate(String path, String artifactDirection, Path pathObject) {
         // Early exit if disabled or direction doesn't match
         if (!enabled) {
             log.debug "Path '${path}' not tracked: artifact tracking is disabled"
@@ -232,6 +244,7 @@ class ArtifactConfig {
         List<String> ulabels = new ArrayList<>(this.ulabelUids)
         List<String> projects = new ArrayList<>(this.projectUids)
         String artifactKind = this.kind
+        Object effectiveKeyConfig = this.key
         boolean shouldTrack = true
 
         // Apply global exclude pattern
@@ -271,6 +284,9 @@ class ArtifactConfig {
                 if (rule.kind) {
                     artifactKind = rule.kind
                 }
+                if (rule.key != null) {
+                    effectiveKeyConfig = rule.key
+                }
             }
         }
 
@@ -280,6 +296,9 @@ class ArtifactConfig {
         metadata.project_uids = projects.unique()
         if (artifactKind) {
             metadata.kind = artifactKind
+        }
+        if (effectiveKeyConfig != null) {
+            metadata.key = KeyResolver.resolveKey(effectiveKeyConfig, path, pathObject)
         }
 
         return new ArtifactEvaluation(shouldTrack, metadata)
@@ -298,6 +317,7 @@ class ArtifactConfig {
             "ulabelUids=${ulabelUids}, " +
             "projectUids=${projectUids}, " +
             "kind='${kind}', " +
+            "key='${key instanceof Closure ? '<closure>' : key}', " +
             "rules=${rules.size()} rules" +
             "}"
     }

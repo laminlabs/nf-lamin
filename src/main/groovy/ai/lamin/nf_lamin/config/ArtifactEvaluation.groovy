@@ -72,6 +72,14 @@ class ArtifactEvaluation {
         return metadata.kind as String
     }
 
+    /**
+     * Get artifact key from metadata
+     * @return Artifact key or null
+     */
+    String getKey() {
+        return metadata.key as String
+    }
+
     @Override
     String toString() {
         return "ArtifactEvaluation{shouldTrack=${shouldTrack}, metadata=${metadata}}"
