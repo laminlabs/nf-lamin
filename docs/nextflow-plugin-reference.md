@@ -197,6 +197,14 @@ lamin {
 - `ulabel_uids` (List<String> or String) - ULabel UIDs to attach to all matching artifacts
 - `project_uids` (List<String> or String) - Project UIDs to attach to all matching artifacts
 - `kind` (String) - Artifact kind (e.g., 'dataset', 'model', 'reference', 'report')
+- `key` (String or Closure) - Key for deriving artifact keys from file paths using String templates or a Closure. Default: uses the basename as the key. See the ["Strip output directory prefix"](#strip-output-directory-prefix) example below for a common pattern that relativizes keys to `params.outdir`.
+  - As a **String template**, you can use the following variables:
+    - `{basename}`: The filename with extension
+    - `{name}`: The filename without extension
+    - `{ext}`: The file extension
+    - `{parent}`: The parent directory name
+    - `{parent.parent}`: The grandparent directory name (and so on)
+  - As a **Closure**, receives the file path (`java.nio.file.Path`) and returns the key (String).
 - `rules` (Map) - Named rules for path-specific configurations
 
 **Rule Options** (apply to individual rules within `rules`):
@@ -209,6 +217,7 @@ lamin {
 - `ulabel_uids` (List<String> or String) - ULabel UIDs to attach to matching artifacts
 - `project_uids` (List<String> or String) - Project UIDs to attach to matching artifacts
 - `kind` (String) - Override artifact kind for matching files
+- `key` (String or Closure) - Key for matching artifacts. Same template variables as the global `key` option. As a **Closure**, receives the file path (`java.nio.file.Path`) and returns the key (String)
 
 #### Rule Evaluation
 
@@ -264,6 +273,69 @@ lamin {
   output_artifacts {
     enabled = true
     exclude_pattern = '.*\\.(tmp|temp|intermediate).*'
+  }
+}
+```
+
+**Set artifact keys with a prefix:**
+
+```groovy
+lamin {
+  output_artifacts {
+    // All output artifacts get a key like "nf-core/rnaseq/report.html"
+    key = 'nf-core/rnaseq/{basename}'
+  }
+}
+```
+
+**Extract structured keys using parent directories:**
+
+```groovy
+lamin {
+  output_artifacts {
+    // Use parent directory structure in the key
+    // e.g., /home/user/results/multiqc/report.html → "multiqc/report.html"
+    key = '{parent}/{basename}'
+
+    // Or go deeper: {parent.parent}/{parent}/{basename}
+    // e.g., /home/user/results/multiqc/star/report.html → "multiqc/star/report.html"
+  }
+}
+```
+
+**Strip output directory prefix:**
+<a id="strip-output-directory-prefix"></a>
+
+Many pipelines (including nf-core pipelines) publish output files under `params.outdir`.
+By default, artifact keys use only the filename. Use a closure to strip the output
+directory prefix and preserve the directory structure as the key instead:
+
+```groovy
+lamin {
+  output_artifacts {
+    // Strip params.outdir from the path to get a meaningful key.
+    // For example, with --outdir s3://bucket/rnaseq_run/:
+    //   s3://bucket/rnaseq_run/multiqc/star/multiqc_report.html
+    //   → multiqc/star/multiqc_report.html
+    key = { path -> file(params.outdir).relativize(path).toString() }
+  }
+}
+```
+
+This works with both local paths (`/home/user/results/`) and cloud storage
+(`s3://bucket/results/`, `gs://bucket/results/`). If key resolution fails,
+the plugin falls back to using the filename.
+
+**Use a closure for custom key derivation:**
+
+```groovy
+lamin {
+  output_artifacts {
+    // Closure receives a java.nio.file.Path and returns the key
+    key = { path ->
+      // Use the Path API to build a custom key
+      "${path.parent.fileName}/${path.fileName}"
+    }
   }
 }
 ```
