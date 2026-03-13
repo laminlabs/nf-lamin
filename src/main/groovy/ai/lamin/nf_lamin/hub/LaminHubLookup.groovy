@@ -20,8 +20,6 @@ import groovy.transform.CompileStatic
 
 /**
  * Hub lookup configuration for Lamin environments
- *
- * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
 @CompileStatic
 class LaminHubLookup {

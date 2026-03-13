@@ -50,8 +50,6 @@ import ai.lamin.nf_lamin.config.TransformConfig
  *     ulabel_uids = ['ulab123456789012']
  *   }
  * }
- *
- * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
 @ScopeName('lamin')
 @Description('''

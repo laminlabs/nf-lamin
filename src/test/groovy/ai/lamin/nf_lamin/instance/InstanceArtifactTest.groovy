@@ -20,8 +20,6 @@ import java.nio.file.Path
 
 /**
  * Tests the Instance class with real staging environment API calls
- *
- * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
 class InstanceArtifactTest extends Specification {
 

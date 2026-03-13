@@ -27,8 +27,6 @@ import org.pf4j.Extension
  *
  * This allows LaminPath objects to be properly serialized and deserialized
  * when passed between Nextflow processes or cached.
- *
- * @author Lamin Labs
  */
 @Extension
 @CompileStatic

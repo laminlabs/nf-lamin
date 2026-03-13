@@ -44,8 +44,6 @@ import java.time.OffsetDateTime
  *
  * Requires:
  *   - LAMIN_API_KEY environment variable
- *
- * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
 class InstanceArtifactApiTest extends Specification {
 

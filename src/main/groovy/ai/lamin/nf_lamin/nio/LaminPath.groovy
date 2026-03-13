@@ -35,8 +35,6 @@ import java.nio.file.WatchService
  * The path is "virtual" in that it references a LaminDB artifact which
  * is stored in underlying cloud storage (S3, GCS, etc.). The actual
  * file operations are delegated to the underlying storage provider.
- *
- * @author Lamin Labs
  */
 @Slf4j
 @CompileStatic

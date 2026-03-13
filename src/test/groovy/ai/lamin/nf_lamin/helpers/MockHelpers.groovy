@@ -103,10 +103,6 @@ class MockExecutorFactory extends ExecutorFactory {
 
 }
 
-/**
- *
- * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
- */
 class MockExecutor extends Executor {
 
     @Override

@@ -23,8 +23,6 @@ import groovy.transform.CompileStatic
  *
  * Contains both the tracking decision and the accumulated metadata
  * from global config and all matching rules.
- *
- * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
 @CompileStatic
 class ArtifactEvaluation {

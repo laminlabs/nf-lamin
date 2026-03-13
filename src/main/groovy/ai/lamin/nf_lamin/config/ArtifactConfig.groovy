@@ -50,8 +50,6 @@ import java.util.regex.Pattern
  *   }
  * }
  * </pre>
- *
- * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
 @Slf4j
 @CompileStatic
