@@ -1,0 +1,219 @@
+---
+title: "nf-core/rnaseq with nf-lamin"
+format: gfm
+execute:
+  eval: true
+---
+
+```{r setup, include=FALSE}
+
+```
+
+## Overview
+
+[nf-core/rnaseq](https://nf-co.re/rnaseq) is the most widely used Nextflow pipeline for
+bulk RNA-seq analysis. It performs quality control, trimming, alignment (STAR or HISAT2),
+quantification (Salmon, RSEM, or featureCounts), and produces a comprehensive MultiQC report.
+
+This example shows how to run `nf-core/rnaseq` with the `nf-lamin` plugin to automatically
+track the pipeline run and its artifacts in [LaminDB](https://lamin.ai).
+
+### What gets tracked
+
+With the `nextflow.config` in this directory, `nf-lamin` will:
+
+- Create a **Transform** record for the pipeline (nf-core/rnaseq)
+- Create a **Run** record for this execution
+- Track **input artifacts**: FASTQ files, reference genome, GTF annotation
+- Track **output artifacts**: gene count matrices, BAM files, MultiQC report, bigWig tracks
+- Exclude noise: pipeline logs, version files, intermediate outputs
+
+## Prerequisites
+
+1. [Nextflow](https://www.nextflow.io/) >= 25.04.0
+2. [Docker](https://www.docker.com/) (or Singularity)
+3. A LaminDB instance — sign up at [lamin.ai](https://lamin.ai)
+
+### Set your API key
+
+```bash
+# Store your Lamin API key as a Nextflow secret (one-time setup)
+nextflow secrets set LAMIN_API_KEY <your-api-key>
+```
+
+### Configure the plugin
+
+Edit `nextflow.config` in this directory and set your LaminDB instance:
+
+```groovy
+lamin {
+  instance = "your-org/your-instance"  // <-- change this
+  api_key = secrets.LAMIN_API_KEY
+}
+```
+
+## Run the pipeline
+
+The `-profile test` provides small test data (yeast RNA-seq subset) so this runs quickly.
+Output is written to a cloud bucket.
+
+```bash
+export NXF_ANSI_LOG=false
+NXF_VER=25.10.0 nextflow run nf-core/rnaseq \
+  -r 3.23.0 \
+  -profile docker,test \
+  -c nextflow.config \
+  --outdir ${LAMIN_TEST_BUCKET}/rnaseq/run_$(date +%Y%m%d_%H%M%S)
+```
+
+### What to expect
+
+When the run starts, `nf-lamin` prints links to the created records:
+
+```
+✅ Connected to LaminDB instance 'your-org/your-instance' as 'your-user'
+Transform AbCdEfGh12340000 (https://lamin.ai/your-org/your-instance/transform/AbCdEfGh12340000)
+Run xYz123AbCdEfGhIjKlMn (https://lamin.ai/your-org/your-instance/transform/AbCdEfGh12340000/xYz123AbCdEfGhIjKlMn)
+```
+
+The pipeline takes ~10-15 minutes with the test profile. Key steps executed:
+
+1. **FastQC** — raw read quality control
+2. **Trim Galore** — adapter trimming
+3. **STAR** — genome alignment
+4. **Salmon** — transcript quantification
+5. **featureCounts** — gene-level counting
+6. **MultiQC** — aggregate QC report
+
+## Inspect results in LaminDB
+
+After the run completes, you can inspect the results using the LaminDB Python package.
+
+### Connect to your instance
+
+```{python}
+import lamindb as ln
+```
+
+### Find the run
+
+```{python}
+# List recent runs from nf-core/rnaseq
+runs = ln.Run.filter(transform__key__contains="nf-core/rnaseq").order_by("-started_at")[:5]
+for run in runs:
+    print(f"{run.uid}  {run.started_at}  {run.status}")
+```
+
+### View run details
+
+```{python}
+# Get the most recent run
+run = ln.Run.filter(transform__key__contains="nf-core/rnaseq").order_by("-started_at").first()
+run
+```
+
+### List output artifacts
+
+```{python}
+from collections import Counter
+
+# Summarize output artifacts by file type
+artifacts = ln.Artifact.filter(run=run).all()
+suffix_counts = Counter(a.suffix for a in artifacts)
+
+print(f"Total output artifacts: {len(artifacts)}")
+print()
+for suffix, count in suffix_counts.most_common():
+    print(f"  {suffix:20s} {count:3d} files")
+```
+
+### List input artifacts
+
+```{python}
+# All input artifacts for this run
+input_artifacts = run.input_artifacts.order_by("key").all()
+for art in input_artifacts:
+    print(f"  {art.key or art.uid}")
+```
+
+## Customizing artifact rules
+
+The `nextflow.config` in this directory defines rules for which files to track
+as LaminDB artifacts. You can customize these for your needs.
+
+### Track only count matrices (skip BAMs)
+
+To keep your instance lean, you might want to skip large alignment files:
+
+```groovy
+lamin {
+  output_artifacts {
+    rules {
+      // Disable BAM tracking
+      bam_files {
+        enabled = false
+      }
+      bam_index {
+        enabled = false
+      }
+      bigwig_files {
+        enabled = false
+      }
+    }
+  }
+}
+```
+
+### Add labels to specific outputs
+
+```groovy
+lamin {
+  output_artifacts {
+    rules {
+      gene_counts {
+        pattern = '.*gene_counts.*\\.tsv$'
+        kind = 'dataset'
+        ulabel_uids = ['your-ulabel-uid']
+        project_uids = ['your-project-uid']
+      }
+    }
+  }
+}
+```
+
+### Include pipeline execution reports
+
+By default, files in `pipeline_info/` are excluded. To track them:
+
+```groovy
+lamin {
+  output_artifacts {
+    rules {
+      // Remove or comment out the exclude rule
+      // exclude_pipeline_info {
+      //   type = 'exclude'
+      //   pattern = '.*/pipeline_info/.*'
+      // }
+
+      // Optionally, track them with a specific kind
+      execution_reports {
+        pattern = '.*/pipeline_info/.*\\.html$'
+        kind = 'report'
+      }
+    }
+  }
+}
+```
+
+## Key outputs reference
+
+| Output | Path pattern | Description |
+|--------|-------------|-------------|
+| Gene counts | `star_salmon/salmon.merged.gene_counts.tsv` | Merged gene-level counts across samples |
+| Gene TPM | `star_salmon/salmon.merged.gene_tpm.tsv` | Gene-level TPM values |
+| Transcript counts | `star_salmon/salmon.merged.transcript_counts.tsv` | Transcript-level counts |
+| BAM files | `star_salmon/*.Aligned.sortedByCoord.out.bam` | Genome-aligned reads |
+| BigWig | `star_salmon/bigwig/*.bigWig` | Coverage tracks for genome browsers |
+| MultiQC | `multiqc/star_salmon/multiqc_report.html` | Aggregate QC report |
+| FastQC | `fastqc/*.html` | Per-sample quality reports |
+| SummarizedExperiment | `star_salmon/*.rds` | R-ready count objects |
