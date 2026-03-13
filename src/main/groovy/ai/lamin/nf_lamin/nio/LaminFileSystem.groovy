@@ -39,8 +39,6 @@ import ai.lamin.nf_lamin.instance.Instance
  *
  * This class delegates to LaminRunManager for hub and instance access,
  * sharing connections with the rest of the nf-lamin plugin.
- *
- * @author Lamin Labs
  */
 @Slf4j
 @CompileStatic

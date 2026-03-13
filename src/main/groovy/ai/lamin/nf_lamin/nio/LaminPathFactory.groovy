@@ -30,8 +30,6 @@ import org.pf4j.Extension
  *
  * This factory allows Nextflow to parse lamin:// URI strings into
  * LaminPath objects, and convert LaminPath objects back to URI strings.
- *
- * @author Lamin Labs
  */
 @Slf4j
 @Extension
