@@ -281,14 +281,16 @@ class ArtifactConfig {
         if (!shouldTrack) {
             return ArtifactEvaluation.notTracked()
         }
+        String resolvedKey = null
         if (effectiveKeyConfig != null) {
-            metadata.key = KeyResolver.resolveKey(effectiveKeyConfig, path, pathObject)
+            resolvedKey = KeyResolver.resolveKey(effectiveKeyConfig, path, pathObject)
         }
 
         return new ArtifactEvaluation(
             shouldTrack,
             ulabels.unique(),
-            artifactKind
+            artifactKind,
+            resolvedKey
         )
     }
 

@@ -43,35 +43,42 @@ class ArtifactEvaluation {
     final String kind
 
     /**
+     * Artifact key, or null if not specified.
+     */
+    final String key
+
+    /**
      * Create a new ArtifactEvaluation with typed fields.
      *
      * @param shouldTrack Whether the artifact should be tracked
      * @param ulabelUids Accumulated ULabel UIDs
      * @param kind Artifact kind, or null
+     * @param key Artifact key, or null
      */
-    ArtifactEvaluation(boolean shouldTrack, List<String> ulabelUids, String kind) {
+    ArtifactEvaluation(boolean shouldTrack, List<String> ulabelUids, String kind, String key = null) {
         this.shouldTrack = shouldTrack
         this.ulabelUids = ulabelUids ?: []
         this.kind = kind
+        this.key = key
     }
 
     /**
      * Factory for a "not tracked" result with empty metadata.
      */
     static ArtifactEvaluation notTracked() {
-        return new ArtifactEvaluation(false, [], null)
+        return new ArtifactEvaluation(false, [], null, null)
     }
 
     /**
-     * Get artifact key from metadata
+     * Get artifact key
      * @return Artifact key or null
      */
     String getKey() {
-        return metadata.key as String
+        return this.key
     }
 
     @Override
     String toString() {
-        return "ArtifactEvaluation{shouldTrack=${shouldTrack}, ulabelUids=${ulabelUids}, kind=${kind}}"
+        return "ArtifactEvaluation{shouldTrack=${shouldTrack}, ulabelUids=${ulabelUids}, kind=${kind}, key=${key}}"
     }
 }
