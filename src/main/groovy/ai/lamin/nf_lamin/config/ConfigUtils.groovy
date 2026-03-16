@@ -21,8 +21,6 @@ import java.util.regex.Pattern
 
 /**
  * Utility methods for parsing configuration values.
- *
- * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
 @CompileStatic
 class ConfigUtils {

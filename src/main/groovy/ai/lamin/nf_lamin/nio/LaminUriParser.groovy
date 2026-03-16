@@ -27,8 +27,6 @@ import groovy.util.logging.Slf4j
  * Examples:
  * - lamin://laminlabs/lamindata/artifact/s3rtK8wIzJNKvg5Q
  * - lamin://laminlabs/lamindata/artifact/s3rtK8wIzJNKvg5Q/subdir/file.txt
- *
- * @author Lamin Labs
  */
 @Slf4j
 @CompileStatic

@@ -18,6 +18,8 @@ package ai.lamin.nf_lamin.config
 
 import spock.lang.Specification
 import spock.lang.Unroll
+import java.nio.file.Path
+import java.nio.file.Paths
 
 /**
  * Test for ArtifactConfig configuration
@@ -123,7 +125,7 @@ class ArtifactConfigTest extends Specification {
         ], direction)
 
         when:
-        def result = config.evaluate(path, artifactDirection)
+        def result = config.evaluate(path, artifactDirection, null)
 
         then:
         result.shouldTrack == expectedShouldTrack
@@ -156,7 +158,7 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         when:
-        def result = config.evaluate('file_temp.txt', 'output')
+        def result = config.evaluate('file_temp.txt', 'output', null)
 
         then:
         !result.shouldTrack
@@ -183,9 +185,9 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         expect:
-        !config.evaluate('file_temp.txt', 'output').shouldTrack  // excluded by rule
-        config.evaluate('file.fastq', 'output').shouldTrack      // included by rule
-        config.evaluate('file.bam', 'output').shouldTrack        // no matching rule, default to track
+        !config.evaluate('file_temp.txt', 'output', null).shouldTrack  // excluded by rule
+        config.evaluate('file.fastq', 'output', null).shouldTrack      // included by rule
+        config.evaluate('file.bam', 'output', null).shouldTrack        // no matching rule, default to track
     }
 
     def "should get metadata from global config"() {
@@ -197,7 +199,7 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         when:
-        def result = config.evaluate('file.txt', 'output')
+        def result = config.evaluate('file.txt', 'output', null)
 
         then:
         result.ulabelUids == ['global-label']
@@ -222,7 +224,7 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         when:
-        def result = config.evaluate('file.fastq', 'output')
+        def result = config.evaluate('file.fastq', 'output', null)
 
         then:
         result.ulabelUids.containsAll(['global-label', 'fastq-label'])
@@ -243,7 +245,7 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         when:
-        def result = config.evaluate('file.txt', 'output')
+        def result = config.evaluate('file.txt', 'output', null)
 
         then:
         result.ulabelUids.size() == 3
@@ -272,7 +274,7 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         when:
-        def result = config.evaluate('file.fastq', 'output')
+        def result = config.evaluate('file.fastq', 'output', null)
 
         then:
         // Labels accumulated from global + both matching rules
@@ -302,7 +304,7 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         when:
-        def result = config.evaluate('file.txt', 'output')
+        def result = config.evaluate('file.txt', 'output', null)
 
         then:
         // second_rule comes after first_rule in order, so its kind takes precedence
@@ -328,9 +330,9 @@ class ArtifactConfigTest extends Specification {
 
         expect:
         // Both rules match, last matching rule (exclude_temp) determines type
-        !config.evaluate('file_temp.txt', 'output').shouldTrack
+        !config.evaluate('file_temp.txt', 'output', null).shouldTrack
         // Only include_all matches
-        config.evaluate('file.txt', 'output').shouldTrack
+        config.evaluate('file.txt', 'output', null).shouldTrack
     }
 
     def "should allow later include rule to override earlier exclude rule"() {
@@ -353,9 +355,135 @@ class ArtifactConfigTest extends Specification {
 
         expect:
         // exclude_all matches but include_fastq (later) overrides it
-        config.evaluate('file.fastq', 'output').shouldTrack
-        config.evaluate('file.fastq', 'output').ulabelUids == ['fastq-label']
+        config.evaluate('file.fastq', 'output', null).shouldTrack
+        config.evaluate('file.fastq', 'output', null).ulabelUids == ['fastq-label']
         // Only exclude_all matches, so excluded
-        !config.evaluate('file.txt', 'output').shouldTrack
+        !config.evaluate('file.txt', 'output', null).shouldTrack
+    }
+
+    def "evaluate should resolve key from global template"() {
+        given:
+        def config = new ArtifactConfig([
+            key: '{parent}/{basename}'
+        ], 'both')
+
+        when:
+        def result = config.evaluate('/path/to/output/report.html', 'output', null)
+
+        then:
+        result.shouldTrack
+        result.key == 'output/report.html'
+    }
+
+    def "evaluate should resolve key from rule template"() {
+        given:
+        def config = new ArtifactConfig([
+            rules: [
+                structured_output: [
+                    pattern: '.*/results/.*',
+                    key: 'nf-core/rnaseq/{parent}/{basename}'
+                ]
+            ]
+        ], 'both')
+
+        when:
+        def result = config.evaluate('/home/user/results/multiqc/report.html', 'output', null)
+
+        then:
+        result.shouldTrack
+        result.key == 'nf-core/rnaseq/multiqc/report.html'
+    }
+
+    def "evaluate should have null key when no key template is specified"() {
+        given:
+        def config = new ArtifactConfig([:], 'both')
+
+        when:
+        def result = config.evaluate('/path/to/file.txt', 'output', null)
+
+        then:
+        result.shouldTrack
+        result.key == null
+    }
+
+    def "evaluate rule key should override global key"() {
+        given:
+        def config = new ArtifactConfig([
+            key: '{basename}',
+            rules: [
+                override_key: [
+                    pattern: '.*/results/.*',
+                    key: 'custom/{parent}/{basename}'
+                ]
+            ]
+        ], 'both')
+
+        when:
+        def matchResult = config.evaluate('/home/results/star/Aligned.bam', 'output', null)
+        def noMatchResult = config.evaluate('/home/other/file.txt', 'output', null)
+
+        then:
+        matchResult.key == 'custom/star/Aligned.bam'
+        noMatchResult.key == 'file.txt'
+    }
+
+    def "evaluate should resolve key from global closure"() {
+        given:
+        Closure keyClosure = { Path p -> "closure-prefix/${p.fileName}" }
+        def config = new ArtifactConfig([
+            key: keyClosure
+        ], 'both')
+
+        when:
+        def pathObj = Paths.get('/path/to/output/report.html')
+        def result = config.evaluate('/path/to/output/report.html', 'output', pathObj)
+
+        then:
+        result.shouldTrack
+        result.key == 'closure-prefix/report.html'
+    }
+
+    def "evaluate should resolve key from rule closure"() {
+        given:
+        Closure keyClosure = { Path p -> "rule-output/${p.fileName}" }
+        def config = new ArtifactConfig([
+            rules: [
+                with_closure: [
+                    pattern: '.*\\.html$',
+                    key: keyClosure
+                ]
+            ]
+        ], 'both')
+
+        when:
+        def pathObj = Paths.get('/path/to/report.html')
+        def result = config.evaluate('/path/to/report.html', 'output', pathObj)
+
+        then:
+        result.shouldTrack
+        result.key == 'rule-output/report.html'
+    }
+
+    def "evaluate rule closure should override global string key"() {
+        given:
+        Closure ruleClosure = { Path p -> "from-closure/${p.fileName}" }
+        def config = new ArtifactConfig([
+            key: '{parent}/{basename}',
+            rules: [
+                override_with_closure: [
+                    pattern: '.*\\.bam$',
+                    key: ruleClosure
+                ]
+            ]
+        ], 'both')
+
+        when:
+        def matchPath = Paths.get('/results/star/Aligned.bam')
+        def matchResult = config.evaluate('/results/star/Aligned.bam', 'output', matchPath)
+        def noMatchResult = config.evaluate('/results/star/Aligned.txt', 'output', null)
+
+        then:
+        matchResult.key == 'from-closure/Aligned.bam'
+        noMatchResult.key == 'star/Aligned.txt'
     }
 }

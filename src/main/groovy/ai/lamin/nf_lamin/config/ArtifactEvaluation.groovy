@@ -23,8 +23,6 @@ import groovy.transform.CompileStatic
  *
  * Contains both the tracking decision and the accumulated metadata
  * from global config and all matching rules.
- *
- * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
 @CompileStatic
 class ArtifactEvaluation {
@@ -72,6 +70,14 @@ class ArtifactEvaluation {
      */
     String getKind() {
         return metadata.kind as String
+    }
+
+    /**
+     * Get artifact key from metadata
+     * @return Artifact key or null
+     */
+    String getKey() {
+        return metadata.key as String
     }
 
     @Override

@@ -20,8 +20,6 @@ import org.pf4j.PluginWrapper
 
 /**
  * Unit tests for the LaminPlugin class
- *
- * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
 class LaminPluginTest extends Specification {
 
