@@ -29,6 +29,7 @@ import java.util.concurrent.locks.ReentrantLock
 
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
+import nextflow.Const
 import nextflow.Session
 import nextflow.file.FileHelper
 import nextflow.script.WorkflowMetadata
@@ -965,14 +966,16 @@ final class LaminRunManager {
     }
 
     /**
-     * Check if a path is within ~/.nextflow/assets.
+     * Check if a path is within the Nextflow assets directory.
+     *
+     * Respects NXF_ASSETS and NXF_HOME env vars via nextflow.Const.DEFAULT_ROOT.
      */
     private boolean isInAssetsDir(Path path) {
-        String homeDir = System.getProperty('user.home')
-        if (homeDir == null || homeDir.trim().isEmpty()) {
+        File assetsRoot = Const.DEFAULT_ROOT
+        if (assetsRoot == null) {
             return false
         }
-        Path assetsDir = Path.of(homeDir, '.nextflow', 'assets')
+        Path assetsDir = assetsRoot.toPath()
         return isInDir(path, assetsDir, 'assets')
     }
 
