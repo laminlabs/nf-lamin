@@ -13,7 +13,8 @@ LaminDB integrates with Nextflow through:
 
 | nf-lamin  | LaminDB       | Nextflow   | Status         | Key Features                                                          |
 | --------- | ------------- | ---------- | -------------- | --------------------------------------------------------------------- |
-| **0.5.1** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Track local input files, exclude artifacts from work and assets dirs  |
+| **0.5.2** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Configure keys of uploaded artifacts via templates or closures        |
+| 0.5.1     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Track local input files, exclude artifacts from work and assets dirs  |
 | 0.5.0     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Improved Lamin config, configure artifact tracking, link to metadata  |
 | 0.4.0     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Input artifact tracking                                               |
 | 0.3.0     | >= 2.0        | >= 25.04.0 | ❌ Unsupported | Upgrade to LaminDB v2, Add support for `lamin://` URI support         |

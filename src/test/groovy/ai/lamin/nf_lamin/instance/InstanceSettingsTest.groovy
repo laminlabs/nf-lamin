@@ -22,8 +22,6 @@ import ai.lamin.nf_lamin.instance.InstanceSettings
 
 /**
  * Unit tests for the InstanceSettings class
- *
- * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
 class InstanceSettingsTest extends Specification {
 

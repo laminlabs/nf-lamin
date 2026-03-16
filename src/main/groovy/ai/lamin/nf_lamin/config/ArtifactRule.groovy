@@ -39,8 +39,6 @@ import java.util.regex.Pattern
  *   }
  * }
  * </pre>
- *
- * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
 @Slf4j
 @CompileStatic
@@ -87,6 +85,15 @@ class ArtifactRule {
     final Integer order
 
     /**
+     * Key for deriving the artifact key from the file path.
+     * Can be a String template (supports {basename}, {filename}, {ext},
+     * {parent}, {parent.parent}, etc.) or a Closure that receives a
+     * Path and returns the key as a String.
+     * If null, inherits the global key from ArtifactConfig.
+     */
+    final Object key
+
+    /**
      * Create a new ArtifactRule from configuration map
      * @param opts Configuration options
      */
@@ -96,6 +103,7 @@ class ArtifactRule {
         this.type = opts.containsKey('type') ? (opts.type as String) : 'include'
         this.direction = opts.containsKey('direction') ? (opts.direction as String) : 'both'
         this.kind = opts.kind as String
+        this.key = opts.key  // keep as-is: String template or Closure
         this.order = opts.containsKey('order') ? (opts.order as Integer) : 100
 
         // Parse list fields (can be String or List)
@@ -159,6 +167,7 @@ class ArtifactRule {
             "direction='${direction}', " +
             "kind='${kind}', " +
             "ulabelUids=${ulabelUids}, " +
+            "key='${key instanceof Closure ? '<closure>' : key}', " +
             "order=${order}" +
             "}"
     }

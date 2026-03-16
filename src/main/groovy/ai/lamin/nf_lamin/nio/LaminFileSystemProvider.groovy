@@ -52,8 +52,6 @@ import ai.lamin.nf_lamin.instance.Instance
  *
  * This provider reuses the LaminHub and Instance clients from LaminRunManager
  * to avoid creating duplicate connections and to share configuration.
- *
- * @author Lamin Labs
  */
 @Slf4j
 @CompileStatic

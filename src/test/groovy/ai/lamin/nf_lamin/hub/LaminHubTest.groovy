@@ -23,8 +23,6 @@ import ai.lamin.nf_lamin.LaminConfig
 
 /**
  * Test laminhub class
- *
- * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
 class LaminHubTest extends Specification {
 

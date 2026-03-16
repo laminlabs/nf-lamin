@@ -18,10 +18,6 @@ package ai.lamin.nf_lamin
 import nextflow.Session
 import spock.lang.Specification
 
-/**
- *
- * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
- */
 class LaminObserverFactoryTest extends Specification {
 
     def 'should return observer' () {

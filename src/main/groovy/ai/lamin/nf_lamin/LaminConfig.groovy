@@ -70,8 +70,6 @@ import ai.lamin.nf_lamin.config.TransformConfig
  *   space_uid    = '?my-space'         // skip if missing
  *   branch_uid   = '!my-branch'        // fail if missing
  * </pre>
- *
- * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
 @ScopeName('lamin')
 @Description('''

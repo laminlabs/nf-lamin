@@ -43,6 +43,7 @@ import ai.lamin.nf_lamin.nio.LaminPath
 import ai.lamin.nf_lamin.util.TransformInfoHelper
 import ai.lamin.nf_lamin.config.ArtifactConfig
 import ai.lamin.nf_lamin.config.ArtifactEvaluation
+import ai.lamin.nf_lamin.config.KeyResolver
 
 /**
  * Holds shared state about the currently active Lamin transform and run.
@@ -601,7 +602,7 @@ final class LaminRunManager {
         }
 
         // Evaluate the path against the config
-        ArtifactEvaluation evaluation = artifactConfig.evaluate(pathStr, direction)
+        ArtifactEvaluation evaluation = artifactConfig.evaluate(pathStr, direction, path)
         if (evaluation.shouldTrack) {
             log.debug "Artifact '${pathStr}' will be tracked as ${direction} with evaluation: ${evaluation}"
         } else {
@@ -635,6 +636,9 @@ final class LaminRunManager {
         ]
         if (evaluation.kind) {
             params.kind = evaluation.kind
+        }
+        if (evaluation.key) {
+            params.key = evaluation.key
         }
 
         Map<String, Object> artifact = fetchOrCreateArtifact(params)
@@ -687,6 +691,9 @@ final class LaminRunManager {
         ]
         if (evaluation.kind) {
             params.kind = evaluation.kind
+        }
+        if (evaluation.key) {
+            params.key = evaluation.key
         }
 
         Map<String, Object> artifact = fetchOrCreateArtifact(params)
@@ -1247,6 +1254,7 @@ final class LaminRunManager {
      *   - run_id (Integer, optional): The ID of the run to associate the artifact with
      *   - description (String, optional): A description for the artifact
      *   - kind (String, optional): The artifact kind (e.g., 'dataset', 'model')
+     *   - key (String, optional): The artifact key (a human-readable identifier). Defaults to the filename.
      * @return the artifact map if created or found, null on failure
      */
     Map<String, Object> fetchOrCreateArtifact(Map<String, Object> params) {
@@ -1297,6 +1305,19 @@ final class LaminRunManager {
             kind = kindValue as String
         }
 
+        // Extract key: use provided key, or default to filename
+        String key = null
+        if (params.containsKey('key')) {
+            Object keyValue = params.get('key')
+            if (keyValue != null && !(keyValue instanceof String)) {
+                throw new IllegalArgumentException("Parameter 'key' must be a String or null")
+            }
+            key = keyValue as String
+        }
+        if (key == null) {
+            key = KeyResolver.defaultKeyFromPath(path.toUri().toString())
+        }
+
         boolean isLocalFile = (path.toUri().getScheme() ?: 'file') == 'file'
 
         String logContext = runId != null ? "for run ${runId}" : "without run association"
@@ -1329,6 +1350,9 @@ final class LaminRunManager {
             }
             if (kind != null) {
                 apiParams.put('kind', kind)
+            }
+            if (key != null) {
+                apiParams.put('key', key)
             }
 
             if (isLocalFile) {

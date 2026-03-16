@@ -35,6 +35,7 @@ class ArtifactRuleTest extends Specification {
         rule.direction == 'both'
         rule.order == 100
         rule.ulabelUids == []
+        rule.key == null
     }
 
     def "should create rule with full config"() {
@@ -144,5 +145,21 @@ class ArtifactRuleTest extends Specification {
         'input'       | 'output'          | false
         'output'      | 'input'           | false
         'output'      | 'output'          | true
+    }
+
+    def "should store key template"() {
+        when:
+        def rule = new ArtifactRule([pattern: '.*/results/.*', key: 'prefix/{parent}/{basename}'])
+
+        then:
+        rule.key == 'prefix/{parent}/{basename}'
+    }
+
+    def "should have null key when not specified"() {
+        when:
+        def rule = new ArtifactRule([pattern: '.*\\.bam\$'])
+
+        then:
+        rule.key == null
     }
 }

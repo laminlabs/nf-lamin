@@ -21,8 +21,6 @@ import ai.lamin.nf_lamin.LaminConfig
 
 /**
  * Hub configuration resolver that enhances LaminConfig with hub-specific settings
- *
- * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
 @CompileStatic
 class LaminHubConfigResolver {

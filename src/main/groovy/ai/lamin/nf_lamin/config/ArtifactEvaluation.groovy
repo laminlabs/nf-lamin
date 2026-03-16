@@ -23,8 +23,6 @@ import groovy.transform.CompileStatic
  *
  * Contains the tracking decision and the accumulated metadata from artifact
  * config and all matching rules (ulabel UIDs, kind).
- *
- * @author Robrecht Cannoodt <robrecht@data-intuitive.com>
  */
 @CompileStatic
 class ArtifactEvaluation {
@@ -62,6 +60,14 @@ class ArtifactEvaluation {
      */
     static ArtifactEvaluation notTracked() {
         return new ArtifactEvaluation(false, [], null)
+    }
+
+    /**
+     * Get artifact key from metadata
+     * @return Artifact key or null
+     */
+    String getKey() {
+        return metadata.key as String
     }
 
     @Override
