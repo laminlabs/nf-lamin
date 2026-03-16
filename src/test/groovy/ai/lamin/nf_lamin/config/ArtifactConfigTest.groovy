@@ -36,7 +36,6 @@ class ArtifactConfigTest extends Specification {
         config.includePattern == null
         config.excludePattern == null
         config.ulabelUids == []
-        config.projectUids == []
         config.rules.isEmpty()
     }
 
@@ -47,7 +46,6 @@ class ArtifactConfigTest extends Specification {
             include_pattern: '.*\\.(fastq|bam)$',
             exclude_pattern: '.*temp.*',
             ulabel_uids: ['global-label'],
-            project_uids: ['global-project'],
             kind: 'dataset'
         ], 'output')
 
@@ -57,20 +55,17 @@ class ArtifactConfigTest extends Specification {
         config.includePattern == '.*\\.(fastq|bam)$'
         config.excludePattern == '.*temp.*'
         config.ulabelUids == ['global-label']
-        config.projectUids == ['global-project']
         config.kind == 'dataset'
     }
 
-    def "should handle single string for ulabel_uids and project_uids"() {
+    def "should handle single string for ulabel_uids"() {
         when:
         def config = new ArtifactConfig([
-            ulabel_uids: 'single-label',
-            project_uids: 'single-project'
+            ulabel_uids: 'single-label'
         ], 'both')
 
         then:
         config.ulabelUids == ['single-label']
-        config.projectUids == ['single-project']
     }
 
     def "should parse rules from config"() {
@@ -129,10 +124,10 @@ class ArtifactConfigTest extends Specification {
 
         then:
         result.shouldTrack == expectedShouldTrack
-        // When tracked, metadata should include global values
+        // When tracked, should include global values
         if (expectedShouldTrack) {
-            result.metadata.ulabel_uids.contains('global-label')
-            result.metadata.kind == 'global-kind'
+            result.ulabelUids.contains('global-label')
+            result.kind == 'global-kind'
         }
 
         where:
@@ -148,7 +143,7 @@ class ArtifactConfigTest extends Specification {
         'excluded takes precedence'       | true    | '.*\\.txt$'         | '.*temp.*'     | 'both'    | 'file_temp.txt'    | 'output'          | false
     }
 
-    def "evaluate returns metadata even when not tracked due to patterns"() {
+    def "evaluate returns empty metadata when not tracked due to patterns"() {
         given:
         def config = new ArtifactConfig([
             enabled: true,
@@ -162,9 +157,8 @@ class ArtifactConfigTest extends Specification {
 
         then:
         !result.shouldTrack
-        // Metadata is still accumulated from global settings
-        result.metadata.ulabel_uids == ['global-label']
-        result.metadata.kind == 'global-kind'
+        result.ulabelUids == []
+        result.kind == null
     }
 
     def "should determine tracking based on rules"() {
@@ -194,7 +188,6 @@ class ArtifactConfigTest extends Specification {
         given:
         def config = new ArtifactConfig([
             ulabel_uids: ['global-label'],
-            project_uids: ['global-project'],
             kind: 'dataset'
         ], 'both')
 
@@ -203,7 +196,6 @@ class ArtifactConfigTest extends Specification {
 
         then:
         result.ulabelUids == ['global-label']
-        result.projectUids == ['global-project']
         result.kind == 'dataset'
     }
 
@@ -211,13 +203,11 @@ class ArtifactConfigTest extends Specification {
         given:
         def config = new ArtifactConfig([
             ulabel_uids: ['global-label'],
-            project_uids: ['global-project'],
             kind: 'dataset',
             rules: [
                 fastqs: [
                     pattern: '.*\\.fastq$',
                     ulabel_uids: ['fastq-label'],
-                    project_uids: ['fastq-project'],
                     kind: 'raw_data'
                 ]
             ]
@@ -228,7 +218,6 @@ class ArtifactConfigTest extends Specification {
 
         then:
         result.ulabelUids.containsAll(['global-label', 'fastq-label'])
-        result.projectUids.containsAll(['global-project', 'fastq-project'])
         result.kind == 'raw_data'  // rule overrides global
     }
 
@@ -261,7 +250,6 @@ class ArtifactConfigTest extends Specification {
                 all_files: [
                     pattern: '.*',
                     ulabel_uids: ['all-files-label'],
-                    project_uids: ['all-files-project'],
                     order: 10
                 ],
                 fastqs: [
@@ -279,8 +267,6 @@ class ArtifactConfigTest extends Specification {
         then:
         // Labels accumulated from global + both matching rules
         result.ulabelUids.containsAll(['global-label', 'fastq-label', 'all-files-label'])
-        // Projects from all_files rule
-        result.projectUids == ['all-files-project']
         // Kind from last matching rule with kind (all_files has order=10, processed last)
         result.kind == 'fastq-kind'  // actually fastq has order=1, so all_files comes later but doesn't have kind
     }

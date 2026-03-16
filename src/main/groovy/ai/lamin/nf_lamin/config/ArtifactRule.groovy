@@ -35,7 +35,6 @@ import java.util.regex.Pattern
  *     direction = 'input'
  *     kind = 'dataset'
  *     ulabel_uids = ['GfQLm1Zi', 'vdkZXcrp']
- *     project_uids = ['abc123']
  *     order = 1
  *   }
  * }
@@ -81,11 +80,6 @@ class ArtifactRule {
     final List<String> ulabelUids
 
     /**
-     * List of Project UIDs to attach to matching artifacts
-     */
-    final List<String> projectUids
-
-    /**
      * Rule evaluation order (lower numbers = higher priority, default: 100)
      */
     final Integer order
@@ -114,7 +108,6 @@ class ArtifactRule {
 
         // Parse list fields (can be String or List)
         this.ulabelUids = ConfigUtils.parseStringOrList(opts.ulabel_uids)
-        this.projectUids = ConfigUtils.parseStringOrList(opts.project_uids)
 
         // Validate configuration
         validate()
@@ -174,7 +167,6 @@ class ArtifactRule {
             "direction='${direction}', " +
             "kind='${kind}', " +
             "ulabelUids=${ulabelUids}, " +
-            "projectUids=${projectUids}, " +
             "key='${key instanceof Closure ? '<closure>' : key}', " +
             "order=${order}" +
             "}"

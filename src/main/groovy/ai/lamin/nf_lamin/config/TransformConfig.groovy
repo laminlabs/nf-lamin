@@ -23,14 +23,13 @@ import nextflow.script.dsl.Description
 /**
  * Configuration for transform-specific metadata linking.
  *
- * This configuration allows specifying project and ulabel UIDs that will be
+ * This configuration allows specifying ulabel UIDs that will be
  * linked to the transform when it is created.
  *
  * Example usage in nextflow.config:
  * <pre>
  * lamin {
  *   transform {
- *     project_uids = ['proj123456789012']
  *     ulabel_uids = ['ulab123456789012']
  *   }
  * }
@@ -38,12 +37,6 @@ import nextflow.script.dsl.Description
  */
 @CompileStatic
 class TransformConfig {
-
-    @ConfigOption
-    @Description('''
-        List of project UIDs to link to the transform.
-    ''')
-    final List<String> projectUids
 
     @ConfigOption
     @Description('''
@@ -55,17 +48,15 @@ class TransformConfig {
      * Default constructor required for extension point
      */
     TransformConfig() {
-        this.projectUids = []
         this.ulabelUids = []
     }
 
     /**
      * Create a TransformConfig from a configuration map.
      *
-     * @param opts Configuration map with keys: project_uids, ulabel_uids
+     * @param opts Configuration map with keys: ulabel_uids
      */
     TransformConfig(Map opts) {
-        this.projectUids = parseUidList(opts?.project_uids)
         this.ulabelUids = parseUidList(opts?.ulabel_uids)
     }
 
@@ -89,14 +80,6 @@ class TransformConfig {
     }
 
     /**
-     * Get the list of project UIDs to link.
-     * @return List of project UIDs
-     */
-    List<String> getProjectUids() {
-        return this.projectUids
-    }
-
-    /**
      * Get the list of ulabel UIDs to link.
      * @return List of ulabel UIDs
      */
@@ -106,6 +89,6 @@ class TransformConfig {
 
     @Override
     String toString() {
-        return "TransformConfig{projectUids=${projectUids}, ulabelUids=${ulabelUids}}"
+        return "TransformConfig{ulabelUids=${ulabelUids}}"
     }
 }

@@ -504,23 +504,137 @@ class Instance {
 
     /**
      * Create a run in the Lamin API.
-     * @param data A map containing the run data (e.g., transform_id, started_at, status)
-     *    - transform_id: The ID of the associated transform (required in most cases)
-     *    - started_at: The start time (ISO format string)
-     *    - status: The run status (int, e.g., RunStatus.STARTED.value)
-     *    - Any other fields supported by the Run model
+     * @param data A map containing the run data (e.g., transform_id, started_at, status).
+     *    Required fields:
+     *    - transform_id: The ID of the associated transform (int)
+     *    Recommended fields:
+     *    - created_at: The creation time (ISO string with microseconds + timezone, e.g. "2026-02-20T10:30:00.000000+00:00")
+     *    - started_at: The start time (same format as created_at)
+     *    - _status_code: The run status code (int, e.g. RunStatus.STARTED.code)
+     *    Optional fields:
+     *    - name: Run name (String — must be a plain String, not a GString)
+     *    - space_id: Space ID (int)
+     *    - branch_id: Branch ID (int)
+     *
+     *    IMPORTANT: All values must be plain types. Groovy GStrings, java.util.Date
+     *    objects, and non-int numeric types will be rejected. See the API Pitfalls
+     *    section in AGENTS.md for details.
+     *
      * @return a map containing the created run data
-     * @throws IllegalStateException if data is null
+     * @throws IllegalStateException if data is null or contains invalid types
      * @throws ApiException if an error occurs while creating the run
      */
     Map createRun(Map data) {
         if (!data) { throw new IllegalStateException('Run data is null. Please provide run data.') }
+
+        // Validate date fields are Strings (not Date objects)
+        for (String dateField : ['created_at', 'started_at', 'finished_at']) {
+            Object val = data.get(dateField)
+            if (val != null && !(val instanceof String)) {
+                throw new IllegalArgumentException(
+                    "createRun field '${dateField}' must be an ISO 8601 String with microsecond precision " +
+                    "(e.g. '2026-02-20T10:30:00.000000+00:00'), got ${val.getClass().simpleName}. " +
+                    "Use OffsetDateTime.now().format(DateTimeFormatter.ofPattern(\"yyyy-MM-dd'T'HH:mm:ss.SSSSSSxxx\")) to format."
+                )
+            }
+        }
+
+        // Validate numeric fields are int
+        for (String intField : ['_status_code', 'transform_id', 'space_id', 'branch_id']) {
+            Object val = data.get(intField)
+            if (val != null && !(val instanceof Integer)) {
+                throw new IllegalArgumentException(
+                    "createRun field '${intField}' must be an int, got ${val.getClass().simpleName}. " +
+                    "Cast with (int) value or (value as Number).intValue()."
+                )
+            }
+        }
 
         return createRecord(
             moduleName: 'core',
             modelName: 'run',
             data: data
         )
+    }
+
+    /**
+     * Find a record by name (lookup only, no creation).
+     *
+     * Searches for a record with an exact name match in the given module/model.
+     *
+     * @param moduleName The module name (e.g., 'core')
+     * @param modelName The model name (e.g., 'project', 'ulabel', 'space')
+     * @param name The name to search for
+     * @return the found record map, or null if no record exists with the given name
+     * @throws IllegalStateException if moduleName, modelName, or name is null
+     * @throws ApiException if an error occurs while querying
+     */
+    Map findByName(String moduleName, String modelName, String name) {
+        if (!moduleName) { throw new IllegalStateException('Module name is null.') }
+        if (!modelName) { throw new IllegalStateException('Model name is null.') }
+        if (!name) { throw new IllegalStateException('Name is null.') }
+
+        log.trace "findByName: ${moduleName}.${modelName}, name='${name}'"
+
+        List<Map> existing = getRecords(
+            moduleName: moduleName,
+            modelName: modelName,
+            filter: [name: [eq: name]]
+        )
+        if (existing) {
+            log.trace "Found existing ${moduleName}.${modelName} with name='${name}': uid=${existing[0].uid}"
+            return existing[0]
+        }
+
+        log.trace "No ${moduleName}.${modelName} found with name='${name}'"
+        return null
+    }
+
+    /**
+     * Find a record by name, or create it if it doesn't exist.
+     *
+     * Searches for a record with an exact name match. If no record is found,
+     * creates a new one with the provided name (and optional extra fields).
+     * Useful for resolving user-friendly names (e.g., project names, ulabel names) to records.
+     *
+     * @param moduleName The module name (e.g., 'core')
+     * @param modelName The model name (e.g., 'project', 'ulabel', 'space')
+     * @param name The name to search for or create with
+     * @param extraData Optional additional fields to include when creating a new record
+     *                  (e.g., [branch_id: 42]). Ignored when an existing record is found.
+     * @return the found or newly created record map
+     * @throws IllegalStateException if moduleName, modelName, or name is null
+     * @throws ApiException if an error occurs while querying or creating the record
+     */
+    Map findOrCreateByName(String moduleName, String modelName, String name, Map<String, Object> extraData = null) {
+        if (!moduleName) { throw new IllegalStateException('Module name is null.') }
+        if (!modelName) { throw new IllegalStateException('Model name is null.') }
+        if (!name) { throw new IllegalStateException('Name is null.') }
+
+        log.trace "findOrCreateByName: ${moduleName}.${modelName}, name='${name}'"
+
+        List<Map> existing = getRecords(
+            moduleName: moduleName,
+            modelName: modelName,
+            filter: [name: [eq: name]]
+        )
+        if (existing) {
+            log.trace "Found existing ${moduleName}.${modelName} with name='${name}': uid=${existing[0].uid}"
+            return existing[0]
+        }
+
+        log.trace "No ${moduleName}.${modelName} found with name='${name}', creating new record"
+        Map<String, Object> data = [name: name] as Map<String, Object>
+        if (extraData) {
+            data.putAll(extraData)
+        }
+        Map created = createRecord(
+            moduleName: moduleName,
+            modelName: modelName,
+            data: data
+        )
+        log.trace "Created new ${moduleName}.${modelName} with name='${name}': uid=${created.uid}"
+        return created
     }
 
     /**
@@ -572,7 +686,7 @@ class Instance {
         );
 
         // Optional args
-        for (field in ["version_tag", "reference", "reference_type", "description"]) {
+        for (field in ["version_tag", "reference", "reference_type", "description", "space_id", "branch_id"]) {
             if (args.containsKey(field)) {
                 body.putKwargsItem(field, args[field])
             }
@@ -618,9 +732,10 @@ class Instance {
         )
 
         // Pass all other args as kwargs (excluding 'path')
+        // Cast GString values to String to avoid Jackson serialization issues
         args.each { String key, Object value ->
             if (key != 'path') {
-                body.putKwargsItem(key, value)
+                body.putKwargsItem(key, value instanceof GString ? value.toString() : value)
             }
         }
 
@@ -713,10 +828,11 @@ class Instance {
         }
 
         // Create kwargs from all args (excluding 'file')
+        // Cast GString values to String to avoid Jackson serialization issues
         Map<String, Object> kwargs = [:]
         args.each { String key, Object value ->
             if (key != 'file') {
-                kwargs[key] = value
+                kwargs[key] = value instanceof GString ? value.toString() : value
             }
         }
         String kwargsString = kwargs ? groovy.json.JsonOutput.toJson(kwargs) : '{}'
