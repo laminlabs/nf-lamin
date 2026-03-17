@@ -1,34 +1,32 @@
----
-execute_via: python
----
-
 # Nextflow
 
-[Nextflow](https://www.nextflow.io/) is the most widely used workflow manager in bioinformatics.
+**`nf-lamin`** is a Nextflow plugin that automatically records data provenance for your workflows in [LaminDB](https://lamin.ai/). Without modifying any pipeline code, it tracks:
 
-This guide shows how to register a [nf-core/scrnaseq](https://nf-co.re/scrnaseq/latest) Nextflow run using the `nf-lamin` plugin.
-See {doc}`nextflow-postrun` learn how to register a Nextflow run using a post-run script.
+- **Transforms** — the pipeline definition (repository, script, version)
+- **Runs** — each execution (parameters, timing, status)
+- **Artifacts** — input and output files, linked to the run
 
-To use the `nf-lamin` plugin, you need to configure it with your LaminDB instance and API key.
-This setup allows the plugin to authenticate and interact with your LaminDB instance, enabling it to record workflow runs and associated metadata.
+## Version Compatibility
 
-## Set API Key
+| nf-lamin  | LaminDB       | Nextflow   | Status         | Key Features                                                      |
+| --------- | ------------- | ---------- | -------------- | ----------------------------------------------------------------- |
+| **0.5.2** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Configure artifact keys via templates, closures, or Map shorthand |
+| 0.5.1     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Track local input files, exclude work and assets directories      |
+| 0.5.0     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Improved config, artifact tracking rules, metadata tagging        |
+| 0.4.0     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Input artifact tracking                                           |
+| 0.3.0     | >= 2.0        | >= 25.04.0 | ❌ Unsupported | Upgrade to LaminDB v2, `lamin://` URI support                     |
+| 0.2.x     | >= 1.0, < 2.0 | >= 25.04.0 | ❌ Unsupported | Reports, `getRunUid()`, `getTransformUid()`, `getInstanceSlug()`  |
+| 0.1.0     | >= 1.0, < 2.0 | >= 24.04.0 | ❌ Unsupported | Transform & Run tracking, output artifact registration            |
 
-Retrieve your Lamin API key from your [Lamin Hub account settings](https://lamin.ai/settings) and set it as a Nextflow secret:
+## Quick Start
 
-<!-- #region -->
+**1.** Retrieve your API key from [lamin.ai/settings](https://lamin.ai/settings) and store it as a Nextflow secret:
 
 ```bash
 nextflow secrets set LAMIN_API_KEY <your-lamin-api-key>
 ```
 
-<!-- #endregion -->
-
-## Configure the plugin
-
-Add the following block to your `nextflow.config`:
-
-<!-- #region -->
+**2.** Add the plugin to your `nextflow.config`:
 
 ```groovy
 plugins {
@@ -36,110 +34,67 @@ plugins {
 }
 
 lamin {
-  instance = "<your-lamin-org>/<your-lamin-instance>"
+  instance = "your-org/your-instance"
   api_key = secrets.LAMIN_API_KEY
 }
 ```
 
-<!-- #endregion -->
-
-See {doc}`nextflow-plugin-reference` for more configuration options.
-
-## Example Run with nf-core/scrnaseq
-
-This guide shows how to register a Nextflow run with inputs & outputs for the [nf-core/scrnaseq](https://nf-co.re/scrnaseq/latest) pipeline.
-
-### Run the pipeline
-
-With the `nf-lamin` plugin configured, let’s run the `nf-core/scrnaseq` pipeline on remote input data.
-
-```python
-# The test profile uses publicly available test data
-!nextflow run nf-core/scrnaseq \
-  -r "4.0.0" \
-  -profile docker,test \
-  -plugins nf-lamin \
-  --outdir s3://lamindb-ci/nf-lamin/run_$(date +%Y%m%d_%H%M%S)
-```
-
-<!-- #region -->
-
-:::{dropdown} What is the full command and output when running this command?
+**3.** Run your pipeline as usual:
 
 ```bash
-nextflow run nf-core/scrnaseq \
-  -r "4.0.0" \
-  -profile docker \
-  -plugins nf-lamin \
-  --input https://github.com/nf-core/test-datasets/raw/scrnaseq/samplesheet-2-0.csv \
-  --fasta https://github.com/nf-core/test-datasets/raw/scrnaseq/reference/GRCm38.p6.genome.chr19.fa \
-  --gtf https://github.com/nf-core/test-datasets/raw/scrnaseq/reference/gencode.vM19.annotation.chr19.gtf \
-  --protocol 10XV2 \
-  --aligner star \
-  --skip_cellbender \
-  --outdir s3://lamindb-ci/nf-lamin/run_$(date +%Y%m%d_%H%M%S)
+nextflow run <your-pipeline>
 ```
 
-:::
-
-<!-- #endregion -->
-
-:::{dropdown} What steps are executed by the nf-core/scrnaseq pipeline?
-
-<!-- The diagram is from the nf-core/scrnaseq GitHub repository. -->
-
-![](nf_core_scrnaseq_diagram.png)
-
-:::
-
-When you run this command, `nf-lamin` will print links to the `Transform` and `Run` records it creates in Lamin Hub:
+The plugin prints links to the Transform and Run records it creates:
 
 ```
-✅ Connected to LaminDB instance 'laminlabs/lamindata' as 'user_name'
-Transform J49HdErpEFrs0000 (https://staging.laminhub.com/laminlabs/lamindata/transform/J49HdErpEFrs0000)
-Run p8npJ8JxIYazW4EkIl8d (https://staging.laminhub.com/laminlabs/lamindata/transform/J49HdErpEFrs0000/p8npJ8JxIYazW4EkIl8d)
+✅ Connected to LaminDB instance 'your-org/your-instance' as 'your-username'
+Transform XXXYYYZZZABC0001 (https://lamin.ai/your-org/your-instance/transform/XXXYYYZZZABC0001)
+Run abcdefghijklmnopqrst (https://lamin.ai/your-org/your-instance/transform/XXXYYYZZZABC0001/abcdefghijklmnopqrst)
 ```
 
-### View transforms & runs on Lamin Hub
+## Artifact Tracking
 
-You can explore the run and its associated artifacts through Lamin Hub or the Python package.
+By default, all published output files are tracked as artifacts and linked to the run. The most common configuration for nf-core-style pipelines is to strip the output directory prefix from artifact keys:
 
-#### Via Lamin Hub
+```groovy
+lamin {
+  output_artifacts {
+    key = [relativize: params.outdir]
+  }
+}
+```
 
-- Transform:
-  [J49HdErpEFrs0000](https://staging.laminhub.com/laminlabs/lamindata/transform/J49HdErpEFrs0000)
-- Run:
-  [p8npJ8JxIYazW4EkIl8d](https://staging.laminhub.com/laminlabs/lamindata/transform/J49HdErpEFrs0000/p8npJ8JxIYazW4EkIl8d)
+This stores `multiqc/star/multiqc_report.html` as the artifact key instead of just the filename, preserving the directory structure of your results.
 
-![](nf_core_scrnaseq_run.png)
+→ See {doc}`nextflow-plugin-reference` for the full configuration reference, including input artifact tracking, metadata tagging, and pattern-based rules.
 
-![](https://github.com/laminlabs/lamin-docs/blob/main/docs/guide/run-lineage.png?raw=true)
+→ See {doc}`nextflow-functions` for DSL functions (`getRunUid`, `getTransformUid`, `getInstanceSlug`) and `lamin://` URI support.
 
-#### Using LaminDB
+## Viewing Results
 
-<!-- #region -->
+After the run, explore the tracked data in Lamin Hub or via the Python SDK:
 
 ```python
 import lamindb as ln
 
-# Make sure you are connected to the same instance
-# you configured in nextflow.config
-
-ln.Run.get("p8npJ8JxIYazW4EkIl8d")
+ln.Run.get("your-run-uid")
 ```
 
-This will display the details of the run record in your notebook:
+![](nf_core_scrnaseq_run.png)
 
-```
-Run(uid='p8npJ8JxIYazW4EkIl8d', name='trusting_brazil', started_at=2025-06-18 12:35:30 UTC, finished_at=2025-06-18 12:37:19 UTC, transform_id='aBcDeFg', created_by_id=..., created_at=...)
-```
+## Examples
 
-<!-- #endregion -->
+Ready-to-run configurations for popular Nextflow pipelines:
+
+→ See {doc}`nextflow-examples` for nf-core/rnaseq and bigbio/quantms.
 
 ```{toctree}
 :maxdepth: 1
 :hidden:
 
 nextflow-plugin-reference
+nextflow-functions
+nextflow-examples
 nextflow-postrun
 ```
