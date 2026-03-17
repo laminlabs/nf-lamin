@@ -18,6 +18,7 @@ package ai.lamin.nf_lamin.config
 
 import spock.lang.Specification
 import spock.lang.Unroll
+import java.net.URI
 import java.nio.file.Path
 import java.nio.file.Paths
 
@@ -122,57 +123,57 @@ class KeyResolverTest extends Specification {
 
     def "resolveKey should replace {basename} variable"() {
         expect:
-        KeyResolver.resolveKey('{basename}', '/path/to/report.html', null) == 'report.html'
+        KeyResolver.resolveKey('{basename}', Paths.get('/path/to/report.html')) == 'report.html'
     }
 
     def "resolveKey should replace {filename} variable"() {
         expect:
-        KeyResolver.resolveKey('{filename}', '/path/to/report.html', null) == 'report'
+        KeyResolver.resolveKey('{filename}', Paths.get('/path/to/report.html')) == 'report'
     }
 
     def "resolveKey should replace {ext} variable"() {
         expect:
-        KeyResolver.resolveKey('{ext}', '/path/to/report.html', null) == '.html'
+        KeyResolver.resolveKey('{ext}', Paths.get('/path/to/report.html')) == '.html'
     }
 
     def "resolveKey should replace {parent} variable"() {
         expect:
-        KeyResolver.resolveKey('{parent}', '/path/to/output/report.html', null) == 'output'
+        KeyResolver.resolveKey('{parent}', Paths.get('/path/to/output/report.html')) == 'output'
     }
 
     def "resolveKey should replace {parent.parent} variable"() {
         expect:
-        KeyResolver.resolveKey('{parent.parent}', '/path/to/output/report.html', null) == 'to'
+        KeyResolver.resolveKey('{parent.parent}', Paths.get('/path/to/output/report.html')) == 'to'
     }
 
     def "resolveKey should replace {parent.parent.parent} variable"() {
         expect:
-        KeyResolver.resolveKey('{parent.parent.parent}', '/path/to/output/report.html', null) == 'path'
+        KeyResolver.resolveKey('{parent.parent.parent}', Paths.get('/path/to/output/report.html')) == 'path'
     }
 
     def "resolveKey should replace multiple variables"() {
         expect:
-        KeyResolver.resolveKey('prefix/{parent}/{basename}', '/results/multiqc/report.html', null) == 'prefix/multiqc/report.html'
+        KeyResolver.resolveKey('prefix/{parent}/{basename}', Paths.get('/results/multiqc/report.html')) == 'prefix/multiqc/report.html'
     }
 
     def "resolveKey should return null for null template"() {
         expect:
-        KeyResolver.resolveKey(null, '/path/to/file.txt', null) == null
+        KeyResolver.resolveKey(null, Paths.get('/path/to/file.txt')) == null
     }
 
     def "resolveKey with compound extension"() {
         expect:
-        KeyResolver.resolveKey('{filename}{ext}', '/data/sample.fastq.gz', null) == 'sample.fastq.gz'
+        KeyResolver.resolveKey('{filename}{ext}', Paths.get('/data/sample.fastq.gz')) == 'sample.fastq.gz'
     }
 
     def "resolveKey with nested parent variables"() {
         expect:
-        KeyResolver.resolveKey('{parent.parent}/{parent}/{basename}', '/home/user/results/multiqc/report.html', null) == 'results/multiqc/report.html'
+        KeyResolver.resolveKey('{parent.parent}/{parent}/{basename}', Paths.get('/home/user/results/multiqc/report.html')) == 'results/multiqc/report.html'
     }
 
     def "resolveKey with parent beyond depth returns empty"() {
         expect:
-        KeyResolver.resolveKey('{parent.parent.parent.parent}/{basename}', '/a/b/file.txt', null) == '/file.txt'
+        KeyResolver.resolveKey('{parent.parent.parent.parent}/{basename}', Paths.get('/a/b/file.txt')) == '/file.txt'
     }
 
     // ========================= resolveKey with Closures =========================
@@ -183,7 +184,7 @@ class KeyResolverTest extends Specification {
         Closure key = { Path p -> p.fileName.toString() }
 
         expect:
-        KeyResolver.resolveKey(key, path.toUri().toString(), path) == 'report.html'
+        KeyResolver.resolveKey(key, path) == 'report.html'
     }
 
     def "resolveKey with closure that returns custom key"() {
@@ -192,7 +193,7 @@ class KeyResolverTest extends Specification {
         Closure key = { Path p -> "custom-prefix/${p.fileName}" }
 
         expect:
-        KeyResolver.resolveKey(key, path.toUri().toString(), path) == 'custom-prefix/sample.fastq.gz'
+        KeyResolver.resolveKey(key, path) == 'custom-prefix/sample.fastq.gz'
     }
 
     def "resolveKey with closure returning null falls back to basename"() {
@@ -201,7 +202,7 @@ class KeyResolverTest extends Specification {
         Closure key = { Path p -> null }
 
         expect:
-        KeyResolver.resolveKey(key, path.toUri().toString(), path) == 'report.html'
+        KeyResolver.resolveKey(key, path) == 'report.html'
     }
 
     def "resolveKey with closure that throws falls back to basename"() {
@@ -210,7 +211,7 @@ class KeyResolverTest extends Specification {
         Closure key = { Path p -> throw new RuntimeException("test error") }
 
         expect:
-        KeyResolver.resolveKey(key, path.toUri().toString(), path) == 'report.html'
+        KeyResolver.resolveKey(key, path) == 'report.html'
     }
 
     def "resolveKey closure receives actual Path object"() {
@@ -219,7 +220,7 @@ class KeyResolverTest extends Specification {
         Closure key = { Path p -> "${p.parent.fileName}/${p.fileName}" }
 
         expect:
-        KeyResolver.resolveKey(key, path.toUri().toString(), path) == 'star/Aligned.bam'
+        KeyResolver.resolveKey(key, path) == 'star/Aligned.bam'
     }
 
     // ========================= Integration scenarios =========================
@@ -230,12 +231,119 @@ class KeyResolverTest extends Specification {
     }
 
     def "string template with S3 path"() {
+        given:
+        Path path = Mock(Path)
+        path.toUri() >> URI.create('s3://bucket/results/star/Aligned.bam')
+
         expect:
-        KeyResolver.resolveKey('pipeline-output/{parent}/{basename}', 's3://bucket/results/star/Aligned.bam', null) == 'pipeline-output/star/Aligned.bam'
+        KeyResolver.resolveKey('pipeline-output/{parent}/{basename}', path) == 'pipeline-output/star/Aligned.bam'
     }
 
     def "parent variables with deep S3 path"() {
+        given:
+        Path path = Mock(Path)
+        path.toUri() >> URI.create('s3://bucket/results/multiqc/star/multiqc_report.html')
+
         expect:
-        KeyResolver.resolveKey('{parent.parent}/{parent}/{basename}', 's3://bucket/results/multiqc/star/multiqc_report.html', null) == 'multiqc/star/multiqc_report.html'
+        KeyResolver.resolveKey('{parent.parent}/{parent}/{basename}', path) == 'multiqc/star/multiqc_report.html'
+    }
+
+    // ========================= resolveKey with Map config =========================
+    //
+    // In practice, pathStr = path.toUri().toString(), so:
+    //   - local files  → "file:///abs/path/to/file.txt"  (path always non-null)
+    //   - s3:// output → "s3://bucket/results/file.txt"  (path = S3Path, non-null)
+    //   - gs:// output → "gs://bucket/results/file.txt"  (path = GcsPath, non-null)
+    //   - https:// input → "https://host/file.txt"       (path = staged local Path)
+    //
+    // All schemes are handled uniformly via java.net.URI.relativize().
+    // Cloud URI tests use mock Paths because S3Path/GcsPath can't be instantiated
+    // in unit tests without cloud filesystem providers.
+
+    // --- Local file:// paths ---
+
+    @Unroll
+    def "resolveKey [relativize] local: '#baseDir' + '#localPath' -> '#expected'"() {
+        given:
+        Path path = Paths.get(localPath).toAbsolutePath()
+
+        expect:
+        KeyResolver.resolveKey([relativize: baseDir], path) == expected
+
+        where:
+        baseDir                   | localPath                                    | expected
+        '/output/quantms'         | '/output/quantms/msstats/results.csv'        | 'msstats/results.csv'
+        '/output/quantms/'        | '/output/quantms/multiqc/report.html'        | 'multiqc/report.html'  // trailing slash
+        '/output/quantms'         | '/output/quantms/a/b/c/deep.txt'             | 'a/b/c/deep.txt'       // deep nesting
+        'output/quantms'          | 'output/quantms/multiqc/report.html'         | 'multiqc/report.html'  // relative base
+    }
+
+    // --- Cloud URI paths: s3://, gs://, az:// ---
+    // Mock Paths because S3Path/GcsPath can't be instantiated without cloud providers.
+
+    @Unroll
+    def "resolveKey [relativize] cloud: '#baseDir' + '#uriStr' -> '#expected'"() {
+        given:
+        Path path = Mock(Path)
+        path.toUri() >> URI.create(uriStr)
+
+        expect:
+        KeyResolver.resolveKey([relativize: baseDir], path) == expected
+
+        where:
+        baseDir                        | uriStr                                             | expected
+        's3://bucket/results/run'      | 's3://bucket/results/run/multiqc/report.html'      | 'multiqc/report.html'
+        's3://bucket/results/run/'     | 's3://bucket/results/run/a/b/file.txt'             | 'a/b/file.txt'         // trailing slash
+        'gs://bucket/results/run'      | 'gs://bucket/results/run/multiqc/report.html'      | 'multiqc/report.html'
+        'az://container/results/run'   | 'az://container/results/run/sub/file.parquet'      | 'sub/file.parquet'
+    }
+
+    // --- Mismatch: different bucket / host → falls back to basename ---
+
+    @Unroll
+    def "resolveKey [relativize] mismatch: '#baseDir' + '#uriStr' -> basename"() {
+        given:
+        Path path = Mock(Path)
+        path.toUri() >> URI.create(uriStr)
+
+        expect:
+        KeyResolver.resolveKey([relativize: baseDir], path) == expected
+
+        where:
+        baseDir                        | uriStr                                             | expected
+        's3://other-bucket/results'    | 's3://bucket/results/file.txt'                     | 'file.txt'
+        'gs://bucket/results'          | 'gs://other-bucket/results/file.txt'               | 'file.txt'
+        's3://bucket/results/run-a'    | 's3://bucket/results/run-b/file.txt'               | 'file.txt'
+    }
+
+    // --- Path not under base dir: URI.relativize leaves the URI absolute → basename fallback ---
+
+    def "resolveKey [relativize] path outside base dir falls back to basename"() {
+        given:
+        Path path = Paths.get('/work/staging/abc123/BSA.fasta').toAbsolutePath()
+
+        expect:
+        // baseUri = file:///output/quantms/  — path is not under it
+        // URI.relativize returns the original absolute URI → isAbsolute() → basename fallback
+        KeyResolver.resolveKey([relativize: '/output/quantms'], path) == 'BSA.fasta'
+    }
+
+    // --- Edge cases ---
+
+    def "resolveKey [relativize] with mock path resolves via URI relativize"() {
+        given:
+        Path path = Mock(Path)
+        path.toUri() >> URI.create('file:///output/quantms/report.html')
+
+        expect:
+        KeyResolver.resolveKey([relativize: '/output/quantms'], path) == 'report.html'
+    }
+
+    def "resolveKey with Map config and unrecognized keys falls back to basename"() {
+        given:
+        Path path = Paths.get('/output/quantms/report.html')
+
+        expect:
+        KeyResolver.resolveKey([unknown: 'value'], path) == 'report.html'
     }
 }

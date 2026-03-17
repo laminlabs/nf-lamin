@@ -591,23 +591,21 @@ final class LaminRunManager {
             return new ArtifactEvaluation(true, [], null)
         }
 
-        String pathStr = path.toUri().toString()
-
         // Resolve the effective artifact config for this direction
         ArtifactConfig artifactConfig = resolveArtifactConfig(direction)
 
         // If no config defined, default to tracking with empty metadata
         if (artifactConfig == null) {
-            log.debug "No artifact config defined, tracking '${pathStr}' as ${direction} with default settings"
+            log.debug "No artifact config defined, tracking '${path.toUri()}' as ${direction} with default settings"
             return new ArtifactEvaluation(true, [], null)
         }
 
         // Evaluate the path against the config
-        ArtifactEvaluation evaluation = artifactConfig.evaluate(pathStr, direction, path)
+        ArtifactEvaluation evaluation = artifactConfig.evaluate(path, direction)
         if (evaluation.shouldTrack) {
-            log.debug "Artifact '${pathStr}' will be tracked as ${direction} with evaluation: ${evaluation}"
+            log.debug "Artifact '${path.toUri()}' will be tracked as ${direction} with evaluation: ${evaluation}"
         } else {
-            log.debug "Artifact '${pathStr}' excluded by artifact config"
+            log.debug "Artifact '${path.toUri()}' excluded by artifact config"
         }
         return evaluation
     }

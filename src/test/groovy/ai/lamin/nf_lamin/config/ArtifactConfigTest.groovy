@@ -120,7 +120,7 @@ class ArtifactConfigTest extends Specification {
         ], direction)
 
         when:
-        def result = config.evaluate(path, artifactDirection, null)
+        def result = config.evaluate(Paths.get("/test/${fileName}" as String), artifactDirection)
 
         then:
         result.shouldTrack == expectedShouldTrack
@@ -131,7 +131,7 @@ class ArtifactConfigTest extends Specification {
         }
 
         where:
-        scenario                          | enabled | includePattern      | excludePattern | direction | path               | artifactDirection | expectedShouldTrack
+        scenario                          | enabled | includePattern      | excludePattern | direction | fileName           | artifactDirection | expectedShouldTrack
         'enabled with no patterns'        | true    | null                | null           | 'both'    | 'file.txt'         | 'output'          | true
         'disabled'                        | false   | null                | null           | 'both'    | 'file.txt'         | 'output'          | false
         'excluded by pattern'             | true    | null                | '.*temp.*'     | 'both'    | 'file_temp.txt'    | 'output'          | false
@@ -153,7 +153,7 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         when:
-        def result = config.evaluate('file_temp.txt', 'output', null)
+        def result = config.evaluate(Paths.get('/test/file_temp.txt'), 'output')
 
         then:
         !result.shouldTrack
@@ -179,9 +179,9 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         expect:
-        !config.evaluate('file_temp.txt', 'output', null).shouldTrack  // excluded by rule
-        config.evaluate('file.fastq', 'output', null).shouldTrack      // included by rule
-        config.evaluate('file.bam', 'output', null).shouldTrack        // no matching rule, default to track
+        !config.evaluate(Paths.get('/test/file_temp.txt'), 'output').shouldTrack  // excluded by rule
+        config.evaluate(Paths.get('/test/file.fastq'), 'output').shouldTrack      // included by rule
+        config.evaluate(Paths.get('/test/file.bam'), 'output').shouldTrack        // no matching rule, default to track
     }
 
     def "should get metadata from global config"() {
@@ -192,7 +192,7 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         when:
-        def result = config.evaluate('file.txt', 'output', null)
+        def result = config.evaluate(Paths.get('/test/file.txt'), 'output')
 
         then:
         result.ulabelUids == ['global-label']
@@ -214,7 +214,7 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         when:
-        def result = config.evaluate('file.fastq', 'output', null)
+        def result = config.evaluate(Paths.get('/test/file.fastq'), 'output')
 
         then:
         result.ulabelUids.containsAll(['global-label', 'fastq-label'])
@@ -234,7 +234,7 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         when:
-        def result = config.evaluate('file.txt', 'output', null)
+        def result = config.evaluate(Paths.get('/test/file.txt'), 'output')
 
         then:
         result.ulabelUids.size() == 3
@@ -262,7 +262,7 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         when:
-        def result = config.evaluate('file.fastq', 'output', null)
+        def result = config.evaluate(Paths.get('/test/file.fastq'), 'output')
 
         then:
         // Labels accumulated from global + both matching rules
@@ -290,7 +290,7 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         when:
-        def result = config.evaluate('file.txt', 'output', null)
+        def result = config.evaluate(Paths.get('/test/file.txt'), 'output')
 
         then:
         // second_rule comes after first_rule in order, so its kind takes precedence
@@ -316,9 +316,9 @@ class ArtifactConfigTest extends Specification {
 
         expect:
         // Both rules match, last matching rule (exclude_temp) determines type
-        !config.evaluate('file_temp.txt', 'output', null).shouldTrack
+        !config.evaluate(Paths.get('/test/file_temp.txt'), 'output').shouldTrack
         // Only include_all matches
-        config.evaluate('file.txt', 'output', null).shouldTrack
+        config.evaluate(Paths.get('/test/file.txt'), 'output').shouldTrack
     }
 
     def "should allow later include rule to override earlier exclude rule"() {
@@ -341,10 +341,10 @@ class ArtifactConfigTest extends Specification {
 
         expect:
         // exclude_all matches but include_fastq (later) overrides it
-        config.evaluate('file.fastq', 'output', null).shouldTrack
-        config.evaluate('file.fastq', 'output', null).ulabelUids == ['fastq-label']
+        config.evaluate(Paths.get('/test/file.fastq'), 'output').shouldTrack
+        config.evaluate(Paths.get('/test/file.fastq'), 'output').ulabelUids == ['fastq-label']
         // Only exclude_all matches, so excluded
-        !config.evaluate('file.txt', 'output', null).shouldTrack
+        !config.evaluate(Paths.get('/test/file.txt'), 'output').shouldTrack
     }
 
     def "evaluate should resolve key from global template"() {
@@ -354,7 +354,7 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         when:
-        def result = config.evaluate('/path/to/output/report.html', 'output', null)
+        def result = config.evaluate(Paths.get('/path/to/output/report.html'), 'output')
 
         then:
         result.shouldTrack
@@ -373,7 +373,7 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         when:
-        def result = config.evaluate('/home/user/results/multiqc/report.html', 'output', null)
+        def result = config.evaluate(Paths.get('/home/user/results/multiqc/report.html'), 'output')
 
         then:
         result.shouldTrack
@@ -385,7 +385,7 @@ class ArtifactConfigTest extends Specification {
         def config = new ArtifactConfig([:], 'both')
 
         when:
-        def result = config.evaluate('/path/to/file.txt', 'output', null)
+        def result = config.evaluate(Paths.get('/path/to/file.txt'), 'output')
 
         then:
         result.shouldTrack
@@ -405,8 +405,8 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         when:
-        def matchResult = config.evaluate('/home/results/star/Aligned.bam', 'output', null)
-        def noMatchResult = config.evaluate('/home/other/file.txt', 'output', null)
+        def matchResult = config.evaluate(Paths.get('/home/results/star/Aligned.bam'), 'output')
+        def noMatchResult = config.evaluate(Paths.get('/home/other/file.txt'), 'output')
 
         then:
         matchResult.key == 'custom/star/Aligned.bam'
@@ -422,7 +422,7 @@ class ArtifactConfigTest extends Specification {
 
         when:
         def pathObj = Paths.get('/path/to/output/report.html')
-        def result = config.evaluate('/path/to/output/report.html', 'output', pathObj)
+        def result = config.evaluate(pathObj, 'output')
 
         then:
         result.shouldTrack
@@ -443,7 +443,7 @@ class ArtifactConfigTest extends Specification {
 
         when:
         def pathObj = Paths.get('/path/to/report.html')
-        def result = config.evaluate('/path/to/report.html', 'output', pathObj)
+        def result = config.evaluate(pathObj, 'output')
 
         then:
         result.shouldTrack
@@ -465,8 +465,8 @@ class ArtifactConfigTest extends Specification {
 
         when:
         def matchPath = Paths.get('/results/star/Aligned.bam')
-        def matchResult = config.evaluate('/results/star/Aligned.bam', 'output', matchPath)
-        def noMatchResult = config.evaluate('/results/star/Aligned.txt', 'output', null)
+        def matchResult = config.evaluate(matchPath, 'output')
+        def noMatchResult = config.evaluate(Paths.get('/results/star/Aligned.txt'), 'output')
 
         then:
         matchResult.key == 'from-closure/Aligned.bam'
