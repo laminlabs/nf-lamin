@@ -197,7 +197,8 @@ lamin {
 - `ulabel_uids` (List<String> or String) - ULabel UIDs to attach to all matching artifacts
 - `project_uids` (List<String> or String) - Project UIDs to attach to all matching artifacts
 - `kind` (String) - Artifact kind (e.g., 'dataset', 'model', 'reference', 'report')
-- `key` (String or Closure) - Key for deriving artifact keys from file paths using String templates or a Closure. Default: uses the basename as the key. See the ["Strip output directory prefix"](#strip-output-directory-prefix) example below for a common pattern that relativizes keys to `params.outdir`.
+- `key` (String or Closure or Map) - Key for deriving artifact keys from file paths using String templates, a Closure, or a Map shorthand. Default: uses the basename as the key. See the ["Strip output directory prefix"](#strip-output-directory-prefix) example below for the most common pattern.
+  - As a **Map shorthand**, use `[relativize: params.outdir]` to strip the output directory prefix from all artifact paths. This is the recommended approach for nf-core-style pipelines.
   - As a **String template**, you can use the following variables:
     - `{basename}`: The filename with extension
     - `{name}`: The filename without extension
@@ -217,7 +218,7 @@ lamin {
 - `ulabel_uids` (List<String> or String) - ULabel UIDs to attach to matching artifacts
 - `project_uids` (List<String> or String) - Project UIDs to attach to matching artifacts
 - `kind` (String) - Override artifact kind for matching files
-- `key` (String or Closure) - Key for matching artifacts. Same template variables as the global `key` option. As a **Closure**, receives the file path (`java.nio.file.Path`) and returns the key (String)
+- `key` (String or Closure or Map) - Key for matching artifacts. Same template variables as the global `key` option. As a **Closure**, receives the file path (`java.nio.file.Path`) and returns the key (String)
 
 #### Rule Evaluation
 
@@ -314,17 +315,15 @@ directory prefix and preserve the directory structure as the key instead:
 lamin {
   output_artifacts {
     // Strip params.outdir from the path to get a meaningful key.
-    // For example, with --outdir s3://bucket/rnaseq_run/:
-    //   s3://bucket/rnaseq_run/multiqc/star/multiqc_report.html
+    // For example, with --outdir /home/user/results/:
+    //   /home/user/results/multiqc/star/multiqc_report.html
     //   → multiqc/star/multiqc_report.html
-    key = { path -> file(params.outdir).relativize(path).toString() }
+    key = [relativize: params.outdir]
   }
 }
 ```
 
-This works with both local paths (`/home/user/results/`) and cloud storage
-(`s3://bucket/results/`, `gs://bucket/results/`). If key resolution fails,
-the plugin falls back to using the filename.
+If key resolution fails, the plugin falls back to using the filename.
 
 **Use a closure for custom key derivation:**
 

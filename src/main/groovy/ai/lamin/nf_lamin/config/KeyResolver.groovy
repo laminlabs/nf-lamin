@@ -18,14 +18,16 @@ package ai.lamin.nf_lamin.config
 
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
+import java.net.URI
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.regex.Matcher
 import java.util.regex.Pattern
 
 /**
  * Resolves artifact keys from configuration values (String templates or Closures).
  *
- * <p>The {@code key} config option accepts two types:</p>
+ * <p>The {@code key} config option accepts three types:</p>
  * <ul>
  *   <li><strong>String template</strong> with variables:
  *     <ul>
@@ -38,6 +40,9 @@ import java.util.regex.Pattern
  *   </li>
  *   <li><strong>Closure</strong> that receives a {@link Path} and returns the
  *       artifact key (String). Example: {@code key = { path -> path.fileName.toString() }}</li>
+ *    <li><strong>Map shorthand</strong>: {@code [relativize: '/path/to/outdir']} — strips the
+ *       given directory prefix from the path. Equivalent to writing the relativize closure
+ *       manually. Falls back to basename on failure.</li>
  * </ul>
  */
 @Slf4j
@@ -50,24 +55,28 @@ class KeyResolver {
     private static final Pattern PARENT_PATTERN = Pattern.compile('\\{parent(\\.parent)*\\}')
 
     /**
-     * Resolve a key from a config value that can be either a String template or a Closure.
+     * Resolve a key from a config value that can be either a String template, Closure, or Map.
      *
-     * @param keyConfig The key configuration value (String template or Closure)
-     * @param pathStr The full file path as a URI string (used for template resolution)
-     * @param path The Path object (passed to Closures); may be null for template-only resolution
+     * @param keyConfig The key configuration value (String template, Closure, or Map)
+     * @param path The Path object for the artifact file
      * @return The resolved key string, or null if keyConfig is null
      */
-    static String resolveKey(Object keyConfig, String pathStr, Path path) {
+    static String resolveKey(Object keyConfig, Path path) {
         if (keyConfig == null) {
             return null
         }
 
-        if (keyConfig instanceof Closure) {
-            return invokeClosure((Closure) keyConfig, pathStr, path)
+        String pathStr = path.toUri().toString()
+
+        if (keyConfig instanceof Map) {
+            return resolveMapConfig((Map) keyConfig, pathStr)
         }
 
-        String template = keyConfig as String
-        return resolveStringTemplate(template, pathStr)
+        if (keyConfig instanceof Closure) {
+            return invokeClosure((Closure) keyConfig, path)
+        }
+
+        return resolveStringTemplate(keyConfig as String, pathStr)
     }
 
     /**
@@ -85,14 +94,75 @@ class KeyResolver {
     }
 
     /**
+     * Resolve a Map-based key config.
+     *
+     * <p>Supports: {@code [relativize: params.outdir]} — strips the given directory
+     * prefix from the artifact path, preserving subdirectory structure as the key.</p>
+     *
+     * <p>Uses {@link URI#relativize} which works uniformly across all URI schemes
+     * ({@code file://}, {@code s3://}, {@code gs://}, {@code az://}, etc.). Plain
+     * local paths (no scheme) are normalised to absolute {@code file://} URIs before
+     * relativizing. Falls back to the basename if relativization fails or if the
+     * artifact path is not under the configured base directory.</p>
+     *
+     * @param config The map config
+     * @param pathStr The full file path as a URI string
+     * @return The resolved key, or the basename on failure
+     */
+    private static String resolveMapConfig(Map config, String pathStr) {
+        Object relativizeValue = config.get('relativize')
+        if (relativizeValue != null) {
+            String baseDir = relativizeValue.toString()
+            if (!baseDir) {
+                log.warn "Key map 'relativize' value is empty for path '${pathStr}', falling back to basename"
+                return extractBasename(pathStr)
+            }
+            try {
+                URI baseUri = dirToUri(baseDir)
+                URI fileUri = URI.create(pathStr)
+                URI relative = baseUri.relativize(fileUri)
+                if (!relative.isAbsolute()) {
+                    return relative.toString()
+                }
+            } catch (Exception e) {
+                log.debug "Key map 'relativize' failed for '${pathStr}' with base '${baseDir}': ${e.message}"
+            }
+            log.warn "Key map 'relativize' could not relativize '${pathStr}' against '${baseDir}', falling back to basename"
+            return extractBasename(pathStr)
+        }
+        log.warn "Key map config has no recognized keys for path '${pathStr}', falling back to basename"
+        return extractBasename(pathStr)
+    }
+
+    /**
+     * Convert a directory string to a {@link URI} ending with {@code /},
+     * suitable for use with {@link URI#relativize}.
+     *
+     * <p>Strings that already contain {@code ://} (e.g. {@code s3://bucket/results},
+     * {@code gs://bucket/results}, {@code file:///home/user/results}) are used as-is.
+     * Plain local paths (no scheme) are resolved to absolute {@code file://} URIs via
+     * {@link java.nio.file.Paths#get}.</p>
+     *
+     * @param dir The directory string (URI or local path)
+     * @return A non-opaque {@link URI} with a trailing slash
+     */
+    private static URI dirToUri(String dir) {
+        String uriStr = dir.contains('://') ? dir : Paths.get(dir).toAbsolutePath().toUri().toString()
+        if (!uriStr.endsWith('/')) {
+            uriStr = uriStr + '/'
+        }
+        return URI.create(uriStr)
+    }
+
+    /**
      * Invoke a Closure-based key resolver.
      *
      * @param closure The closure to invoke (receives Path, returns String)
-     * @param pathStr The full file path as string (for fallback)
      * @param path The Path object passed to the closure
      * @return The resolved key
      */
-    private static String invokeClosure(Closure closure, String pathStr, Path path) {
+    private static String invokeClosure(Closure closure, Path path) {
+        String pathStr = path.toUri().toString()
         try {
             Object result = closure.call(path)
             if (result == null) {

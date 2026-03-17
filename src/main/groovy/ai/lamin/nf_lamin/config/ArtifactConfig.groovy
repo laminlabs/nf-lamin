@@ -20,6 +20,8 @@ import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import java.nio.file.Path
 import java.util.regex.Pattern
+import nextflow.config.schema.ConfigOption
+import nextflow.script.dsl.Description
 
 /**
  * Configuration for artifact tracking (input, output, or both).
@@ -54,31 +56,34 @@ import java.util.regex.Pattern
 @CompileStatic
 class ArtifactConfig {
 
-    /**
-     * Whether artifact tracking is enabled for this config (default: true)
-     */
+    @ConfigOption
+    @Description('''
+        Whether artifact tracking is enabled for this config (default: true).
+    ''')
     final Boolean enabled
 
-    /**
-     * Whether to track local (file://) artifacts (default: true)
-     */
+    @ConfigOption
+    @Description('''
+        Whether to track local (file://) artifacts (default: true).
+    ''')
     final Boolean includeLocal
 
-    /**
-     * Whether to exclude artifacts in the Nextflow workdir (default: true).
-     * Intermediate files between processes live here.
-     */
+    @ConfigOption
+    @Description('''
+        Whether to exclude artifacts in the Nextflow workdir (default: true). Intermediate files between processes live here.
+    ''')
     final Boolean excludeWorkDir
 
-    /**
-     * Whether to exclude artifacts in the Nextflow assets directory (default: true).
-     * Pipeline source files live here.
-     */
+    @ConfigOption
+    @Description('''
+        Whether to exclude artifacts in the Nextflow assets directory (default: true). Pipeline source files live here.
+    ''')
     final Boolean excludeAssetsDir
 
-    /**
-     * Global include pattern (regex). Files must match this to be tracked.
-     */
+    @ConfigOption
+    @Description('''
+        Global include pattern (regex). Files must match this to be tracked.
+    ''')
     final String includePattern
 
     /**
@@ -86,9 +91,10 @@ class ArtifactConfig {
      */
     final Pattern compiledIncludePattern
 
-    /**
-     * Global exclude pattern (regex). Files matching this will not be tracked.
-     */
+    @ConfigOption
+    @Description('''
+        Global exclude pattern (regex). Files matching this will not be tracked.
+    ''')
     final String excludePattern
 
     /**
@@ -96,28 +102,28 @@ class ArtifactConfig {
      */
     final Pattern compiledExcludePattern
 
-    /**
-     * Global list of ULabel UIDs to attach to all artifacts
-     */
+    @ConfigOption
+    @Description('''
+        List of ULabel UIDs to attach to all artifacts matched by this config.
+    ''')
     final List<String> ulabelUids
 
-    /**
-     * Global artifact kind (e.g., 'dataset', 'model')
-     */
+    @ConfigOption
+    @Description('''
+        Global artifact kind (e.g., 'dataset', 'model', 'report').
+    ''')
     final String kind
 
-    /**
-     * Global key for deriving artifact keys from file paths.
-     * Can be a String template (supports {basename}, {filename}, {ext},
-     * {parent}, {parent.parent}, etc.) or a Closure that receives a
-     * Path and returns the key as a String.
-     * Default is null, which means use the file basename as the key.
-     */
+    @ConfigOption(types=[String, Closure, Map])
+    @Description('''
+        Key template or closure for deriving artifact keys from file paths. Supports String templates with variables ({basename}, {filename}, {ext}, {parent}, {parent.parent}, etc.), a Closure that receives a Path and returns a String, or a Map shorthand like `[relativize: params.outdir]`.
+    ''')
     final Object key
 
-    /**
-     * Path-specific rules (map of rule name to ArtifactRule)
-     */
+    @ConfigOption
+    @Description('''
+        Path-specific rules for fine-grained control over artifact tracking. Each rule can match files by pattern and override tracking decisions and metadata.
+    ''')
     final Map<String, ArtifactRule> rules
 
     /**
@@ -216,19 +222,20 @@ class ArtifactConfig {
      * For shouldTrack: each matching rule can override the decision - include rules set it to true,
      *                  exclude rules set it to false. The last matching rule with a type wins.
      *
-     * @param path File path string (URI) to evaluate
+     * @param path The Path object for the artifact file
      * @param artifactDirection 'input' or 'output'
-     * @param pathObject The Path object (passed to Closures); may be null
      * @return ArtifactEvaluation with shouldTrack flag and metadata map
      */
-    ArtifactEvaluation evaluate(String path, String artifactDirection, Path pathObject) {
+    ArtifactEvaluation evaluate(Path path, String artifactDirection) {
+        String pathStr = path.toUri().toString()
+
         // Early exit if disabled or direction doesn't match
         if (!enabled) {
-            log.debug "Path '${path}' not tracked: artifact tracking is disabled"
+            log.debug "Path '${pathStr}' not tracked: artifact tracking is disabled"
             return ArtifactEvaluation.notTracked()
         }
         if (this.direction != 'both' && this.direction != artifactDirection) {
-            log.debug "Path '${path}' not tracked: direction '${artifactDirection}' doesn't match config direction '${this.direction}'"
+            log.debug "Path '${pathStr}' not tracked: direction '${artifactDirection}' doesn't match config direction '${this.direction}'"
             return ArtifactEvaluation.notTracked()
         }
 
@@ -239,28 +246,28 @@ class ArtifactConfig {
         boolean shouldTrack = true
 
         // Apply global exclude pattern
-        if (compiledExcludePattern && compiledExcludePattern.matcher(path).matches()) {
-            log.debug "Path '${path}' excluded by global exclude_pattern"
+        if (compiledExcludePattern && compiledExcludePattern.matcher(pathStr).matches()) {
+            log.debug "Path '${pathStr}' excluded by global exclude_pattern"
             shouldTrack = false
         }
 
         // Apply global include pattern (only if still tracking)
-        if (shouldTrack && compiledIncludePattern && !compiledIncludePattern.matcher(path).matches()) {
-            log.debug "Path '${path}' does not match global include_pattern"
+        if (shouldTrack && compiledIncludePattern && !compiledIncludePattern.matcher(pathStr).matches()) {
+            log.debug "Path '${pathStr}' does not match global include_pattern"
             shouldTrack = false
         }
 
         // Apply all matching rules in order
         for (ArtifactRule rule : sortedRules) {
-            if (rule.matches(path) && rule.appliesToDirection(artifactDirection)) {
-                log.debug "Path '${path}' matched rule: ${rule}"
+            if (rule.matches(pathStr) && rule.appliesToDirection(artifactDirection)) {
+                log.debug "Path '${pathStr}' matched rule: ${rule}"
 
                 if (rule.type) {
                     if (rule.type == "exclude") {
-                        log.debug "Path '${path}' excluded by rule"
+                        log.debug "Path '${pathStr}' excluded by rule"
                         shouldTrack = false
                     } else if (rule.type == "include") {
-                        log.debug "Path '${path}' included by rule"
+                        log.debug "Path '${pathStr}' included by rule"
                         shouldTrack = true
                     }
                 }
@@ -283,7 +290,7 @@ class ArtifactConfig {
         }
         String resolvedKey = null
         if (effectiveKeyConfig != null) {
-            resolvedKey = KeyResolver.resolveKey(effectiveKeyConfig, path, pathObject)
+            resolvedKey = KeyResolver.resolveKey(effectiveKeyConfig, path)
         }
 
         return new ArtifactEvaluation(
