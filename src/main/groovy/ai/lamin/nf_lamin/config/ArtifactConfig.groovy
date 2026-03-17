@@ -71,7 +71,7 @@ class ArtifactConfig {
     final Boolean excludeWorkDir
 
     /**
-     * Whether to exclude artifacts in ~/.nextflow/assets (default: true).
+     * Whether to exclude artifacts in the Nextflow assets directory (default: true).
      * Pipeline source files live here.
      */
     final Boolean excludeAssetsDir
