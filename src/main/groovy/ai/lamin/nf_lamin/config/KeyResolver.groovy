@@ -27,7 +27,7 @@ import java.util.regex.Pattern
 /**
  * Resolves artifact keys from configuration values (String templates or Closures).
  *
- * <p>The {@code key} config option accepts two types:</p>
+ * <p>The {@code key} config option accepts three types:</p>
  * <ul>
  *   <li><strong>String template</strong> with variables:
  *     <ul>
@@ -76,8 +76,7 @@ class KeyResolver {
             return invokeClosure((Closure) keyConfig, path)
         }
 
-        String template = keyConfig as String
-        return resolveStringTemplate(template, pathStr)
+        return resolveStringTemplate(keyConfig as String, pathStr)
     }
 
     /**

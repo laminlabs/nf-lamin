@@ -20,6 +20,8 @@ import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import java.nio.file.Path
 import java.util.regex.Pattern
+import nextflow.config.schema.ConfigOption
+import nextflow.script.dsl.Description
 
 /**
  * Configuration for artifact tracking (input, output, or both).
@@ -54,31 +56,34 @@ import java.util.regex.Pattern
 @CompileStatic
 class ArtifactConfig {
 
-    /**
-     * Whether artifact tracking is enabled for this config (default: true)
-     */
+    @ConfigOption
+    @Description('''
+        Whether artifact tracking is enabled for this config (default: true).
+    ''')
     final Boolean enabled
 
-    /**
-     * Whether to track local (file://) artifacts (default: true)
-     */
+    @ConfigOption
+    @Description('''
+        Whether to track local (file://) artifacts (default: true).
+    ''')
     final Boolean includeLocal
 
-    /**
-     * Whether to exclude artifacts in the Nextflow workdir (default: true).
-     * Intermediate files between processes live here.
-     */
+    @ConfigOption
+    @Description('''
+        Whether to exclude artifacts in the Nextflow workdir (default: true). Intermediate files between processes live here.
+    ''')
     final Boolean excludeWorkDir
 
-    /**
-     * Whether to exclude artifacts in the Nextflow assets directory (default: true).
-     * Pipeline source files live here.
-     */
+    @ConfigOption
+    @Description('''
+        Whether to exclude artifacts in the Nextflow assets directory (default: true). Pipeline source files live here.
+    ''')
     final Boolean excludeAssetsDir
 
-    /**
-     * Global include pattern (regex). Files must match this to be tracked.
-     */
+    @ConfigOption
+    @Description('''
+        Global include pattern (regex). Files must match this to be tracked.
+    ''')
     final String includePattern
 
     /**
@@ -86,9 +91,10 @@ class ArtifactConfig {
      */
     final Pattern compiledIncludePattern
 
-    /**
-     * Global exclude pattern (regex). Files matching this will not be tracked.
-     */
+    @ConfigOption
+    @Description('''
+        Global exclude pattern (regex). Files matching this will not be tracked.
+    ''')
     final String excludePattern
 
     /**
@@ -96,28 +102,28 @@ class ArtifactConfig {
      */
     final Pattern compiledExcludePattern
 
-    /**
-     * Global list of ULabel UIDs to attach to all artifacts
-     */
+    @ConfigOption
+    @Description('''
+        List of ULabel UIDs to attach to all artifacts matched by this config.
+    ''')
     final List<String> ulabelUids
 
-    /**
-     * Global artifact kind (e.g., 'dataset', 'model')
-     */
+    @ConfigOption
+    @Description('''
+        Global artifact kind (e.g., 'dataset', 'model', 'report').
+    ''')
     final String kind
 
-    /**
-     * Global key for deriving artifact keys from file paths.
-     * Can be a String template (supports {basename}, {filename}, {ext},
-     * {parent}, {parent.parent}, etc.) or a Closure that receives a
-     * Path and returns the key as a String.
-     * Default is null, which means use the file basename as the key.
-     */
+    @ConfigOption(types=[String, Closure, Map])
+    @Description('''
+        Key template or closure for deriving artifact keys from file paths. Supports String templates with variables ({basename}, {filename}, {ext}, {parent}, {parent.parent}, etc.), a Closure that receives a Path and returns a String, or a Map shorthand like `[relativize: params.outdir]`.
+    ''')
     final Object key
 
-    /**
-     * Path-specific rules (map of rule name to ArtifactRule)
-     */
+    @ConfigOption
+    @Description('''
+        Path-specific rules for fine-grained control over artifact tracking. Each rule can match files by pattern and override tracking decisions and metadata.
+    ''')
     final Map<String, ArtifactRule> rules
 
     /**
