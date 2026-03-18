@@ -8,6 +8,4 @@
 :hidden:
 
 nextflow
-roadmap
-changelog
 ```
