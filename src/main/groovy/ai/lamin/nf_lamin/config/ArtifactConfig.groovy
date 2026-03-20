@@ -126,6 +126,15 @@ class ArtifactConfig {
     ''')
     final Map<String, ArtifactRule> rules
 
+    @ConfigOption
+    @Description('''
+        List of file paths or glob patterns to explicitly track as artifacts.
+        Paths are resolved using Nextflow's FileHelper.asPath. Input artifact
+        paths are resolved at the beginning of the workflow, and output artifact
+        paths are resolved at the end. Can be a single string or a list of strings.
+    ''')
+    final List<String> paths
+
     /**
      * Sorted list of rules (by order) for evaluation
      */
@@ -157,6 +166,7 @@ class ArtifactConfig {
 
         // Parse list fields (can be String or List)
         this.ulabelUids = ConfigUtils.parseStringOrList(safeOpts.ulabel_uids)
+        this.paths = ConfigUtils.parseStringOrList(safeOpts.paths)
 
         // Compile patterns
         this.compiledIncludePattern = ConfigUtils.compilePattern(this.includePattern, 'include_pattern')
@@ -301,6 +311,71 @@ class ArtifactConfig {
         )
     }
 
+    /**
+     * Collect all explicit paths to track from this config and its rules for a given direction.
+     *
+     * Returns a list of maps, each containing:
+     *   - path (String): the path string to resolve
+     *   - evaluation (ArtifactEvaluation): pre-built evaluation with metadata from the config/rule
+     *
+     * @param artifactDirection 'input' or 'output'
+     * @return List of maps with path and evaluation info
+     */
+    List<Map<String, Object>> collectPaths(String artifactDirection) {
+        if (!enabled) {
+            return []
+        }
+        if (this.direction != 'both' && this.direction != artifactDirection) {
+            return []
+        }
+
+        List<Map<String, Object>> result = []
+
+        // Collect paths from config-level paths
+        if (this.paths) {
+            for (String pathStr : this.paths) {
+                result.add([
+                    path: pathStr,
+                    evaluation: new ArtifactEvaluation(
+                        true,
+                        new ArrayList<>(this.ulabelUids),
+                        this.kind,
+                        null  // key resolved later from path
+                    )
+                ] as Map<String, Object>)
+            }
+        }
+
+        // Collect paths from rules
+        for (ArtifactRule rule : sortedRules) {
+            if (!rule.enabled || !rule.hasPaths() || !rule.appliesToDirection(artifactDirection)) {
+                continue
+            }
+            // Merge ulabels from config + rule
+            List<String> mergedUlabels = new ArrayList<>(this.ulabelUids)
+            if (rule.ulabelUids) {
+                mergedUlabels.addAll(rule.ulabelUids)
+            }
+            mergedUlabels = mergedUlabels.unique() as List<String>
+
+            String effectiveKind = rule.kind ?: this.kind
+
+            for (String pathStr : rule.paths) {
+                result.add([
+                    path: pathStr,
+                    evaluation: new ArtifactEvaluation(
+                        true,
+                        mergedUlabels,
+                        effectiveKind,
+                        null  // key resolved later from path
+                    )
+                ] as Map<String, Object>)
+            }
+        }
+
+        return result
+    }
+
     @Override
     String toString() {
         return "ArtifactConfig{" +
@@ -314,6 +389,7 @@ class ArtifactConfig {
             "ulabelUids=${ulabelUids}, " +
             "kind='${kind}', " +
             "key='${key instanceof Closure ? '<closure>' : key}', " +
+            "paths=${paths}, " +
             "rules=${rules.size()} rules" +
             "}"
     }

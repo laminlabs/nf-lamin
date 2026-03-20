@@ -19,6 +19,8 @@ package ai.lamin.nf_lamin.config
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import java.util.regex.Pattern
+import nextflow.config.schema.ConfigOption
+import nextflow.script.dsl.Description
 
 /**
  * Configuration for an individual artifact tracking rule.
@@ -94,6 +96,15 @@ class ArtifactRule {
     final Object key
 
     /**
+     * List of file paths or glob patterns to explicitly track as artifacts.
+     * Paths are resolved using Nextflow's FileHelper.asPath. Input artifact
+     * paths are resolved at the beginning of the workflow, and output artifact
+     * paths are resolved at the end. Can be a single string or a list of strings.
+     * Examples: 'foo/bar.txt', '${params.input}/samplesheet.csv', params.samplesheet.
+     */
+    final List<String> paths
+
+    /**
      * Create a new ArtifactRule from configuration map
      * @param opts Configuration options
      */
@@ -108,11 +119,12 @@ class ArtifactRule {
 
         // Parse list fields (can be String or List)
         this.ulabelUids = ConfigUtils.parseStringOrList(opts.ulabel_uids)
+        this.paths = ConfigUtils.parseStringOrList(opts.paths)
 
         // Validate configuration
         validate()
 
-        // Compile pattern
+        // Compile pattern (may be null when paths is used instead)
         this.compiledPattern = ConfigUtils.compilePattern(this.pattern, 'pattern')
     }
 
@@ -121,8 +133,11 @@ class ArtifactRule {
      * @throws IllegalArgumentException if configuration is invalid
      */
     private void validate() {
-        if (!this.pattern?.trim()) {
-            throw new IllegalArgumentException("Rule pattern is required")
+        boolean hasPaths = this.paths != null && !this.paths.isEmpty()
+        boolean hasPattern = this.pattern?.trim()
+
+        if (!hasPaths && !hasPattern) {
+            throw new IllegalArgumentException("Rule must have either 'pattern' or 'paths' specified")
         }
 
         if (this.type && !['include', 'exclude'].contains(this.type)) {
@@ -140,7 +155,7 @@ class ArtifactRule {
      * @return true if the path matches the pattern
      */
     boolean matches(String path) {
-        if (!enabled) {
+        if (!enabled || compiledPattern == null) {
             return false
         }
         return compiledPattern.matcher(path).matches()
@@ -158,6 +173,14 @@ class ArtifactRule {
         return this.direction == 'both' || this.direction == artifactDirection
     }
 
+    /**
+     * Check if this rule has explicit paths to track
+     * @return true if the rule has paths
+     */
+    boolean hasPaths() {
+        return paths != null && !paths.isEmpty()
+    }
+
     @Override
     String toString() {
         return "ArtifactRule{" +
@@ -167,6 +190,7 @@ class ArtifactRule {
             "direction='${direction}', " +
             "kind='${kind}', " +
             "ulabelUids=${ulabelUids}, " +
+            "paths=${paths}, " +
             "key='${key instanceof Closure ? '<closure>' : key}', " +
             "order=${order}" +
             "}"

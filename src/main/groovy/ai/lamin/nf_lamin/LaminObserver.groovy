@@ -58,6 +58,7 @@ class LaminObserver implements TraceObserverV2 {
     void onFlowBegin() {
         log.debug "LaminObserver.onFlowBegin"
         state.startRun()
+        state.processConfigPaths('input')
     }
 
     @Override
@@ -98,6 +99,7 @@ class LaminObserver implements TraceObserverV2 {
             return
         }
         runFinalized = true
+        state.processConfigPaths('output')
         state.finalizeRun()
     }
 }
