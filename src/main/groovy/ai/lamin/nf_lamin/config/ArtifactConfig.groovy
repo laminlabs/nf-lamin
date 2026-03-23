@@ -200,6 +200,7 @@ class ArtifactConfig {
                 if (!ruleMap.containsKey('direction')) {
                     ruleMap.direction = direction
                 }
+                ruleMap.name = name
                 ArtifactRule rule = new ArtifactRule(ruleMap)
                 parsed.put(name, rule)
             } else {
@@ -321,7 +322,7 @@ class ArtifactConfig {
      * @param artifactDirection 'input' or 'output'
      * @return List of maps with path and evaluation info
      */
-    List<Map<String, Object>> collectPaths(String artifactDirection) {
+    List<Map<String, Object>> collectPaths(String artifactDirection, Map workflowParams) {
         if (!enabled) {
             return []
         }
@@ -360,7 +361,7 @@ class ArtifactConfig {
 
             String effectiveKind = rule.kind ?: this.kind
 
-            for (String pathStr : rule.paths) {
+            for (String pathStr : rule.resolvePaths(workflowParams)) {
                 result.add([
                     path: pathStr,
                     evaluation: new ArtifactEvaluation(

@@ -596,7 +596,8 @@ final class LaminRunManager {
 
         ArtifactConfig ac = resolveArtifactConfig(direction)
         if (ac != null) {
-            pathEntries.addAll(ac.collectPaths(direction))
+            Map workflowParams = session.getParams() ?: [:]
+            pathEntries.addAll(ac.collectPaths(direction, workflowParams))
         }
 
         if (pathEntries.isEmpty()) {

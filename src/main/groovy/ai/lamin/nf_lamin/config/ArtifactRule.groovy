@@ -46,14 +46,20 @@ import nextflow.script.dsl.Description
 @CompileStatic
 class ArtifactRule {
 
-    /**
-     * Whether this rule is enabled (default: true)
-     */
+    /** Name of this rule (the block key in the config, set by ArtifactConfig). */
+    final String name
+
+    @ConfigOption
+    @Description('''
+        Whether this rule is enabled (default: true).
+    ''')
     final Boolean enabled
 
-    /**
-     * Regular expression pattern to match file paths
-     */
+    @ConfigOption
+    @Description('''
+        Regular expression pattern to match file paths.
+        Either pattern or paths must be specified.
+    ''')
     final String pattern
 
     /**
@@ -61,54 +67,68 @@ class ArtifactRule {
      */
     final Pattern compiledPattern
 
-    /**
-     * Rule type: 'include' to track, 'exclude' to skip (default: 'include')
-     */
+    @ConfigOption
+    @Description('''
+        Rule type: 'include' to track, 'exclude' to skip (default: 'include').
+    ''')
     final String type
 
-    /**
-     * Direction: 'input', 'output', or 'both' (default: 'both')
-     */
+    @ConfigOption
+    @Description('''
+        Direction: 'input', 'output', or 'both' (default: 'both').
+    ''')
     final String direction
 
-    /**
-     * Kind of artifact (e.g., 'dataset', 'model', 'report')
-     */
+    @ConfigOption
+    @Description('''
+        Kind of artifact (e.g., 'dataset', 'model', 'report').
+    ''')
     final String kind
 
-    /**
-     * List of ULabel UIDs to attach to matching artifacts
-     */
+    @ConfigOption
+    @Description('''
+        List of ULabel UIDs to attach to matching artifacts.
+        Also accepts named references (see "Named record resolution" in plugin docs).
+    ''')
     final List<String> ulabelUids
 
-    /**
-     * Rule evaluation order (lower numbers = higher priority, default: 100)
-     */
+    @ConfigOption
+    @Description('''
+        Rule evaluation order (lower numbers = higher priority, default: 100).
+    ''')
     final Integer order
 
-    /**
-     * Key for deriving the artifact key from the file path.
-     * Can be a String template (supports {basename}, {filename}, {ext},
-     * {parent}, {parent.parent}, etc.) or a Closure that receives a
-     * Path and returns the key as a String.
-     * If null, inherits the global key from ArtifactConfig.
-     */
+    @ConfigOption(types=[String, Closure, Map])
+    @Description('''
+        Key template or closure for deriving artifact keys from file paths.
+        Supports String templates with variables ({basename}, {filename}, {ext},
+        {parent}, {parent.parent}, etc.), a Closure that receives a Path and
+        returns a String, or a Map shorthand like `[relativize: params.outdir]`.
+        If null, inherits the global key from ArtifactConfig.
+    ''')
     final Object key
 
-    /**
-     * List of file paths or glob patterns to explicitly track as artifacts.
-     * Paths are resolved using Nextflow's FileHelper.asPath. Input artifact
-     * paths are resolved at the beginning of the workflow, and output artifact
-     * paths are resolved at the end. Can be a single string or a list of strings.
-     * Examples: 'foo/bar.txt', '${params.input}/samplesheet.csv', params.samplesheet.
-     */
+    @ConfigOption(types=[String, List, Closure])
+    @Description('''
+        One or more file paths to explicitly track as artifacts.
+        Paths are resolved using Nextflow's FileHelper.asPath. Input artifact
+        paths are resolved at the beginning of the workflow, and output artifact
+        paths are resolved at the end. Can be a single string, a list of strings,
+        or a Closure returning a string or list. Use a closure when the value
+        depends on workflow params: `paths = { params.input }`.
+        If the resolved value is null (e.g. optional param not set), the rule is skipped.
+    ''')
     final List<String> paths
+
+    /** Closure that produces paths lazily at runtime (set when paths = { ... } is used). */
+    final Closure pathsClosure
 
     /**
      * Create a new ArtifactRule from configuration map
      * @param opts Configuration options
      */
     ArtifactRule(Map opts) {
+        this.name = opts.name as String
         this.enabled = opts.containsKey('enabled') ? (opts.enabled as Boolean) : true
         this.pattern = opts.pattern as String
         this.type = opts.containsKey('type') ? (opts.type as String) : 'include'
@@ -117,9 +137,15 @@ class ArtifactRule {
         this.key = opts.key  // keep as-is: String template or Closure
         this.order = opts.containsKey('order') ? (opts.order as Integer) : 100
 
-        // Parse list fields (can be String or List)
+        // Parse list fields (can be String, List, or Closure)
         this.ulabelUids = ConfigUtils.parseStringOrList(opts.ulabel_uids)
-        this.paths = ConfigUtils.parseStringOrList(opts.paths)
+        if (opts.paths instanceof Closure) {
+            this.pathsClosure = opts.paths as Closure
+            this.paths = []
+        } else {
+            this.pathsClosure = null
+            this.paths = ConfigUtils.parseStringOrList(opts.paths)
+        }
 
         // Validate configuration
         validate()
@@ -133,11 +159,14 @@ class ArtifactRule {
      * @throws IllegalArgumentException if configuration is invalid
      */
     private void validate() {
-        boolean hasPaths = this.paths != null && !this.paths.isEmpty()
+        boolean hasPaths = hasPaths()
         boolean hasPattern = this.pattern?.trim()
 
         if (!hasPaths && !hasPattern) {
-            throw new IllegalArgumentException("Rule must have either 'pattern' or 'paths' specified")
+            // Not an error: paths may be null because an optional param was not set.
+            // The rule will be silently skipped (no pattern to match, no paths to collect).
+            log.debug "ArtifactRule '${this.name}': neither 'pattern' nor 'paths' is set (paths=${this.paths}, pattern=${this.pattern}) -> rule will be skipped"
+
         }
 
         if (this.type && !['include', 'exclude'].contains(this.type)) {
@@ -174,23 +203,39 @@ class ArtifactRule {
     }
 
     /**
-     * Check if this rule has explicit paths to track
+     * Check if this rule has explicit paths to track (including closure-based paths).
      * @return true if the rule has paths
      */
     boolean hasPaths() {
-        return paths != null && !paths.isEmpty()
+        return pathsClosure != null || (paths != null && !paths.isEmpty())
+    }
+
+    /**
+     * Resolve and return the paths for this rule, evaluating the closure if needed.
+     * @param workflowParams Nextflow workflow params (session.params), used as the 'params'
+     *        variable inside a closure when the user writes `paths = { params.input }`.
+     * @return List of resolved path strings
+     */
+    List<String> resolvePaths(Map workflowParams) {
+        if (pathsClosure != null) {
+            pathsClosure.delegate = [params: workflowParams]
+            pathsClosure.resolveStrategy = Closure.DELEGATE_FIRST
+            return ConfigUtils.parseStringOrList(pathsClosure.call())
+        }
+        return paths
     }
 
     @Override
     String toString() {
         return "ArtifactRule{" +
+            "name='${name}', " +
             "enabled=${enabled}, " +
             "pattern='${pattern}', " +
             "type='${type}', " +
             "direction='${direction}', " +
             "kind='${kind}', " +
             "ulabelUids=${ulabelUids}, " +
-            "paths=${paths}, " +
+            "paths=${pathsClosure != null ? '<closure>' : paths}, " +
             "key='${key instanceof Closure ? '<closure>' : key}', " +
             "order=${order}" +
             "}"

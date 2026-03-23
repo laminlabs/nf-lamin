@@ -481,7 +481,7 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         expect:
-        config.collectPaths('input') == []
+        config.collectPaths('input', [:]) == []
     }
 
     def "collectPaths should return empty list when direction doesn't match"() {
@@ -491,7 +491,7 @@ class ArtifactConfigTest extends Specification {
         ], 'input')
 
         expect:
-        config.collectPaths('output') == []
+        config.collectPaths('output', [:]) == []
     }
 
     def "collectPaths should return config-level paths"() {
@@ -503,7 +503,7 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         when:
-        def result = config.collectPaths('input')
+        def result = config.collectPaths('input', [:])
 
         then:
         result.size() == 2
@@ -529,7 +529,7 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         when:
-        def result = config.collectPaths('input')
+        def result = config.collectPaths('input', [:])
 
         then:
         result.size() == 1
@@ -552,7 +552,7 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         expect:
-        config.collectPaths('input') == []
+        config.collectPaths('input', [:]) == []
     }
 
     def "collectPaths should skip rules with wrong direction"() {
@@ -567,7 +567,7 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         expect:
-        config.collectPaths('input') == []
+        config.collectPaths('input', [:]) == []
     }
 
     def "collectPaths should combine config-level and rule paths"() {
@@ -583,7 +583,7 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         when:
-        def result = config.collectPaths('input')
+        def result = config.collectPaths('input', [:])
 
         then:
         result.size() == 2
@@ -597,7 +597,7 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         when:
-        def result = config.collectPaths('output')
+        def result = config.collectPaths('output', [:])
 
         then:
         result.size() == 1
