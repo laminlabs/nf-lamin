@@ -163,10 +163,7 @@ class ArtifactRule {
         boolean hasPattern = this.pattern?.trim()
 
         if (!hasPaths && !hasPattern) {
-            // Not an error: paths may be null because an optional param was not set.
-            // The rule will be silently skipped (no pattern to match, no paths to collect).
-            log.debug "ArtifactRule '${this.name}': neither 'pattern' nor 'paths' is set (paths=${this.paths}, pattern=${this.pattern}) -> rule will be skipped"
-
+            throw new IllegalArgumentException("ArtifactRule '${this.name}': either 'pattern' or 'paths' must be specified")
         }
 
         if (this.type && !['include', 'exclude'].contains(this.type)) {
