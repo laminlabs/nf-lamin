@@ -35,6 +35,7 @@ class ArtifactRuleTest extends Specification {
         rule.direction == 'both'
         rule.order == 100
         rule.ulabelUids == []
+        rule.include_paths == []
         rule.key == null
     }
 
@@ -72,7 +73,7 @@ class ArtifactRuleTest extends Specification {
     }
 
 
-    def "should throw error for missing pattern"() {
+    def "should throw error for missing pattern and include_paths"() {
         when:
         new ArtifactRule([enabled: true])
 
@@ -161,5 +162,56 @@ class ArtifactRuleTest extends Specification {
 
         then:
         rule.key == null
+    }
+
+    def "should create rule with paths only (no pattern)"() {
+        when:
+        def rule = new ArtifactRule([
+            include_paths: ['s3://bucket/samplesheet.csv', '/local/data.txt'],
+            direction: 'input'
+        ])
+
+        then:
+        rule.enabled == true
+        rule.pattern == null
+        rule.compiledPattern == null
+        rule.include_paths == ['s3://bucket/samplesheet.csv', '/local/data.txt']
+        rule.direction == 'input'
+        rule.hasPaths()
+    }
+
+    def "should create rule with single path string"() {
+        when:
+        def rule = new ArtifactRule([
+            include_paths: 'samplesheet.csv',
+            direction: 'input'
+        ])
+
+        then:
+        rule.include_paths == ['samplesheet.csv']
+        rule.hasPaths()
+    }
+
+    def "should create rule with both include_paths and pattern"() {
+        when:
+        def rule = new ArtifactRule([
+            pattern: '.*\\.fastq\\.gz$',
+            include_paths: ['s3://bucket/extra.fastq.gz'],
+            kind: 'dataset'
+        ])
+
+        then:
+        rule.pattern == '.*\\.fastq\\.gz$'
+        rule.include_paths == ['s3://bucket/extra.fastq.gz']
+        rule.kind == 'dataset'
+        rule.hasPaths()
+    }
+
+    def "should report no paths when include_paths is empty"() {
+        when:
+        def rule = new ArtifactRule([pattern: '.*\\.txt$'])
+
+        then:
+        !rule.hasPaths()
     }
 }

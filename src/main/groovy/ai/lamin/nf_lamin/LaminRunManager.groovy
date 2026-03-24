@@ -575,6 +575,56 @@ final class LaminRunManager {
     }
 
     /**
+     * Process explicitly configured artifact paths for a given direction.
+     *
+     * Collects all paths from the artifact configs (both global and
+     * direction-specific) and creates artifacts using the existing
+     * createInputArtifact / createOutputArtifact methods.
+     *
+     * Input paths should be processed at the beginning of the workflow
+     * (onFlowBegin), and output paths at the end (before finalizeRun).
+     *
+     * @param direction 'input' or 'output'
+     */
+    void processConfigPaths(String direction) {
+        if (laminInstance == null || config == null || config.dryRun) {
+            return
+        }
+
+        // Collect paths from all relevant artifact configs
+        List<Map<String, Object>> pathEntries = []
+
+        ArtifactConfig ac = resolveArtifactConfig(direction)
+        if (ac != null) {
+            Map workflowParams = session.getParams() ?: [:]
+            pathEntries.addAll(ac.collectPaths(direction, workflowParams))
+        }
+
+        if (pathEntries.isEmpty()) {
+            log.debug "No explicit ${direction} paths configured"
+            return
+        }
+
+        log.info "Processing ${pathEntries.size()} configured ${direction} artifact path(s)"
+
+        for (Map<String, Object> entry : pathEntries) {
+            String pathStr = entry.path as String
+            try {
+                Path resolvedPath = FileHelper.asPath(pathStr)
+                log.debug "Resolved configured ${direction} path '${pathStr}' to ${resolvedPath.toUri()}"
+
+                if (direction == 'input') {
+                    createInputArtifact(resolvedPath)
+                } else {
+                    createOutputArtifact(resolvedPath)
+                }
+            } catch (Exception e) {
+                log.warn "Failed to process configured ${direction} path '${pathStr}': ${e.message}"
+            }
+        }
+    }
+
+    /**
      * Evaluate an artifact path against configuration rules.
      *
      * Returns a combined result with tracking decision and accumulated metadata.

@@ -472,4 +472,135 @@ class ArtifactConfigTest extends Specification {
         matchResult.key == 'from-closure/Aligned.bam'
         noMatchResult.key == 'star/Aligned.txt'
     }
+
+    def "collectPaths should return empty list when disabled"() {
+        given:
+        def config = new ArtifactConfig([
+            enabled: false,
+            include_paths: ['s3://bucket/file.txt']
+        ], 'both')
+
+        expect:
+        config.collectPaths('input', [:]) == []
+    }
+
+    def "collectPaths should return empty list when direction doesn't match"() {
+        given:
+        def config = new ArtifactConfig([
+            include_paths: ['s3://bucket/file.txt']
+        ], 'input')
+
+        expect:
+        config.collectPaths('output', [:]) == []
+    }
+
+    def "collectPaths should return config-level paths"() {
+        given:
+        def config = new ArtifactConfig([
+            include_paths: ['s3://bucket/samplesheet.csv', '/local/data.txt'],
+            ulabel_uids: ['global-label'],
+            kind: 'dataset'
+        ], 'both')
+
+        when:
+        def result = config.collectPaths('input', [:])
+
+        then:
+        result.size() == 2
+        result[0].path == 's3://bucket/samplesheet.csv'
+        result[0].evaluation.shouldTrack
+        result[0].evaluation.ulabelUids == ['global-label']
+        result[0].evaluation.kind == 'dataset'
+        result[1].path == '/local/data.txt'
+    }
+
+    def "collectPaths should return paths from rules"() {
+        given:
+        def config = new ArtifactConfig([
+            ulabel_uids: ['global-label'],
+            rules: [
+                samplesheets: [
+                    include_paths: ['s3://bucket/samplesheet.csv'],
+                    direction: 'input',
+                    ulabel_uids: ['rule-label'],
+                    kind: 'dataset'
+                ]
+            ]
+        ], 'both')
+
+        when:
+        def result = config.collectPaths('input', [:])
+
+        then:
+        result.size() == 1
+        result[0].path == 's3://bucket/samplesheet.csv'
+        result[0].evaluation.shouldTrack
+        result[0].evaluation.ulabelUids.containsAll(['global-label', 'rule-label'])
+        result[0].evaluation.kind == 'dataset'
+    }
+
+    def "collectPaths should skip disabled rules"() {
+        given:
+        def config = new ArtifactConfig([
+            rules: [
+                disabled_rule: [
+                    enabled: false,
+                    include_paths: ['s3://bucket/nope.txt'],
+                    pattern: '.*'
+                ]
+            ]
+        ], 'both')
+
+        expect:
+        config.collectPaths('input', [:]) == []
+    }
+
+    def "collectPaths should skip rules with wrong direction"() {
+        given:
+        def config = new ArtifactConfig([
+            rules: [
+                output_only: [
+                    include_paths: ['s3://bucket/output.txt'],
+                    direction: 'output'
+                ]
+            ]
+        ], 'both')
+
+        expect:
+        config.collectPaths('input', [:]) == []
+    }
+
+    def "collectPaths should combine config-level and rule paths"() {
+        given:
+        def config = new ArtifactConfig([
+            include_paths: ['/config/path.txt'],
+            rules: [
+                extra: [
+                    include_paths: ['/rule/path.txt'],
+                    direction: 'input'
+                ]
+            ]
+        ], 'both')
+
+        when:
+        def result = config.collectPaths('input', [:])
+
+        then:
+        result.size() == 2
+        result*.path == ['/config/path.txt', '/rule/path.txt']
+    }
+
+    def "collectPaths should handle single string path in config"() {
+        given:
+        def config = new ArtifactConfig([
+            include_paths: 'single/path.txt'
+        ], 'both')
+
+        when:
+        def result = config.collectPaths('output', [:])
+
+        then:
+        result.size() == 1
+        result[0].path == 'single/path.txt'
+    }
 }
