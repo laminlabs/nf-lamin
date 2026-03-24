@@ -1,11 +1,20 @@
 ```{include} ../README.md
-:start-line: 0
-:end-line: 8
+:start-after: # nf-lamin
+:end-before: ## Quick start
 ```
 
 ```{toctree}
 :maxdepth: 1
 :hidden:
+:caption: Guide
 
-nextflow
+guide/index
+```
+
+```{toctree}
+:maxdepth: 1
+:hidden:
+:caption: API reference
+
+reference/index
 ```
