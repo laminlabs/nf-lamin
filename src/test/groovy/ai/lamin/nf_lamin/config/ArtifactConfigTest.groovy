@@ -477,7 +477,7 @@ class ArtifactConfigTest extends Specification {
         given:
         def config = new ArtifactConfig([
             enabled: false,
-            paths: ['s3://bucket/file.txt']
+            include_paths: ['s3://bucket/file.txt']
         ], 'both')
 
         expect:
@@ -487,7 +487,7 @@ class ArtifactConfigTest extends Specification {
     def "collectPaths should return empty list when direction doesn't match"() {
         given:
         def config = new ArtifactConfig([
-            paths: ['s3://bucket/file.txt']
+            include_paths: ['s3://bucket/file.txt']
         ], 'input')
 
         expect:
@@ -497,7 +497,7 @@ class ArtifactConfigTest extends Specification {
     def "collectPaths should return config-level paths"() {
         given:
         def config = new ArtifactConfig([
-            paths: ['s3://bucket/samplesheet.csv', '/local/data.txt'],
+            include_paths: ['s3://bucket/samplesheet.csv', '/local/data.txt'],
             ulabel_uids: ['global-label'],
             kind: 'dataset'
         ], 'both')
@@ -520,7 +520,7 @@ class ArtifactConfigTest extends Specification {
             ulabel_uids: ['global-label'],
             rules: [
                 samplesheets: [
-                    paths: ['s3://bucket/samplesheet.csv'],
+                    include_paths: ['s3://bucket/samplesheet.csv'],
                     direction: 'input',
                     ulabel_uids: ['rule-label'],
                     kind: 'dataset'
@@ -545,7 +545,7 @@ class ArtifactConfigTest extends Specification {
             rules: [
                 disabled_rule: [
                     enabled: false,
-                    paths: ['s3://bucket/nope.txt'],
+                    include_paths: ['s3://bucket/nope.txt'],
                     pattern: '.*'
                 ]
             ]
@@ -560,7 +560,7 @@ class ArtifactConfigTest extends Specification {
         def config = new ArtifactConfig([
             rules: [
                 output_only: [
-                    paths: ['s3://bucket/output.txt'],
+                    include_paths: ['s3://bucket/output.txt'],
                     direction: 'output'
                 ]
             ]
@@ -573,10 +573,10 @@ class ArtifactConfigTest extends Specification {
     def "collectPaths should combine config-level and rule paths"() {
         given:
         def config = new ArtifactConfig([
-            paths: ['/config/path.txt'],
+            include_paths: ['/config/path.txt'],
             rules: [
                 extra: [
-                    paths: ['/rule/path.txt'],
+                    include_paths: ['/rule/path.txt'],
                     direction: 'input'
                 ]
             ]
@@ -593,7 +593,7 @@ class ArtifactConfigTest extends Specification {
     def "collectPaths should handle single string path in config"() {
         given:
         def config = new ArtifactConfig([
-            paths: 'single/path.txt'
+            include_paths: 'single/path.txt'
         ], 'both')
 
         when:

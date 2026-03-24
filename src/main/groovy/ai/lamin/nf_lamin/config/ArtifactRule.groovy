@@ -115,12 +115,12 @@ class ArtifactRule {
         paths are resolved at the beginning of the workflow, and output artifact
         paths are resolved at the end. Can be a single string, a list of strings,
         or a Closure returning a string or list. Use a closure when the value
-        depends on workflow params: `paths = { params.input }`.
+        depends on workflow params: `include_paths = { params.input }`.
         If the resolved value is null (e.g. optional param not set), the rule is skipped.
     ''')
-    final List<String> paths
+    final List<String> include_paths
 
-    /** Closure that produces paths lazily at runtime (set when paths = { ... } is used). */
+    /** Closure that produces paths lazily at runtime (set when include_paths = { ... } is used). */
     final Closure pathsClosure
 
     /**
@@ -139,12 +139,12 @@ class ArtifactRule {
 
         // Parse list fields (can be String, List, or Closure)
         this.ulabelUids = ConfigUtils.parseStringOrList(opts.ulabel_uids)
-        if (opts.paths instanceof Closure) {
-            this.pathsClosure = opts.paths as Closure
-            this.paths = []
+        if (opts.include_paths instanceof Closure) {
+            this.pathsClosure = opts.include_paths as Closure
+            this.include_paths = []
         } else {
             this.pathsClosure = null
-            this.paths = ConfigUtils.parseStringOrList(opts.paths)
+            this.include_paths = ConfigUtils.parseStringOrList(opts.include_paths)
         }
 
         // Validate configuration
@@ -163,7 +163,7 @@ class ArtifactRule {
         boolean hasPattern = this.pattern?.trim()
 
         if (!hasPaths && !hasPattern) {
-            throw new IllegalArgumentException("ArtifactRule '${this.name}': either 'pattern' or 'paths' must be specified")
+            throw new IllegalArgumentException("ArtifactRule '${this.name}': either 'pattern' or 'include_paths' must be specified")
         }
 
         if (this.type && !['include', 'exclude'].contains(this.type)) {
@@ -204,7 +204,7 @@ class ArtifactRule {
      * @return true if the rule has paths
      */
     boolean hasPaths() {
-        return pathsClosure != null || (paths != null && !paths.isEmpty())
+        return pathsClosure != null || (include_paths != null && !include_paths.isEmpty())
     }
 
     /**
@@ -219,7 +219,7 @@ class ArtifactRule {
             pathsClosure.resolveStrategy = Closure.DELEGATE_FIRST
             return ConfigUtils.parseStringOrList(pathsClosure.call())
         }
-        return paths
+        return include_paths
     }
 
     @Override
@@ -232,7 +232,7 @@ class ArtifactRule {
             "direction='${direction}', " +
             "kind='${kind}', " +
             "ulabelUids=${ulabelUids}, " +
-            "paths=${pathsClosure != null ? '<closure>' : paths}, " +
+            "include_paths=${pathsClosure != null ? '<closure>' : include_paths}, " +
             "key='${key instanceof Closure ? '<closure>' : key}', " +
             "order=${order}" +
             "}"

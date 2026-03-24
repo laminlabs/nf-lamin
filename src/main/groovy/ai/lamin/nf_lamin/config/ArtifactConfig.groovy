@@ -133,7 +133,7 @@ class ArtifactConfig {
         paths are resolved at the beginning of the workflow, and output artifact
         paths are resolved at the end. Can be a single string or a list of strings.
     ''')
-    final List<String> paths
+    final List<String> include_paths
 
     /**
      * Sorted list of rules (by order) for evaluation
@@ -166,7 +166,7 @@ class ArtifactConfig {
 
         // Parse list fields (can be String or List)
         this.ulabelUids = ConfigUtils.parseStringOrList(safeOpts.ulabel_uids)
-        this.paths = ConfigUtils.parseStringOrList(safeOpts.paths)
+        this.include_paths = ConfigUtils.parseStringOrList(safeOpts.include_paths)
 
         // Compile patterns
         this.compiledIncludePattern = ConfigUtils.compilePattern(this.includePattern, 'include_pattern')
@@ -332,9 +332,9 @@ class ArtifactConfig {
 
         List<Map<String, Object>> result = []
 
-        // Collect paths from config-level paths
-        if (this.paths) {
-            for (String pathStr : this.paths) {
+        // Collect paths from config-level include_paths
+        if (this.include_paths) {
+            for (String pathStr : this.include_paths) {
                 result.add([
                     path: pathStr,
                     evaluation: new ArtifactEvaluation(
@@ -390,7 +390,7 @@ class ArtifactConfig {
             "ulabelUids=${ulabelUids}, " +
             "kind='${kind}', " +
             "key='${key instanceof Closure ? '<closure>' : key}', " +
-            "paths=${paths}, " +
+            "include_paths=${include_paths}, " +
             "rules=${rules.size()} rules" +
             "}"
     }
