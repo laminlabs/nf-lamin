@@ -44,32 +44,32 @@ The sections below document each setting in detail.
 
 ---
 
-## `lamin` — top-level settings
+## `lamin` - top-level settings
 
-| Setting | Type | Default | Env variable | Description |
-|---------|------|---------|--------------|-------------|
-| `instance` | String | **(required)** | `LAMIN_CURRENT_INSTANCE` | LaminDB instance (`owner/name`) |
-| `api_key` | String | **(required)** | `LAMIN_API_KEY` | Lamin Hub API key (use `nextflow secrets`) |
-| `project_uids` | List | `null` | `LAMIN_CURRENT_PROJECT` | Project UIDs to link to all records |
-| `ulabel_uids` | List | `null` | — | ULabel UIDs to link to all records |
-| `space_uid` | String | `null` | — | Space UID |
-| `branch_uid` | String | `null` | — | Branch UID |
-| `env` | String | `'prod'` | `LAMIN_ENV` | Environment (`'prod'` or `'staging'`) |
-| `dry_run` | Boolean | `false` | `LAMIN_DRY_RUN` | Validate config without creating records |
-| `transform_uid` | String | `null` | `LAMIN_TRANSFORM_UID` | Override the auto-generated transform UID |
-| `run_uid` | String | `null` | `LAMIN_RUN_UID` | Override the auto-generated run UID |
+| Setting         | Type    | Default        | Env variable             | Description                                |
+| --------------- | ------- | -------------- | ------------------------ | ------------------------------------------ |
+| `instance`      | String  | **(required)** | `LAMIN_CURRENT_INSTANCE` | LaminDB instance (`owner/name`)            |
+| `api_key`       | String  | **(required)** | `LAMIN_API_KEY`          | Lamin Hub API key (use `nextflow secrets`) |
+| `project_uids`  | List    | `null`         | `LAMIN_CURRENT_PROJECT`  | Project UIDs to link to all records        |
+| `ulabel_uids`   | List    | `null`         |                          | ULabel UIDs to link to all records         |
+| `space_uid`     | String  | `null`         |                          | Space UID                                  |
+| `branch_uid`    | String  | `null`         |                          | Branch UID                                 |
+| `env`           | String  | `'prod'`       | `LAMIN_ENV`              | Environment (`'prod'` or `'staging'`)      |
+| `dry_run`       | Boolean | `false`        | `LAMIN_DRY_RUN`          | Validate config without creating records   |
+| `transform_uid` | String  | `null`         | `LAMIN_TRANSFORM_UID`    | Override the auto-generated transform UID  |
+| `run_uid`       | String  | `null`         | `LAMIN_RUN_UID`          | Override the auto-generated run UID        |
 
-UID fields (`project_uids`, `ulabel_uids`, `space_uid`, `branch_uid`) also accept named references: `'?name'` (lookup by name), `'!name'` (lookup, error if missing), `'+name'` (create if missing).
+UID fields (`project_uids`, `ulabel_uids`, `space_uid`, `branch_uid`) also accept named references: `'?name'` (lookup by name), `'!name'` (lookup, error if missing), `'+name'` (create if missing). This is an experimental feature and may be removed in a future release.
 
 ---
 
-## `lamin.run` / `lamin.transform` — record-specific metadata
+## `lamin.run` / `lamin.transform` - record-specific metadata
 
 Attach ULabel UIDs specifically to runs or transforms. These are merged with the root-level `ulabel_uids`.
 
-| Setting | Type | Default |
-|---------|------|---------|
-| `ulabel_uids` | List | `[]` |
+| Setting       | Type | Default |
+| ------------- | ---- | ------- |
+| `ulabel_uids` | List | `[]`    |
 
 ```groovy
 lamin {
@@ -80,14 +80,14 @@ lamin {
 
 ---
 
-## `lamin.api` — API connection
+## `lamin.api` - API connection
 
-| Setting | Type | Default | Env variable |
-|---------|------|---------|--------------|
-| `supabase_api_url` | String | `null` | `SUPABASE_API_URL` |
-| `supabase_anon_key` | String | `null` | `SUPABASE_ANON_KEY` |
-| `max_retries` | Integer | `3` | `LAMIN_MAX_RETRIES` |
-| `retry_delay` | Integer | `100` | `LAMIN_RETRY_DELAY` |
+| Setting             | Type    | Default | Env variable        |
+| ------------------- | ------- | ------- | ------------------- |
+| `supabase_api_url`  | String  | `null`  | `SUPABASE_API_URL`  |
+| `supabase_anon_key` | String  | `null`  | `SUPABASE_ANON_KEY` |
+| `max_retries`       | Integer | `3`     | `LAMIN_MAX_RETRIES` |
+| `retry_delay`       | Integer | `100`   | `LAMIN_RETRY_DELAY` |
 
 Only needed for custom Supabase deployments or to tune retry behavior.
 
@@ -101,40 +101,43 @@ Control which files are tracked and what metadata is attached. Configure trackin
 
 Apply to `artifacts`, `input_artifacts`, or `output_artifacts`:
 
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `enabled` | Boolean | `true` | Enable/disable tracking |
-| `include_local` | Boolean | `true` | Track local (`file://`) artifacts |
-| `exclude_work_dir` | Boolean | `true` | Skip Nextflow work dir (input artifacts only) |
-| `exclude_assets_dir` | Boolean | `true` | Skip `~/.nextflow/assets` (input artifacts only) |
-| `include_pattern` | String | `null` | Regex — only matching files are tracked |
-| `exclude_pattern` | String | `null` | Regex — matching files are skipped |
-| `ulabel_uids` | List | `null` | ULabel UIDs for matched artifacts |
-| `kind` | String | `null` | Artifact kind (e.g. `'dataset'`, `'report'`) |
-| `key` | String / Closure / Map | `null` | How to derive artifact keys (see below) |
-| `rules` | Map | `{}` | Pattern-based rules (see below) |
+| Setting              | Type                   | Default | Description                                      |
+| -------------------- | ---------------------- | ------- | ------------------------------------------------ |
+| `enabled`            | Boolean                | `true`  | Enable/disable tracking                          |
+| `include_local`      | Boolean                | `true`  | Track local (`file://`) artifacts                |
+| `exclude_work_dir`   | Boolean                | `true`  | Skip Nextflow work dir (input artifacts only)    |
+| `exclude_assets_dir` | Boolean                | `true`  | Skip `~/.nextflow/assets` (input artifacts only) |
+| `include_pattern`    | String                 | `null`  | Regex; only matching files are tracked           |
+| `exclude_pattern`    | String                 | `null`  | Regex; matching files are skipped                |
+| `ulabel_uids`        | List                   | `null`  | ULabel UIDs for matched artifacts                |
+| `kind`               | String                 | `null`  | Artifact kind (e.g. `'dataset'`, `'report'`)     |
+| `key`                | String / Closure / Map | `null`  | How to derive artifact keys (see below)          |
+| `rules`              | Map                    | `{}`    | Pattern-based rules (see below)                  |
 
 ### Key derivation
 
 The `key` option controls how artifact keys are generated from file paths. By default, the basename is used.
 
 **Map shorthand** (recommended for nf-core pipelines):
+
 ```groovy
 key = [relativize: params.outdir]
 // /home/user/results/multiqc/report.html → multiqc/report.html
 ```
 
 **String template** with variables:
-- `{basename}` — filename with extension
-- `{filename}` — filename without extension
-- `{ext}` — extension including dot
-- `{parent}` — parent directory name (`{parent.parent}` for grandparent, etc.)
+
+- `{basename}`: filename with extension
+- `{filename}`: filename without extension
+- `{ext}`: extension including dot
+- `{parent}`: parent directory name (`{parent.parent}` for grandparent, etc.)
 
 ```groovy
 key = '{parent}/{basename}'
 ```
 
 **Closure** for full control:
+
 ```groovy
 key = { path -> "${path.parent.fileName}/${path.fileName}" }
 ```
@@ -145,21 +148,22 @@ Falls back to basename if resolution fails.
 
 Rules apply different settings based on file patterns. Each rule is a named block:
 
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `pattern` | String | **(required)** | Java regex to match file paths |
-| `enabled` | Boolean | `true` | Enable/disable this rule |
-| `type` | String | `'include'` | `'include'` or `'exclude'` |
-| `direction` | String | `'both'` | `'input'`, `'output'`, or `'both'` |
-| `order` | Integer | `100` | Priority (lower = evaluated first) |
-| `ulabel_uids` | List | `null` | ULabel UIDs for matched artifacts |
-| `kind` | String | `null` | Override artifact kind |
-| `key` | String / Closure / Map | `null` | Override key derivation |
+| Setting       | Type                   | Default        | Description                        |
+| ------------- | ---------------------- | -------------- | ---------------------------------- |
+| `pattern`     | String                 | **(required)** | Java regex to match file paths     |
+| `enabled`     | Boolean                | `true`         | Enable/disable this rule           |
+| `type`        | String                 | `'include'`    | `'include'` or `'exclude'`         |
+| `direction`   | String                 | `'both'`       | `'input'`, `'output'`, or `'both'` |
+| `order`       | Integer                | `100`          | Priority (lower = evaluated first) |
+| `ulabel_uids` | List                   | `null`         | ULabel UIDs for matched artifacts  |
+| `kind`        | String                 | `null`         | Override artifact kind             |
+| `key`         | String / Closure / Map | `null`         | Override key derivation            |
 
 **Evaluation order:**
+
 1. Global `include_pattern` / `exclude_pattern` are checked first
 2. Rules are evaluated by `order` (lower first)
-3. All matching rules are applied — later rules can override earlier ones
+3. All matching rules are applied; later rules can override earlier ones
 4. ULabel UIDs from all matching rules are merged (deduplicated)
 
 Patterns are Java regular expressions. Backslashes must be escaped in Groovy: `\\.` not `\.`
