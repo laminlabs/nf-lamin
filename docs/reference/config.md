@@ -216,7 +216,6 @@ Patterns are Java regular expressions. Backslashes must be escaped in Groovy: `\
 ```groovy
 lamin {
   input_artifacts {
-    enabled = true
     rules {
       samplesheet { include_paths = { params.input }; kind = 'dataset'; order = 1 }
       reference   { pattern = '.*\\.(fasta|gtf)$'; kind = 'dataset' }
@@ -225,7 +224,6 @@ lamin {
   }
 
   output_artifacts {
-    enabled = true
     key = [relativize: params.outdir]
     exclude_pattern = '.*\\.(log|tmp)$'
     rules {
