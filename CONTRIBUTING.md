@@ -76,7 +76,7 @@ nextflow run nf-core/hello -plugins nf-lamin@0.3.0
 
 #### Lamin Observer Integration Tests
 
-The forthcoming LaminObserver integration suite requires real Lamin Hub connectivity. Configure the following environment variables before running those tests; each test will auto-skip if the required values are missing.
+The forthcoming LaminObserver integration suite requires real LaminHub connectivity. Configure the following environment variables before running those tests; each test will auto-skip if the required values are missing.
 
 | Variable                | Purpose                                                                     |
 | ----------------------- | --------------------------------------------------------------------------- |

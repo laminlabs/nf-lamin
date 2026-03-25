@@ -175,7 +175,7 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
      *
      * Note: This currently relies on credentials being configured in nextflow.config
      * (e.g., aws.accessKey/secretKey). Future versions will support automatic
-     * credential federation from Lamin Hub.
+     * credential federation from LaminHub.
      *
      * @param laminPath The LaminPath to resolve
      * @return A Path to the underlying storage (e.g., S3Path, GcsPath, local Path)

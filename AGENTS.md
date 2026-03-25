@@ -172,7 +172,7 @@ nextflowPlugin {
 
 ### Two-Layer Architecture
 
-1. **Lamin Hub** (`hub/LaminHub.groovy`): laminhub.com Supabase API
+1. **LaminHub** (`hub/LaminHub.groovy`): laminhub.com Supabase API
    - `fetchAccessToken()` → JWT from API key
    - `getInstanceSettings(owner, name)` → instance URL, storage root, schema ID
 

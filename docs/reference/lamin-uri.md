@@ -73,4 +73,4 @@ nextflow run my-pipeline.nf --input 'lamin://laminlabs/lamindata/artifact/PnNjE9
 ## Limitations
 
 - `lamin://` paths are **read-only** - you cannot write to them
-- Currently uses cloud credentials from your `nextflow.config` (automatic credential federation from Lamin Hub is planned for a future release)
+- Currently uses cloud credentials from your `nextflow.config` (automatic credential federation from LaminHub is planned for a future release)
