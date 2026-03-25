@@ -21,6 +21,8 @@ lamin {
   // Track input artifacts
   input_artifacts {
     rules {
+      // Explicitly track files not staged into Nextflow processes
+      samplesheet { include_paths = { params.input }; kind = 'dataset' }
       fastq_reads { pattern = '.*\\.fastq(\\.gz)?$'; kind = 'dataset' }
       reference   { pattern = '.*\\.(fasta|fa)(\\.gz)?$'; kind = 'dataset' }
       annotation  { pattern = '.*\\.(gtf|gff)(\\.gz)?$'; kind = 'dataset' }
@@ -99,24 +101,25 @@ Control which files are tracked and what metadata is attached. Configure trackin
 
 Apply to `artifacts`, `input_artifacts`, or `output_artifacts`:
 
-| Setting              | Type                   | Default | Description                                      |
-| -------------------- | ---------------------- | ------- | ------------------------------------------------ |
-| `enabled`            | Boolean                | `true`  | Enable/disable tracking                          |
-| `include_local`      | Boolean                | `true`  | Track local (`file://`) artifacts                |
-| `exclude_work_dir`   | Boolean                | `true`  | Skip Nextflow work dir (input artifacts only)    |
-| `exclude_assets_dir` | Boolean                | `true`  | Skip `~/.nextflow/assets` (input artifacts only) |
-| `include_pattern`    | String                 | `null`  | Regex; only matching files are tracked           |
-| `exclude_pattern`    | String                 | `null`  | Regex; matching files are skipped                |
-| `ulabel_uids`        | List                   | `null`  | ULabel UIDs for matched artifacts                |
-| `kind`               | String                 | `null`  | Artifact kind (e.g. `'dataset'`, `'report'`)     |
-| `key`                | String / Closure / Map | `null`  | How to derive artifact keys (see below)          |
-| `rules`              | Map                    | `{}`    | Pattern-based rules (see below)                  |
+| Setting              | Type                    | Default | Description                                      |
+| -------------------- | ----------------------- | ------- | ------------------------------------------------ |
+| `enabled`            | Boolean                 | `true`  | Enable/disable tracking                          |
+| `include_local`      | Boolean                 | `true`  | Track local (`file://`) artifacts                |
+| `exclude_work_dir`   | Boolean                 | `true`  | Skip Nextflow work dir (input artifacts only)    |
+| `exclude_assets_dir` | Boolean                 | `true`  | Skip `~/.nextflow/assets` (input artifacts only) |
+| `include_pattern`    | String                  | `null`  | Regex; only matching files are tracked           |
+| `exclude_pattern`    | String                  | `null`  | Regex; matching files are skipped                |
+| `ulabel_uids`        | List                    | `null`  | ULabel UIDs for matched artifacts                |
+| `kind`               | String                  | `null`  | Artifact kind (e.g. `'dataset'`, `'report'`)     |
+| `key`                | String / Closure / Map  | `null`  | How to derive artifact keys (see below)          |
+| `include_paths`      | String / List / Closure | `null`  | Paths to explicitly track (see below)            |
+| `rules`              | Map                     | `{}`    | Pattern-based rules (see below)                  |
 
 ### Key derivation
 
 The `key` option controls how artifact keys are generated from file paths. By default, the basename is used.
 
-**Map shorthand** (recommended for nf-core pipelines):
+**Map shorthand** (recommended for nf-core-style pipelines):
 
 ```groovy
 key = [relativize: params.outdir]
@@ -142,20 +145,62 @@ key = { path -> "${path.parent.fileName}/${path.fileName}" }
 
 Falls back to basename if resolution fails.
 
+### Explicit paths (`include_paths`)
+
+Some files are never staged into Nextflow process input channels (e.g. samplesheets parsed by Groovy helpers like nf-schema's `samplesheetToList`). Use `include_paths` to explicitly track these files.
+
+`include_paths` accepts a string, a list of strings, or a closure returning a string or list:
+
+**On an artifact config:**
+
+```groovy
+input_artifacts {
+  include_paths = { params.input }
+}
+```
+
+**On a rule** (to attach metadata like `kind`):
+
+```groovy
+input_artifacts {
+  rules {
+    samplesheet {
+      include_paths = { params.input }
+      kind = 'dataset'
+    }
+  }
+}
+```
+
+**As a static list:**
+
+```groovy
+input_artifacts {
+  include_paths = ["foo.txt", "bar.txt"]
+}
+```
+
+:::{note}
+Wrap `include_paths` in a closure (`{ ... }`) when accessing `params`, because `params` are not fully resolved at config parse time. Writing `include_paths = params.input` directly will cause an error.
+:::
+
+Input paths are resolved at the beginning of the workflow (`onFlowBegin`), and output paths just before finalizing the run. Resolved paths go through the same deduplication, metadata linking, and rule evaluation as auto-detected artifacts.
+
 ### Rules
 
-Rules apply different settings based on file patterns. Each rule is a named block:
+Rules apply different settings based on file patterns or explicit paths. Each rule is a named block. Either `pattern` or `include_paths` (or both) must be specified.
 
-| Setting       | Type                   | Default        | Description                        |
-| ------------- | ---------------------- | -------------- | ---------------------------------- |
-| `pattern`     | String                 | **(required)** | Java regex to match file paths     |
-| `enabled`     | Boolean                | `true`         | Enable/disable this rule           |
-| `type`        | String                 | `'include'`    | `'include'` or `'exclude'`         |
-| `direction`   | String                 | `'both'`       | `'input'`, `'output'`, or `'both'` |
-| `order`       | Integer                | `100`          | Priority (lower = evaluated first) |
-| `ulabel_uids` | List                   | `null`         | ULabel UIDs for matched artifacts  |
-| `kind`        | String                 | `null`         | Override artifact kind             |
-| `key`         | String / Closure / Map | `null`         | Override key derivation            |
+| Setting         | Type                    | Default     | Description                        |
+| --------------- | ----------------------- | ----------- | ---------------------------------- |
+| `pattern`       | String                  | `null`      | Java regex to match file paths     |
+| `include_paths` | String / List / Closure | `null`      | Paths to explicitly track          |
+| `enabled`       | Boolean                 | `true`      | Enable/disable this rule           |
+| `type`          | String                  | `'include'` | `'include'` or `'exclude'`         |
+| `direction`     | String                  | `'both'`    | `'input'`, `'output'`, or `'both'` |
+| `order`         | Integer                 | `100`       | Priority (lower = evaluated first) |
+| `ulabel_uids`   | List                    | `null`      | ULabel UIDs for matched artifacts  |
+| `kind`          | String                  | `null`      | Override artifact kind             |
+| `key`           | String / Closure / Map  | `null`      | Override key derivation            |
 
 **Evaluation order:**
 
@@ -173,8 +218,9 @@ lamin {
   input_artifacts {
     enabled = true
     rules {
-      reference { pattern = '.*\\.(fasta|gtf)$'; kind = 'dataset' }
-      fastqs    { pattern = '.*\\.fastq\\.gz$'; kind = 'dataset' }
+      samplesheet { include_paths = { params.input }; kind = 'dataset'; order = 1 }
+      reference   { pattern = '.*\\.(fasta|gtf)$'; kind = 'dataset' }
+      fastqs      { pattern = '.*\\.fastq\\.gz$'; kind = 'dataset' }
     }
   }
 

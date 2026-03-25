@@ -25,7 +25,7 @@ The `test` profile runs on publicly available test data (chr22 subset).
 
 The [`examples/rnaseq/nextflow.config`](https://github.com/laminlabs/nf-lamin/blob/main/examples/rnaseq/nextflow.config) tracks the following:
 
-**Input artifacts:** FASTQ reads, reference FASTA, GTF/GFF annotation files.
+**Input artifacts:** samplesheet (via `include_paths`), FASTQ reads, reference FASTA, GTF/GFF annotation files.
 
 **Output artifacts:** gene count matrices, MultiQC report, BAM alignment files, Salmon quantification files, FastQC reports, BigWig coverage tracks.
 
@@ -45,15 +45,19 @@ lamin {
   input_artifacts {
     enabled = true
     rules {
-      fastq_reads { pattern = '.*\\.fastq(\\.gz)?$'; kind = 'dataset' }
-      reference_fasta { pattern = '.*\\.(fasta|fa)(\\.gz)?$'; kind = 'dataset' }
-      annotation { pattern = '.*\\.(gtf|gff|gff3)(\\.gz)?$'; kind = 'dataset' }
+      // Track samplesheet -- uses include_paths because nf-schema's
+      // samplesheetToList parses it in Groovy, so it is never staged
+      // into a Nextflow process.
+      samplesheet { include_paths = { params.input }; kind = 'dataset'; order = 1 }
+      fastq_reads { pattern = '.*\\.fastq(\\.gz)?$'; kind = 'dataset'; order = 2 }
+      reference_fasta { pattern = '.*\\.(fasta|fa)(\\.gz)?$'; kind = 'dataset'; order = 3 }
+      annotation { pattern = '.*\\.(gtf|gff|gff3)(\\.gz)?$'; kind = 'dataset'; order = 4 }
     }
   }
 
   output_artifacts {
     enabled = true
-    key = { path -> file(params.outdir).relativize(path).toString() }
+    key = [relativize: params.outdir]
     exclude_pattern = '.*\\.(log|command\\..*)$'
     rules {
       multiqc_report { pattern = '.*multiqc_report\\.html$'; kind = 'report' }
