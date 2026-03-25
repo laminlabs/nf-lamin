@@ -13,7 +13,7 @@ guide
 ```{toctree}
 :maxdepth: 1
 :hidden:
-:caption: API reference
+:caption: API Reference
 
-api
+reference
 ```

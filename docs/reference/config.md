@@ -20,7 +20,6 @@ lamin {
 
   // Track input artifacts
   input_artifacts {
-    enabled = true
     rules {
       fastq_reads { pattern = '.*\\.fastq(\\.gz)?$'; kind = 'dataset' }
       reference   { pattern = '.*\\.(fasta|fa)(\\.gz)?$'; kind = 'dataset' }
@@ -30,10 +29,9 @@ lamin {
 
   // Track output artifacts, stripping the outdir prefix from keys
   output_artifacts {
-    enabled = true
     key = [relativize: params.outdir]
-    exclude_pattern = '.*\\.(log|command\\..*)$'
     rules {
+      mapped_reads { pattern = '.*\\.bam$'; kind = 'dataset' }
       reports { pattern = '.*\\.html$'; kind = 'report' }
     }
   }
@@ -59,7 +57,7 @@ The sections below document each setting in detail.
 | `transform_uid` | String  | `null`         | `LAMIN_TRANSFORM_UID`    | Override the auto-generated transform UID  |
 | `run_uid`       | String  | `null`         | `LAMIN_RUN_UID`          | Override the auto-generated run UID        |
 
-UID fields (`project_uids`, `ulabel_uids`, `space_uid`, `branch_uid`) also accept named references: `'?name'` (lookup by name), `'!name'` (lookup, error if missing), `'+name'` (create if missing). This is an experimental feature and may be removed in a future release.
+**Experimental**: UID fields (`project_uids`, `ulabel_uids`, `space_uid`, `branch_uid`) also accept named references: `'?name'` (lookup by name), `'!name'` (lookup, error if missing), `'+name'` (create if missing). This is an experimental feature and may be removed in a future release.
 
 ---
 
@@ -89,7 +87,7 @@ lamin {
 | `max_retries`       | Integer | `3`     | `LAMIN_MAX_RETRIES` |
 | `retry_delay`       | Integer | `100`   | `LAMIN_RETRY_DELAY` |
 
-Only needed for custom Supabase deployments or to tune retry behavior.
+Only needed for custom LaminHub deployments or to tune retry behavior.
 
 ---
 

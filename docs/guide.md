@@ -41,9 +41,9 @@ ln.Run.get("your-run-uid")
 
 ![](guide/nf_core_scrnaseq_run.png)
 
-→ See {doc}`/api/config` for the full `nf-lamin` configuration reference.
+→ See {doc}`/reference` for the full `nf-lamin` configuration reference.
 
-→ See {doc}`/api/examples` for ready-to-run nf-core/rnaseq and bigbio/quantms configurations.
+→ See {doc}`/reference/examples` for ready-to-run examples for existing pipelines.
 
 ## Using a post-run script
 
@@ -69,9 +69,6 @@ Run it with:
 python register_scrnaseq_run.py --input scrnaseq_input --output scrnaseq_output
 ```
 
-Such a script can be deployed via:
-
-1. A serverless environment trigger (e.g., AWS Lambda)
-2. A [post-run script](https://docs.seqera.io/platform-cloud/launch/advanced#pre-and-post-run-scripts) on the Seqera Platform
+If need be, such a script can be deployed via a serverless environment trigger (e.g., AWS Lambda).
 
 :::
