@@ -8,7 +8,7 @@
 :hidden:
 :caption: Guide
 
-guide/index
+guide
 ```
 
 ```{toctree}
@@ -16,5 +16,5 @@ guide/index
 :hidden:
 :caption: API reference
 
-reference/index
+reference
 ```

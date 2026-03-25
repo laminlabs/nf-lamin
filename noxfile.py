@@ -1,6 +1,3 @@
-import os
-from pathlib import Path
-
 import nox
 from laminci import upload_docs_artifact
 from laminci.nox import build_docs, run_pre_commit

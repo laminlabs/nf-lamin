@@ -1,6 +1,6 @@
 # Nextflow
 
-```{include} ../../README.md
+```{include} ../README.md
 :start-after: # nf-lamin
 :end-before: ## Documentation
 ```
@@ -67,7 +67,7 @@ import lamindb as ln
 ln.Run.get("your-run-uid")
 ```
 
-![](nf_core_scrnaseq_run.png)
+![](guide/nf_core_scrnaseq_run.png)
 
 ## Manual tracking with a post-run script
 
@@ -77,12 +77,12 @@ Note that this approach does not provide the same automation as `nf-lamin` (real
 
 :::{dropdown} Example: nf-core/scrnaseq post-run registration
 
-![](nf_core_scrnaseq_diagram.png)
+![](guide/nf_core_scrnaseq_diagram.png)
 
 After running the pipeline, a Python script registers inputs & outputs in LaminDB:
 
 ```{eval-rst}
-.. literalinclude:: register_scrnaseq_run.py
+.. literalinclude:: guide/register_scrnaseq_run.py
    :language: python
    :caption: nf-core/scrnaseq run registration
 ```
