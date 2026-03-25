@@ -1,7 +1,6 @@
-```{include} ../README.md
-:start-after: # nf-lamin
-:end-before: ## Quick start
-```
+# nf-lamin
+
+This is a preview of the nf-lamin documentation. See the **Guide** and **API Reference** tabs above for the full content.
 
 ```{toctree}
 :maxdepth: 1
@@ -16,5 +15,5 @@ guide
 :hidden:
 :caption: API reference
 
-reference
+api
 ```

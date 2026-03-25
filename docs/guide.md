@@ -1,63 +1,35 @@
 # Nextflow
 
-```{include} ../README.md
-:start-after: # nf-lamin
-:end-before: ## Documentation
+There are several ways to track Nextflow pipeline runs and artifacts in [LaminDB](https://lamin.ai/).
+
+## Using `nf-lamin` (recommended)
+
+The [`nf-lamin`](https://github.com/laminlabs/nf-lamin) Nextflow plugin automatically tracks transforms, runs, and artifacts without modifying pipeline code. It requires a [LaminHub](https://lamin.ai/) account.
+
+**1.** Store your [Lamin API key](https://lamin.ai/settings) as a Nextflow secret:
+
+```bash
+nextflow secrets set LAMIN_API_KEY <your-lamin-api-key>
 ```
 
-## Artifact tracking
-
-By default, all published output files are tracked as artifacts and linked to the run.
-
-### Artifact keys
-
-For nf-core-style pipelines, strip the output directory prefix to preserve the directory structure in artifact keys:
+**2.** Add the plugin to your `nextflow.config`:
 
 ```groovy
+plugins {
+  id 'nf-lamin'
+}
+
 lamin {
-  output_artifacts {
-    key = [relativize: params.outdir]
-  }
+  instance = "your-org/your-instance"
+  api_key = secrets.LAMIN_API_KEY
 }
 ```
 
-This stores `multiqc/star/multiqc_report.html` as the artifact key instead of just the filename.
+**3.** Run your pipeline:
 
-### Metadata
-
-Attach projects or labels globally to all artifacts, runs, and transforms:
-
-```groovy
-lamin {
-  project_uids = ['proj123456789012']
-  ulabel_uids = ['ulab123456789012']
-}
+```bash
+nextflow run <your-pipeline>
 ```
-
-### Filtering
-
-Control which files are tracked using include/exclude patterns:
-
-```groovy
-lamin {
-  output_artifacts {
-    include_pattern = '.*\\.(fastq|bam|vcf)\\.gz$'
-    exclude_pattern = '.*\\.tmp$'
-  }
-
-  input_artifacts {
-    enabled = true
-  }
-}
-```
-
-→ See {doc}`/reference/config` for the full configuration reference.
-
-→ See {doc}`/reference/functions` for DSL functions and {doc}`/reference/lamin-uri` for `lamin://` URI support.
-
-→ See {doc}`/reference/examples` for ready-to-run nf-core/rnaseq and bigbio/quantms configurations.
-
-## Viewing results
 
 After the run, explore the tracked data in LaminHub or via the Python SDK:
 
@@ -69,9 +41,13 @@ ln.Run.get("your-run-uid")
 
 ![](guide/nf_core_scrnaseq_run.png)
 
-## Manual tracking with a post-run script
+→ See {doc}`/api/config` for the full `nf-lamin` configuration reference.
 
-If you want to use Nextflow with LaminDB but without [LaminHub](https://lamin.ai), you can register runs manually with a Python post-run script. This is useful for users who want a fully open-source stack without any SaaS dependencies.
+→ See {doc}`/api/examples` for ready-to-run nf-core/rnaseq and bigbio/quantms configurations.
+
+## Using a post-run script
+
+If you want to use Nextflow with LaminDB but without [LaminHub](https://lamin.ai), and cannot modify the Nextflow workflow, you can register runs manually with a Python post-run script.
 
 Note that this approach does not provide the same automation as `nf-lamin` (real-time run tracking, automatic artifact registration). It also cannot integrate with [Seqera Cloud](https://seqera.io/), which requires the `nf-lamin` plugin.
 
