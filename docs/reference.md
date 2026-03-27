@@ -1,8 +1,8 @@
 # Nextflow: `nf-lamin`
 
-`nf-lamin` is a [Nextflow](https://www.nextflow.io/) plugin that records data provenance for your workflows in [LaminHub](https://lamin.ai/). Without modifying pipeline code, it tracks transforms, runs, and artifacts.
+`nf-lamin` is a [Nextflow](https://www.nextflow.io/) plugin that records data lineage for your workflows in [LaminHub](https://lamin.ai/). Without modifying pipeline code, it tracks transforms, runs, and artifacts.
 
-## Quick start
+## Quickstart
 
 **1.** Store your [Lamin API key](https://lamin.ai/settings) as a Nextflow secret:
 
@@ -41,10 +41,10 @@ nextflow run <your-pipeline>
 | 0.2.x     | >= 1.0, < 2.0 | >= 25.04.0 | ❌ Unsupported | Reports, `getRunUid()`, `getTransformUid()`, `getInstanceSlug()` |
 | 0.1.0     | >= 1.0, < 2.0 | >= 24.04.0 | ❌ Unsupported | Transform & Run tracking, output artifact registration           |
 
-## Reference
-
 ```{toctree}
 :maxdepth: 1
+:caption: Reference
+:hidden:
 
 reference/config
 reference/functions
