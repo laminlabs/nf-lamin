@@ -159,11 +159,17 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.x"
+          cache: "pip"
 
       - uses: actions/cache@v5
         with:
           path: ~/.cache/pre-commit
           key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - uses: actions/cache@v5
+        with:
+          path: ~/.cache/uv
+          key: build-uv-${{ hashFiles('pyproject.toml') }}
 
       - run: pip install "laminci@git+https://github.com/laminlabs/laminci"
 
