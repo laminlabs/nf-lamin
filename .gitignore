@@ -29,6 +29,7 @@ test.ipynb
 .gradle
 .idea
 .vscode
+.metals
 
 # Ignore python-related files
 __pycache__/
@@ -42,6 +43,7 @@ flowchart*
 report*
 timeline*
 trace*
+repo_nextflow
 
 # Ignore Gradle build output directory
 build
