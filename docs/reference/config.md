@@ -80,19 +80,6 @@ lamin {
 
 ---
 
-## `lamin.api` - API connection
-
-| Setting             | Type    | Default | Env variable        |
-| ------------------- | ------- | ------- | ------------------- |
-| `supabase_api_url`  | String  | `null`  | `SUPABASE_API_URL`  |
-| `supabase_anon_key` | String  | `null`  | `SUPABASE_ANON_KEY` |
-| `max_retries`       | Integer | `3`     | `LAMIN_MAX_RETRIES` |
-| `retry_delay`       | Integer | `100`   | `LAMIN_RETRY_DELAY` |
-
-Only needed for custom LaminHub deployments or to tune retry behavior.
-
----
-
 ## Artifact tracking
 
 Control which files are tracked and what metadata is attached. Configure tracking either globally (`artifacts`) or separately for inputs and outputs (`input_artifacts` / `output_artifacts`). These two approaches are **mutually exclusive**.
@@ -243,3 +230,16 @@ lamin {
   input_artifacts  { enabled = false }
 }
 ```
+
+---
+
+## `lamin.api` - API connection (Advanced settings)
+
+| Setting             | Type    | Default | Env variable        |
+| ------------------- | ------- | ------- | ------------------- |
+| `supabase_api_url`  | String  | `null`  | `SUPABASE_API_URL`  |
+| `supabase_anon_key` | String  | `null`  | `SUPABASE_ANON_KEY` |
+| `max_retries`       | Integer | `3`     | `LAMIN_MAX_RETRIES` |
+| `retry_delay`       | Integer | `100`   | `LAMIN_RETRY_DELAY` |
+
+Only needed for custom LaminHub deployments or to tune retry behavior.
