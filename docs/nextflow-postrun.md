@@ -75,7 +75,7 @@ After the pipeline has completed, a Python script registers inputs & outputs in 
 ```
 
 ```python
-!python register_scrnaseq_run.py --input scrnaseq_input --output scrnaseq_output
+!python guide/register_scrnaseq_run.py --input scrnaseq_input --output scrnaseq_output
 ```
 
 ## Data lineage
