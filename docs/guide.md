@@ -47,9 +47,7 @@ ln.Run.get("your-run-uid")
 
 ## Using a post-run script
 
-If you want to use Nextflow with LaminDB but without [LaminHub](https://lamin.ai), and cannot modify the Nextflow workflow, you can register runs manually with a Python post-run script.
-
-Note that this approach does not provide the same automation as `nf-lamin` (real-time run tracking, automatic artifact registration). It also cannot integrate with [Seqera Cloud](https://seqera.io/), which requires the `nf-lamin` plugin.
+If you want to use Nextflow with LaminDB but without the `nf-lamin` plugin, you can register runs manually with a Python post-run script.
 
 :::{dropdown} Example: nf-core/scrnaseq post-run registration
 
