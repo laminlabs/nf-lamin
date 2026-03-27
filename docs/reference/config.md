@@ -4,7 +4,7 @@ All `nf-lamin` configuration lives in the `lamin {}` scope of your `nextflow.con
 
 ## Best-practice config
 
-A recommended starting point for nf-core-style pipelines:
+A recommended starting point for nf-core-style pipelines. The key idea is to exclude all output files by default (`exclude_pattern = '.*'`), then use `type = 'include'` rules to opt-in to the files that matter. Pre-define rules for optional outputs with `enabled = false` so users can turn them on without writing new patterns.
 
 ```groovy
 plugins {
@@ -32,12 +32,22 @@ lamin {
   // Track output artifacts, stripping the outdir prefix from keys
   output_artifacts {
     key = [relativize: params.outdir]
+    exclude_pattern = '.*'
     rules {
-      mapped_reads { pattern = '.*\\.bam$'; kind = 'dataset' }
-      reports { pattern = '.*\\.html$'; kind = 'report' }
+      // Enabled by default
+      reports      { type = 'include'; pattern = '.*\\.html$'; kind = 'report' }
+      mapped_reads { type = 'include'; pattern = '.*\\.bam$'; kind = 'dataset' }
+      // Disabled (set enabled = true to include)
+      bam_index    { type = 'include'; enabled = false; pattern = '.*\\.bai$'; kind = 'dataset' }
     }
   }
 }
+```
+
+To enable the optional BAM index tracking, a user could modify the config above, or create a new config file with just the override:
+
+```groovy
+lamin.output_artifacts.rules.bam_index.enabled = true
 ```
 
 The sections below document each setting in detail.

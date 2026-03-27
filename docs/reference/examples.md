@@ -1,6 +1,6 @@
 # Examples
 
-Ready-to-run examples for popular Nextflow pipelines with `nf-lamin` artifact tracking. Source files are in the [`examples/`](https://github.com/laminlabs/nf-lamin/tree/main/examples) directory.
+Ready-to-run examples for popular Nextflow pipelines with `nf-lamin` artifact tracking. Source files are in the [`examples/`](https://github.com/laminlabs/nf-lamin/tree/main/examples) directory. All examples follow the [best-practice config](config.md#best-practice-config) pattern.
 
 ---
 
@@ -27,11 +27,9 @@ The [`examples/rnaseq/nextflow.config`](https://github.com/laminlabs/nf-lamin/bl
 
 **Input artifacts:** samplesheet (via `include_paths`), FASTQ reads, reference FASTA, GTF/GFF annotation files.
 
-**Output artifacts:** gene count matrices, MultiQC report, BAM alignment files, Salmon quantification files, FastQC reports, BigWig coverage tracks.
+**Output artifacts (enabled):** MultiQC report, merged gene count matrices (counts, TPM, lengths, scaled), merged transcript quantification files, SummarizedExperiment RDS files, transcript-to-gene mapping.
 
-**Excluded:** `versions.yml`, pipeline info directory, FastQC zip files, trimming logs, STAR log files.
-
-Artifact keys are derived by stripping the output directory prefix, preserving subdirectory structure (e.g., `star/BSA1_F1.Aligned.sortedByCoord.out.bam`):
+**Output artifacts (disabled, opt-in):** per-sample Salmon quant files, BAM files, BAM indexes, BigWig coverage tracks, DESeq2 QC outputs, featureCounts tables, FastQC reports/zips, MultiQC raw data, trimming reports, pipeline info.
 
 ```groovy
 plugins {
@@ -45,9 +43,6 @@ lamin {
   input_artifacts {
     enabled = true
     rules {
-      // Track samplesheet -- uses include_paths because nf-schema's
-      // samplesheetToList parses it in Groovy, so it is never staged
-      // into a Nextflow process.
       samplesheet { include_paths = { params.input }; kind = 'dataset'; order = 1 }
       fastq_reads { pattern = '.*\\.fastq(\\.gz)?$'; kind = 'dataset'; order = 2 }
       reference_fasta { pattern = '.*\\.(fasta|fa)(\\.gz)?$'; kind = 'dataset'; order = 3 }
@@ -58,11 +53,15 @@ lamin {
   output_artifacts {
     enabled = true
     key = [relativize: params.outdir]
-    exclude_pattern = '.*\\.(log|command\\..*)$'
+    exclude_pattern = '.*'
     rules {
-      multiqc_report { pattern = '.*multiqc_report\\.html$'; kind = 'report' }
-      gene_counts { pattern = '.*\\.gene_counts.*\\.tsv$'; kind = 'dataset' }
-      bam_files { pattern = '.*\\.bam$'; kind = 'dataset' }
+      // Enabled by default
+      multiqc_report { type = 'include'; pattern = '.*multiqc_report\\.html$'; kind = 'report' }
+      gene_counts { type = 'include'; pattern = '.*salmon\\.merged\\.gene_(counts|tpm|counts_length_scaled|counts_scaled|lengths)\\.tsv$'; kind = 'dataset' }
+      summarized_experiment { type = 'include'; pattern = '.*\\.SummarizedExperiment\\.rds$'; kind = 'dataset' }
+      // Disabled (set enabled = true to include)
+      bam_files { type = 'include'; enabled = false; pattern = '.*\\.bam$'; kind = 'dataset' }
+      bigwig_files { type = 'include'; enabled = false; pattern = '.*\\.bigWig$'; kind = 'dataset' }
       // ... see full config for all rules
     }
   }
@@ -70,6 +69,75 @@ lamin {
 ```
 
 → [Full config](https://github.com/laminlabs/nf-lamin/blob/main/examples/rnaseq/nextflow.config)
+
+---
+
+## nf-core/scrnaseq
+
+[nf-core/scrnaseq](https://nf-co.re/scrnaseq/latest) is a bioinformatics pipeline for single-cell RNA-seq analysis. It supports multiple aligners (STARSolo, Cellranger, Kallisto, Alevin) and produces count matrices in multiple formats.
+
+### Running
+
+```bash
+export NXF_VER=25.10.4
+nextflow run nf-core/scrnaseq \
+  -r 4.1.0 \
+  -profile docker,test \
+  -c examples/scrnaseq/nextflow.config \
+  --outdir output/scrnaseq/
+```
+
+The `test` profile runs on a small chr19 mouse dataset with STARSolo.
+
+### Configuration
+
+The [`examples/scrnaseq/nextflow.config`](https://github.com/laminlabs/nf-lamin/blob/main/examples/scrnaseq/nextflow.config) tracks the following:
+
+**Input artifacts:** samplesheet (via `include_paths`), FASTQ reads, reference FASTA, GTF annotation files.
+
+**Output artifacts (enabled):** MultiQC report, combined filtered/raw h5ad count matrices, per-sample filtered/raw h5ad count matrices.
+
+**Output artifacts (disabled, opt-in):** RDS conversions (Seurat/SingleCellExperiment), BAM files, STARSolo filtered/raw mtx matrices, STARSolo summary statistics, FastQC reports/zips, MultiQC raw data, pipeline info.
+
+```groovy
+plugins {
+  id 'nf-lamin@0.6.0'
+}
+
+lamin {
+  instance = "laminlabs/lamindata"
+  api_key = secrets.LAMIN_API_KEY
+
+  input_artifacts {
+    enabled = true
+    rules {
+      samplesheet { include_paths = { params.input }; kind = 'dataset'; order = 1 }
+      fastq_reads { pattern = '.*\\.fastq(\\.gz)?$'; kind = 'dataset'; order = 2 }
+      reference_fasta { pattern = '.*\\.(fasta|fa)(\\.gz)?$'; kind = 'dataset'; order = 3 }
+      annotation { pattern = '.*\\.(gtf|gff|gff3)(\\.gz)?$'; kind = 'dataset'; order = 4 }
+    }
+  }
+
+  output_artifacts {
+    enabled = true
+    key = [relativize: params.outdir]
+    exclude_pattern = '.*'
+    rules {
+      // Enabled by default
+      multiqc_report { type = 'include'; pattern = '.*multiqc_report\\.html$'; kind = 'report' }
+      combined_filtered_h5ad { type = 'include'; pattern = '.*/mtx_conversions/combined_filtered_matrix\\.h5ad$'; kind = 'dataset' }
+      combined_raw_h5ad { type = 'include'; pattern = '.*/mtx_conversions/combined_raw_matrix\\.h5ad$'; kind = 'dataset' }
+      sample_filtered_h5ad { type = 'include'; pattern = '.*/mtx_conversions/.+/.+_filtered_matrix\\.h5ad$'; kind = 'dataset' }
+      // Disabled (set enabled = true to include)
+      rds_conversions { type = 'include'; enabled = false; pattern = '.*/mtx_conversions/.*\\.rds$'; kind = 'dataset' }
+      bam_files { type = 'include'; enabled = false; pattern = '.*\\.bam$'; kind = 'dataset' }
+      // ... see full config for all rules
+    }
+  }
+}
+```
+
+→ [Full config](https://github.com/laminlabs/nf-lamin/blob/main/examples/scrnaseq/nextflow.config)
 
 ---
 
@@ -98,11 +166,9 @@ The [`examples/quantms/nextflow.config`](https://github.com/laminlabs/nf-lamin/b
 
 **Input artifacts:** SDRF experimental design files, protein database FASTA files.
 
-**Output artifacts:** mzTab identification/quantification results, MSstats input table, MSstats-processed results, Triqler output, pMultiQC report.
+**Output artifacts (enabled):** mzTab identification/quantification results, MSstats input table, MSstats comparison results, Triqler input table, pMultiQC report.
 
-**Excluded:** intermediate OpenMS formats (`.consensusXML`, `.idXML`), pipeline metadata, log files, pMultiQC raw data and plots, `versions.yml`, SDRF copies in the output directory.
-
-Artifact keys are derived using the `[relativize: params.outdir]` Map shorthand:
+**Output artifacts (disabled, opt-in):** ConsensusXML intermediate files, spectra statistics (parquet), pMultiQC raw data and plots, pipeline info.
 
 ```groovy
 plugins {
@@ -124,11 +190,15 @@ lamin {
   output_artifacts {
     enabled = true
     key = [relativize: params.outdir]
+    exclude_pattern = '.*'
     rules {
-      mztab { pattern = '.*\\.mzTab$'; kind = 'dataset' }
-      msstats_in { pattern = '.*msstats_in\\.csv$'; kind = 'dataset' }
-      msstats_results { pattern = '.*/msstats/.*\\.(csv|tsv)$'; kind = 'dataset' }
-      multiqc_report { pattern = '.*/pmultiqc/multiqc_report\\.html$'; kind = 'report' }
+      // Enabled by default
+      mztab { type = 'include'; pattern = '.*\\.mzTab$'; kind = 'dataset' }
+      msstats_in { type = 'include'; pattern = '.*msstats_in\\.csv$'; kind = 'dataset' }
+      multiqc_report { type = 'include'; pattern = '.*/pmultiqc/multiqc_report\\.html$'; kind = 'report' }
+      // Disabled (set enabled = true to include)
+      consensusxml { type = 'include'; enabled = false; pattern = '.*\\.consensusXML$'; kind = 'dataset' }
+      spectra_statistics { type = 'include'; enabled = false; pattern = '.*/mzml_statistics/.*\\.parquet$'; kind = 'dataset' }
       // ... see full config for all rules
     }
   }
