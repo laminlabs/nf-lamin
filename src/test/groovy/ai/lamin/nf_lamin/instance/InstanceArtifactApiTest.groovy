@@ -51,6 +51,7 @@ class InstanceArtifactApiTest extends Specification {
     @Shared Instance instance
     @Shared String instanceId
     @Shared Integer testRunId
+    @Shared Integer testBranchId
 
     // Small, publicly accessible files that already exist and are NOT LaminDB-managed.
     // These are NOT used elsewhere in the test suite for createArtifact calls.
@@ -85,6 +86,11 @@ class InstanceArtifactApiTest extends Specification {
             instance = new Instance(hub, settings, 3, 1000)
             instanceId = settings.id().toString()
 
+            // --- Resolve test branch ---
+            Map<String, Object> testBranch = instance.findOrCreateByName('core', 'branch', 'nf-lamin-test-branch')
+            testBranchId = (testBranch.get('id') as Number)?.intValue()
+            println "Resolved test branch: id=${testBranchId}, uid=${testBranch.get('uid')}"
+
             // --- Get or create transform ---
             String transformKey = 'nf-lamin-artifact-api-test'
             Map transform = null
@@ -109,6 +115,7 @@ class InstanceArtifactApiTest extends Specification {
                     key: transformKey,
                     kind: 'pipeline',
                     source_code: '// artifact API test stub',
+                    branch_id: testBranchId,
                 ]
                 try {
                     transform = instance.createTransform(transformInput)
@@ -132,7 +139,8 @@ class InstanceArtifactApiTest extends Specification {
                 name: ("artifact-api-test-${uniqueSuffix}" as String),
                 created_at: nowIso,
                 started_at: nowIso,
-                _status_code: (int) RunStatus.STARTED.code
+                _status_code: (int) RunStatus.STARTED.code,
+                branch_id: testBranchId,
             ] as Map<String, Object>
             Map run = null
             try {
