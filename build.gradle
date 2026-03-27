@@ -2,7 +2,7 @@ plugins {
     id 'io.nextflow.nextflow-plugin' version '1.0.0-beta.10'
 }
 
-version = '0.5.2'
+version = '0.6.0'
 
 repositories {
     mavenCentral()
@@ -16,7 +16,7 @@ dependencies {
 nextflowPlugin {
     nextflowVersion = '25.10.0'
 
-    description = 'Nextflow plugin for integrating with Lamin Hub'
+    description = 'Nextflow plugin for integrating with LaminHub'
     provider = 'Lamin Labs'
     className = 'ai.lamin.nf_lamin.LaminPlugin'
     extensionPoints = [

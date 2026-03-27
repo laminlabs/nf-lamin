@@ -9,7 +9,7 @@ import groovy.json.JsonSlurper
 import ai.lamin.nf_lamin.instance.InstanceSettings
 
 /**
- * Groovy client for interacting with specific Lamin Hub API endpoints.
+ * Groovy client for interacting with specific LaminHub API endpoints.
  * Handles fetching JWT and instance settings.
  */
 @Slf4j
@@ -22,9 +22,9 @@ class LaminHub {
     private static final int READ_TIMEOUT_MS = 15000
 
     // --- Instance Fields ---
-    // The base URL for the Lamin Hub API
+    // The base URL for the LaminHub API
     private final String apiUrl
-    // The Supabase Anon Key for the Lamin Hub API
+    // The Supabase Anon Key for the LaminHub API
     private final String anonKey
     // The API key for the user
     private final String apiKey
@@ -33,7 +33,7 @@ class LaminHub {
 
     /**
      * Constructor.
-     * @param apiKey The user's Lamin Hub API Key.
+     * @param apiKey The user's LaminHub API Key.
      */
     LaminHub(String apiUrl, String anonKey, String apiKey) {
         if (!apiUrl?.trim()) {

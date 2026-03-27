@@ -18,7 +18,7 @@ The approach could be automated by deploying the script via
 
 :::{dropdown} What steps are executed by the nf-core/scrnaseq pipeline?
 
-![](nf_core_scrnaseq_diagram.png)
+![](guide/nf_core_scrnaseq_diagram.png)
 
 :::
 
@@ -69,13 +69,13 @@ nextflow run nf-core/scrnaseq -r 4.0.0 \
 After the pipeline has completed, a Python script registers inputs & outputs in LaminDB.
 
 ```{eval-rst}
-.. literalinclude:: register_scrnaseq_run.py
+.. literalinclude:: guide/register_scrnaseq_run.py
    :language: python
    :caption: nf-core/scrnaseq run registration
 ```
 
 ```python
-!python register_scrnaseq_run.py --input scrnaseq_input --output scrnaseq_output
+!python guide/register_scrnaseq_run.py --input scrnaseq_input --output scrnaseq_output
 ```
 
 ## Data lineage

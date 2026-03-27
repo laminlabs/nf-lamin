@@ -344,7 +344,7 @@ class LaminConfig implements ConfigScope {
     }
 
     /**
-     * Get the API key for Lamin Hub
+     * Get the API key for LaminHub
      * @return the API key
      */
     String getApiKey() {

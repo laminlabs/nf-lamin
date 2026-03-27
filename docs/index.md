@@ -1,13 +1,19 @@
-```{include} ../README.md
-:start-line: 0
-:end-line: 8
+# nf-lamin
+
+This is a preview of the nf-lamin documentation. See the **Guide** and **API Reference** tabs above for the full content.
+
+```{toctree}
+:maxdepth: 1
+:hidden:
+:caption: Guide
+
+guide
 ```
 
 ```{toctree}
 :maxdepth: 1
 :hidden:
+:caption: API Reference
 
-nextflow
-roadmap
-changelog
+reference
 ```

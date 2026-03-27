@@ -88,7 +88,7 @@ nextflow run nf-core/scrnaseq \
 
 <!-- The diagram is from the nf-core/scrnaseq GitHub repository. -->
 
-![](nf_core_scrnaseq_diagram.png)
+![](guide/nf_core_scrnaseq_diagram.png)
 
 :::
 
@@ -111,7 +111,7 @@ You can explore the run and its associated artifacts through Lamin Hub or the Py
 - Run:
   [p8npJ8JxIYazW4EkIl8d](https://staging.laminhub.com/laminlabs/lamindata/transform/J49HdErpEFrs0000/p8npJ8JxIYazW4EkIl8d)
 
-![](nf_core_scrnaseq_run.png)
+![](guide/nf_core_scrnaseq_run.png)
 
 ![](https://github.com/laminlabs/lamin-docs/blob/main/docs/guide/run-lineage.png?raw=true)
 
