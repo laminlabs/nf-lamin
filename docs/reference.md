@@ -33,7 +33,7 @@ nextflow run <your-pipeline>
 
 | nf-lamin  | LaminDB       | Nextflow   | Status         | Key Features                                                     |
 | --------- | ------------- | ---------- | -------------- | ---------------------------------------------------------------- |
-| **0.5.2** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Configure artifact keys, manually include artifacts              |
+| **0.6.0** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Configure artifact keys, specify include paths for artifacts     |
 | 0.5.1     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Track local input files, exclude work and assets directories     |
 | 0.5.0     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Improved config, artifact tracking rules, metadata tagging       |
 | 0.4.0     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Input artifact tracking                                          |

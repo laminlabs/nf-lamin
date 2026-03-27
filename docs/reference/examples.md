@@ -35,7 +35,7 @@ Artifact keys are derived by stripping the output directory prefix, preserving s
 
 ```groovy
 plugins {
-  id 'nf-lamin@0.5.2'
+  id 'nf-lamin@0.6.0'
 }
 
 lamin {
@@ -106,7 +106,7 @@ Artifact keys are derived using the `[relativize: params.outdir]` Map shorthand:
 
 ```groovy
 plugins {
-  id 'nf-lamin@0.5.2'
+  id 'nf-lamin@0.6.0'
 }
 
 lamin {
