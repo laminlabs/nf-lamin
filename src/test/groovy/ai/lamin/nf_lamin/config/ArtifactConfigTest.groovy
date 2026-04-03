@@ -603,4 +603,134 @@ class ArtifactConfigTest extends Specification {
         result.size() == 1
         result[0].path == 'single/path.txt'
     }
+
+    // --- Check closure-based include_paths at config level ---
+
+    def "config-level include_paths closure should be resolved in collectPaths"() {
+        given:
+        def config = new ArtifactConfig([
+            include_paths: { ["/data/samplesheet.csv", "/data/id_mappings.csv"] },
+            kind: 'dataset'
+        ], 'both')
+
+        when:
+        def result = config.collectPaths('output', [:])
+
+        then:
+        result.size() == 2
+        result*.path == ['/data/samplesheet.csv', '/data/id_mappings.csv']
+        result[0].evaluation.kind == 'dataset'
+        result[0].evaluation.shouldTrack
+    }
+
+    def "config-level include_paths closure should have access to params"() {
+        given:
+        def config = new ArtifactConfig([
+            include_paths: { ["${params.outdir}/samplesheet.csv"] }
+        ], 'both')
+
+        when:
+        def result = config.collectPaths('output', [outdir: '/my/output'])
+
+        then:
+        result.size() == 1
+        result[0].path == '/my/output/samplesheet.csv'
+    }
+
+    def "config-level include_paths closure returning single string should work"() {
+        given:
+        def config = new ArtifactConfig([
+            include_paths: { "/single/file.csv" }
+        ], 'both')
+
+        when:
+        def result = config.collectPaths('output', [:])
+
+        then:
+        result.size() == 1
+        result[0].path == '/single/file.csv'
+    }
+
+    // --- collectPaths should carry keyConfig for later resolution ---
+
+    def "collectPaths should include keyConfig from config-level key"() {
+        given:
+        def config = new ArtifactConfig([
+            include_paths: ['/output/samplesheet/samplesheet.csv'],
+            key: [relativize: '/output']
+        ], 'both')
+
+        when:
+        def result = config.collectPaths('output', [:])
+
+        then:
+        result.size() == 1
+        result[0].keyConfig == [relativize: '/output']
+    }
+
+    def "collectPaths should include keyConfig from rule-level key when specified"() {
+        given:
+        def config = new ArtifactConfig([
+            key: [relativize: '/output'],
+            rules: [
+                samplesheet: [
+                    include_paths: ['/output/samplesheet/samplesheet.csv'],
+                    key: [relativize: '/output/samplesheet']
+                ]
+            ]
+        ], 'both')
+
+        when:
+        def result = config.collectPaths('output', [:])
+
+        then:
+        result.size() == 1
+        result[0].keyConfig == [relativize: '/output/samplesheet']
+    }
+
+    def "collectPaths should fall back to config-level key when rule has no key"() {
+        given:
+        def config = new ArtifactConfig([
+            key: [relativize: '/output'],
+            rules: [
+                samplesheet: [
+                    include_paths: ['/output/samplesheet/samplesheet.csv'],
+                    kind: 'dataset'
+                ]
+            ]
+        ], 'both')
+
+        when:
+        def result = config.collectPaths('output', [:])
+
+        then:
+        result.size() == 1
+        result[0].keyConfig == [relativize: '/output']
+    }
+
+    // --- include_paths rule with exclude_pattern should not be excluded ---
+
+    def "collectPaths from rules should not be affected by exclude_pattern"() {
+        given:
+        def config = new ArtifactConfig([
+            exclude_pattern: '.*',
+            key: [relativize: '/output'],
+            rules: [
+                samplesheet: [
+                    include_paths: { ["/output/samplesheet/samplesheet.csv"] },
+                    kind: 'dataset'
+                ]
+            ]
+        ], 'both')
+
+        when:
+        def result = config.collectPaths('output', [:])
+
+        then:
+        // collectPaths should return the path; it bypasses pattern matching
+        result.size() == 1
+        result[0].path == '/output/samplesheet/samplesheet.csv'
+        result[0].evaluation.shouldTrack
+        result[0].evaluation.kind == 'dataset'
+    }
 }

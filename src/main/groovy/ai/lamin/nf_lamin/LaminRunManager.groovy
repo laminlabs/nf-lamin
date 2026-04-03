@@ -609,14 +609,27 @@ final class LaminRunManager {
 
         for (Map<String, Object> entry : pathEntries) {
             String pathStr = entry.path as String
+            ArtifactEvaluation prebuiltEvaluation = entry.evaluation as ArtifactEvaluation
+            Object keyConfig = entry.keyConfig
             try {
                 Path resolvedPath = FileHelper.asPath(pathStr)
                 log.debug "Resolved configured ${direction} path '${pathStr}' to ${resolvedPath.toUri()}"
 
+                // Resolve the key now that we have the actual Path object
+                if (prebuiltEvaluation != null && prebuiltEvaluation.key == null && keyConfig != null) {
+                    String resolvedKey = KeyResolver.resolveKey(keyConfig, resolvedPath)
+                    prebuiltEvaluation = new ArtifactEvaluation(
+                        prebuiltEvaluation.shouldTrack,
+                        prebuiltEvaluation.ulabelUids,
+                        prebuiltEvaluation.kind,
+                        resolvedKey
+                    )
+                }
+
                 if (direction == 'input') {
-                    createInputArtifact(resolvedPath)
+                    createInputArtifact(resolvedPath, prebuiltEvaluation)
                 } else {
-                    createOutputArtifact(resolvedPath)
+                    createOutputArtifact(resolvedPath, prebuiltEvaluation)
                 }
             } catch (Exception e) {
                 log.warn "Failed to process configured ${direction} path '${pathStr}': ${e.message}"
@@ -661,6 +674,10 @@ final class LaminRunManager {
     }
 
     Map<String, Object> createInputArtifact(Path path) {
+        return createInputArtifact(path, null)
+    }
+
+    Map<String, Object> createInputArtifact(Path path, ArtifactEvaluation prebuiltEvaluation) {
         if (laminInstance == null || config.dryRun) {
             return null
         }
@@ -670,8 +687,8 @@ final class LaminRunManager {
             return null
         }
 
-        // Evaluate artifact against configuration rules
-        ArtifactEvaluation evaluation = evaluateArtifact(path, 'input')
+        // Use pre-built evaluation if provided (from processConfigPaths), otherwise evaluate
+        ArtifactEvaluation evaluation = prebuiltEvaluation ?: evaluateArtifact(path, 'input')
         if (!evaluation.shouldTrack) {
             log.debug "Skipping input artifact creation for ${path.toUri()} (excluded by config)"
             return null
@@ -710,6 +727,10 @@ final class LaminRunManager {
     }
 
     Map<String, Object> createOutputArtifact(Path path) {
+        return createOutputArtifact(path, null)
+    }
+
+    Map<String, Object> createOutputArtifact(Path path, ArtifactEvaluation prebuiltEvaluation) {
         if (run == null || laminInstance == null || config.dryRun) {
             return null
         }
@@ -719,8 +740,8 @@ final class LaminRunManager {
             return null
         }
 
-        // Evaluate artifact against configuration rules
-        ArtifactEvaluation evaluation = evaluateArtifact(path, 'output')
+        // Use pre-built evaluation if provided (from processConfigPaths), otherwise evaluate
+        ArtifactEvaluation evaluation = prebuiltEvaluation ?: evaluateArtifact(path, 'output')
         if (!evaluation.shouldTrack) {
             log.debug "Skipping output artifact creation for ${path.toUri()} (excluded by config)"
             return null
