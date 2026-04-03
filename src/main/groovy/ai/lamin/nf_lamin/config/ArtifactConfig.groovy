@@ -126,14 +126,19 @@ class ArtifactConfig {
     ''')
     final Map<String, ArtifactRule> rules
 
-    @ConfigOption
+    @ConfigOption(types=[String, List, Closure])
     @Description('''
-        List of file paths or glob patterns to explicitly track as artifacts.
+        One or more file paths to explicitly track as artifacts.
         Paths are resolved using Nextflow's FileHelper.asPath. Input artifact
         paths are resolved at the beginning of the workflow, and output artifact
-        paths are resolved at the end. Can be a single string or a list of strings.
+        paths are resolved at the end. Can be a single string, a list of strings,
+        or a Closure returning a string or list. Use a closure when the value
+        depends on workflow params: `include_paths = { ["${params.outdir}/file.csv"] }`.
     ''')
     final List<String> include_paths
+
+    /** Closure that produces paths lazily at runtime (set when include_paths = { ... } is used). */
+    final Closure pathsClosure
 
     /**
      * Sorted list of rules (by order) for evaluation
@@ -164,9 +169,15 @@ class ArtifactConfig {
         this.kind = safeOpts.kind as String
         this.key = safeOpts.key  // keep as-is: String template or Closure
 
-        // Parse list fields (can be String or List)
+        // Parse list fields (can be String, List, or Closure)
         this.ulabelUids = ConfigUtils.parseStringOrList(safeOpts.ulabel_uids)
-        this.include_paths = ConfigUtils.parseStringOrList(safeOpts.include_paths)
+        if (safeOpts.include_paths instanceof Closure) {
+            this.pathsClosure = safeOpts.include_paths as Closure
+            this.include_paths = []
+        } else {
+            this.pathsClosure = null
+            this.include_paths = ConfigUtils.parseStringOrList(safeOpts.include_paths)
+        }
 
         // Compile patterns
         this.compiledIncludePattern = ConfigUtils.compilePattern(this.includePattern, 'include_pattern')
@@ -332,16 +343,18 @@ class ArtifactConfig {
 
         List<Map<String, Object>> result = []
 
-        // Collect paths from config-level include_paths
-        if (this.include_paths) {
-            for (String pathStr : this.include_paths) {
+        // Collect paths from config-level include_paths (static list or closure)
+        List<String> configPaths = resolveConfigPaths(workflowParams)
+        if (configPaths) {
+            for (String pathStr : configPaths) {
                 result.add([
                     path: pathStr,
+                    keyConfig: this.key,
                     evaluation: new ArtifactEvaluation(
                         true,
                         new ArrayList<>(this.ulabelUids),
                         this.kind,
-                        null  // key resolved later from path
+                        null  // key resolved later from resolved Path
                     )
                 ] as Map<String, Object>)
             }
@@ -361,20 +374,37 @@ class ArtifactConfig {
 
             String effectiveKind = rule.kind ?: this.kind
 
+            Object effectiveKeyConfig = rule.key != null ? rule.key : this.key
+
             for (String pathStr : rule.resolvePaths(workflowParams)) {
                 result.add([
                     path: pathStr,
+                    keyConfig: effectiveKeyConfig,
                     evaluation: new ArtifactEvaluation(
                         true,
                         mergedUlabels,
                         effectiveKind,
-                        null  // key resolved later from path
+                        null  // key resolved later from resolved Path
                     )
                 ] as Map<String, Object>)
             }
         }
 
         return result
+    }
+
+    /**
+     * Resolve and return the top-level include_paths, evaluating the closure if needed.
+     * @param workflowParams Nextflow workflow params (session.params)
+     * @return List of resolved path strings
+     */
+    private List<String> resolveConfigPaths(Map workflowParams) {
+        if (pathsClosure != null) {
+            pathsClosure.delegate = [params: workflowParams]
+            pathsClosure.resolveStrategy = Closure.DELEGATE_FIRST
+            return ConfigUtils.parseStringOrList(pathsClosure.call())
+        }
+        return include_paths
     }
 
     @Override
@@ -390,7 +420,7 @@ class ArtifactConfig {
             "ulabelUids=${ulabelUids}, " +
             "kind='${kind}', " +
             "key='${key instanceof Closure ? '<closure>' : key}', " +
-            "include_paths=${include_paths}, " +
+            "include_paths=${pathsClosure != null ? '<closure>' : include_paths}, " +
             "rules=${rules.size()} rules" +
             "}"
     }
