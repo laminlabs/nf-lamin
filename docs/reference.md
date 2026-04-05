@@ -33,6 +33,7 @@ nextflow run <your-pipeline>
 
 | nf-lamin  | LaminDB       | Nextflow   | Status         | Key Features                                                      |
 | --------- | ------------- | ---------- | -------------- | ----------------------------------------------------------------- |
+| **0.6.1** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Fix for edge case in tracking output artifacts                    |
 | **0.6.0** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Relativize keys, specify artifact paths, support space and branch |
 | 0.5.1     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Track local input files, exclude work and assets directories      |
 | 0.5.0     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Improved config, artifact tracking rules, metadata tagging        |

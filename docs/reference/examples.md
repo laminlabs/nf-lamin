@@ -33,7 +33,7 @@ The [`examples/rnaseq/nextflow.config`](https://github.com/laminlabs/nf-lamin/bl
 
 ```groovy
 plugins {
-  id 'nf-lamin@0.6.0'
+  id 'nf-lamin@0.6.1'
 }
 
 lamin {
@@ -101,7 +101,7 @@ The [`examples/scrnaseq/nextflow.config`](https://github.com/laminlabs/nf-lamin/
 
 ```groovy
 plugins {
-  id 'nf-lamin@0.6.0'
+  id 'nf-lamin@0.6.1'
 }
 
 lamin {
@@ -172,7 +172,7 @@ The [`examples/quantms/nextflow.config`](https://github.com/laminlabs/nf-lamin/b
 
 ```groovy
 plugins {
-  id 'nf-lamin@0.6.0'
+  id 'nf-lamin@0.6.1'
 }
 
 lamin {
