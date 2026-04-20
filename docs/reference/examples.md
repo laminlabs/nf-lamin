@@ -52,7 +52,7 @@ lamin {
 
   output_artifacts {
     enabled = true
-    key = [relativize: params.outdir]
+    key = [relativize: { params.outdir }]
     exclude_pattern = '.*'
     rules {
       // Enabled by default
@@ -120,7 +120,7 @@ lamin {
 
   output_artifacts {
     enabled = true
-    key = [relativize: params.outdir]
+    key = [relativize: { params.outdir }]
     exclude_pattern = '.*'
     rules {
       // Enabled by default
@@ -189,7 +189,7 @@ lamin {
 
   output_artifacts {
     enabled = true
-    key = [relativize: params.outdir]
+    key = [relativize: { params.outdir }]
     exclude_pattern = '.*'
     rules {
       // Enabled by default

@@ -31,7 +31,7 @@ lamin {
 
   // Track output artifacts, stripping the outdir prefix from keys
   output_artifacts {
-    key = [relativize: params.outdir]
+    key = [relativize: { params.outdir }]
     exclude_pattern = '.*'
     rules {
       // Enabled by default
@@ -119,7 +119,7 @@ The `key` option controls how artifact keys are generated from file paths. By de
 **Map shorthand** (recommended for nf-core-style pipelines):
 
 ```groovy
-key = [relativize: params.outdir]
+key = [relativize: { params.outdir }]
 // /home/user/results/multiqc/report.html → multiqc/report.html
 ```
 
@@ -221,7 +221,7 @@ lamin {
   }
 
   output_artifacts {
-    key = [relativize: params.outdir]
+    key = [relativize: { params.outdir }]
     exclude_pattern = '.*\\.(log|tmp)$'
     rules {
       exclude_intermediate { type = 'exclude'; pattern = '.*intermediate.*'; order = 1 }
