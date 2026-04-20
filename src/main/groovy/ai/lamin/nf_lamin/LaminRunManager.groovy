@@ -356,6 +356,8 @@ final class LaminRunManager {
                 } else {
                     log.warn "Could not resolve space '${config.spaceUid}'"
                 }
+            } catch (IllegalStateException e) {
+                throw e
             } catch (Exception e) {
                 log.error "Failed to resolve space '${config.spaceUid}': ${e.getMessage()}"
             }
@@ -371,6 +373,8 @@ final class LaminRunManager {
                 } else {
                     log.warn "Could not resolve branch '${config.branchUid}'"
                 }
+            } catch (IllegalStateException e) {
+                throw e
             } catch (Exception e) {
                 log.error "Failed to resolve branch '${config.branchUid}': ${e.getMessage()}"
             }
@@ -499,6 +503,7 @@ final class LaminRunManager {
             ] as Map<String, Object>
             updateRun(dummyRunRecord)
             log.info "Dry-run mode: created dummy run ${dummyRunRecord.get('uid')}"
+            return dummyRunRecord
         }
 
         WorkflowMetadata wfMetadata = session.getWorkflowMetadata()
@@ -828,7 +833,7 @@ final class LaminRunManager {
             )
             log.debug "Linked artifact ${artifactUid} as input to run ${run.get('uid')}"
         } catch (Exception e) {
-            log.debug "Could not link artifact ${artifactUid} to run: ${e.getMessage()}"
+            log.warn "Could not link artifact ${artifactUid} to run: ${e.getMessage()}"
         }
     }
 
@@ -882,7 +887,7 @@ final class LaminRunManager {
                 )
                 log.debug "Linked artifact ${artifactUid} to project ${projectUid}"
             } catch (Exception e) {
-                log.debug "Could not link artifact ${artifactUid} to project ${projectUid}: ${e.getMessage()}"
+                log.warn "Could not link artifact ${artifactUid} to project ${projectUid}: ${e.getMessage()}"
             }
         }
     }
@@ -937,7 +942,7 @@ final class LaminRunManager {
                 )
                 log.debug "Linked artifact ${artifactUid} to ulabel ${ulabelUid}"
             } catch (Exception e) {
-                log.debug "Could not link artifact ${artifactUid} to ulabel ${ulabelUid}: ${e.getMessage()}"
+                log.warn "Could not link artifact ${artifactUid} to ulabel ${ulabelUid}: ${e.getMessage()}"
             }
         }
     }
@@ -1132,7 +1137,7 @@ final class LaminRunManager {
                 )
                 log.debug "Linked transform ${transformUid} to project ${projectUid}"
             } catch (Exception e) {
-                log.debug "Could not link transform ${transformUid} to project ${projectUid}: ${e.getMessage()}"
+                log.warn "Could not link transform ${transformUid} to project ${projectUid}: ${e.getMessage()}"
             }
         }
     }
@@ -1187,7 +1192,7 @@ final class LaminRunManager {
                 )
                 log.debug "Linked transform ${transformUid} to ulabel ${ulabelUid}"
             } catch (Exception e) {
-                log.debug "Could not link transform ${transformUid} to ulabel ${ulabelUid}: ${e.getMessage()}"
+                log.warn "Could not link transform ${transformUid} to ulabel ${ulabelUid}: ${e.getMessage()}"
             }
         }
     }
@@ -1242,7 +1247,7 @@ final class LaminRunManager {
                 )
                 log.debug "Linked run ${runUid} to project ${projectUid}"
             } catch (Exception e) {
-                log.debug "Could not link run ${runUid} to project ${projectUid}: ${e.getMessage()}"
+                log.warn "Could not link run ${runUid} to project ${projectUid}: ${e.getMessage()}"
             }
         }
     }
@@ -1297,7 +1302,7 @@ final class LaminRunManager {
                 )
                 log.debug "Linked run ${runUid} to ulabel ${ulabelUid}"
             } catch (Exception e) {
-                log.debug "Could not link run ${runUid} to ulabel ${ulabelUid}: ${e.getMessage()}"
+                log.warn "Could not link run ${runUid} to ulabel ${ulabelUid}: ${e.getMessage()}"
             }
         }
     }

@@ -206,7 +206,7 @@ class ArtifactConfig {
             String name = key as String
             def ruleOpts = value
             if (ruleOpts instanceof Map) {
-                Map ruleMap = ruleOpts as Map
+                Map ruleMap = new LinkedHashMap(ruleOpts as Map)
                 // Set direction from parent config if not specified in rule
                 if (!ruleMap.containsKey('direction')) {
                     ruleMap.direction = direction
