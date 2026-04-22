@@ -112,7 +112,8 @@ class KeyResolver {
     private static String resolveMapConfig(Map config, String pathStr) {
         Object relativizeValue = config.get('relativize')
         if (relativizeValue != null) {
-            String baseDir = relativizeValue.toString()
+            Object resolvedValue = (relativizeValue instanceof Closure) ? ((Closure) relativizeValue).call() : relativizeValue
+            String baseDir = resolvedValue?.toString() ?: ''
             if (!baseDir) {
                 log.warn "Key map 'relativize' value is empty for path '${pathStr}', falling back to basename"
                 return extractBasename(pathStr)
