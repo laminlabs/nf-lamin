@@ -246,9 +246,11 @@ class ArtifactConfig {
      *
      * @param path The Path object for the artifact file
      * @param artifactDirection 'input' or 'output'
+     * @param workflowParams Nextflow workflow params used when the key config contains a
+     *        params-dependent closure (e.g. {@code [relativize: { params.outdir }]})
      * @return ArtifactEvaluation with shouldTrack flag and metadata map
      */
-    ArtifactEvaluation evaluate(Path path, String artifactDirection) {
+    ArtifactEvaluation evaluate(Path path, String artifactDirection, Map workflowParams = [:]) {
         String pathStr = path.toUri().toString()
 
         // Early exit if disabled or direction doesn't match
@@ -312,7 +314,7 @@ class ArtifactConfig {
         }
         String resolvedKey = null
         if (effectiveKeyConfig != null) {
-            resolvedKey = KeyResolver.resolveKey(effectiveKeyConfig, path)
+            resolvedKey = KeyResolver.resolveKey(effectiveKeyConfig, path, workflowParams)
         }
 
         return new ArtifactEvaluation(
@@ -400,9 +402,7 @@ class ArtifactConfig {
      */
     private List<String> resolveConfigPaths(Map workflowParams) {
         if (pathsClosure != null) {
-            pathsClosure.delegate = [params: workflowParams]
-            pathsClosure.resolveStrategy = Closure.DELEGATE_FIRST
-            return ConfigUtils.parseStringOrList(pathsClosure.call())
+            return ConfigUtils.parseStringOrList(ConfigUtils.evalClosureWithParams(pathsClosure, workflowParams))
         }
         return include_paths
     }

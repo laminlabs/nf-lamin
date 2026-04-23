@@ -598,10 +598,10 @@ final class LaminRunManager {
 
         // Collect paths from all relevant artifact configs
         List<Map<String, Object>> pathEntries = []
+        Map workflowParams = session.getParams() ?: [:]
 
         ArtifactConfig ac = resolveArtifactConfig(direction)
         if (ac != null) {
-            Map workflowParams = session.getParams() ?: [:]
             pathEntries.addAll(ac.collectPaths(direction, workflowParams))
         }
 
@@ -622,7 +622,7 @@ final class LaminRunManager {
 
                 // Resolve the key now that we have the actual Path object
                 if (prebuiltEvaluation != null && prebuiltEvaluation.key == null && keyConfig != null) {
-                    String resolvedKey = KeyResolver.resolveKey(keyConfig, resolvedPath)
+                    String resolvedKey = KeyResolver.resolveKey(keyConfig, resolvedPath, workflowParams)
                     prebuiltEvaluation = new ArtifactEvaluation(
                         prebuiltEvaluation.shouldTrack,
                         prebuiltEvaluation.ulabelUids,
@@ -669,7 +669,7 @@ final class LaminRunManager {
         }
 
         // Evaluate the path against the config
-        ArtifactEvaluation evaluation = artifactConfig.evaluate(path, direction)
+        ArtifactEvaluation evaluation = artifactConfig.evaluate(path, direction, session.getParams() ?: [:])
         if (evaluation.shouldTrack) {
             log.debug "Artifact '${path.toUri()}' will be tracked as ${direction} with evaluation: ${evaluation}"
         } else {

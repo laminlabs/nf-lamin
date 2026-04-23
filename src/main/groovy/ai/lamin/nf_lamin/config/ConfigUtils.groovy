@@ -46,6 +46,22 @@ class ConfigUtils {
     }
 
     /**
+     * Invoke a closure whose body may reference {@code params} (e.g. {@code { params.outdir }}).
+     * Sets the closure delegate to {@code [params: workflowParams]} with DELEGATE_FIRST
+     * resolution so that bare {@code params} references resolve correctly, matching how
+     * Nextflow evaluates closures in config files.
+     *
+     * @param closure The closure to invoke
+     * @param workflowParams Nextflow workflow params (session.params)
+     * @return The value returned by the closure
+     */
+    static Object evalClosureWithParams(Closure closure, Map workflowParams) {
+        closure.delegate = [params: workflowParams ?: [:]]
+        closure.resolveStrategy = Closure.DELEGATE_FIRST
+        return closure.call()
+    }
+
+    /**
      * Compile a regex pattern string into a Pattern object.
      * @param pattern The pattern string to compile (may be null)
      * @param fieldName The field name for error messages
