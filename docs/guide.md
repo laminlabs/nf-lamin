@@ -37,7 +37,7 @@ nextflow run <your-pipeline>
 
 After the run, explore the tracked data in LaminHub or via the Python SDK:
 
-```python
+```python tags=["skip-execution"]
 import lamindb as ln
 
 ln.Run.get("your-run-uid")
