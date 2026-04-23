@@ -59,9 +59,11 @@ class KeyResolver {
      *
      * @param keyConfig The key configuration value (String template, Closure, or Map)
      * @param path The Path object for the artifact file
+     * @param workflowParams Nextflow workflow params used when the key config contains a
+     *        params-dependent closure (e.g. {@code [relativize: { params.outdir }]})
      * @return The resolved key string, or null if keyConfig is null
      */
-    static String resolveKey(Object keyConfig, Path path) {
+    static String resolveKey(Object keyConfig, Path path, Map workflowParams = [:]) {
         if (keyConfig == null) {
             return null
         }
@@ -69,7 +71,7 @@ class KeyResolver {
         String pathStr = path.toUri().toString()
 
         if (keyConfig instanceof Map) {
-            return resolveMapConfig((Map) keyConfig, pathStr)
+            return resolveMapConfig((Map) keyConfig, pathStr, workflowParams)
         }
 
         if (keyConfig instanceof Closure) {
@@ -109,10 +111,13 @@ class KeyResolver {
      * @param pathStr The full file path as a URI string
      * @return The resolved key, or the basename on failure
      */
-    private static String resolveMapConfig(Map config, String pathStr) {
+    private static String resolveMapConfig(Map config, String pathStr, Map workflowParams) {
         Object relativizeValue = config.get('relativize')
         if (relativizeValue != null) {
-            String baseDir = relativizeValue.toString()
+            Object resolvedValue = (relativizeValue instanceof Closure)
+                ? ConfigUtils.evalClosureWithParams((Closure) relativizeValue, workflowParams)
+                : relativizeValue
+            String baseDir = resolvedValue?.toString() ?: ''
             if (!baseDir) {
                 log.warn "Key map 'relativize' value is empty for path '${pathStr}', falling back to basename"
                 return extractBasename(pathStr)

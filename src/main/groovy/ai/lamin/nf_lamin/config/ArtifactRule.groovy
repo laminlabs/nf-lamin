@@ -215,9 +215,7 @@ class ArtifactRule {
      */
     List<String> resolvePaths(Map workflowParams) {
         if (pathsClosure != null) {
-            pathsClosure.delegate = [params: workflowParams]
-            pathsClosure.resolveStrategy = Closure.DELEGATE_FIRST
-            return ConfigUtils.parseStringOrList(pathsClosure.call())
+            return ConfigUtils.parseStringOrList(ConfigUtils.evalClosureWithParams(pathsClosure, workflowParams))
         }
         return include_paths
     }

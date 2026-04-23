@@ -318,7 +318,7 @@ lamin {
     // For example, with --outdir /home/user/results/:
     //   /home/user/results/multiqc/star/multiqc_report.html
     //   → multiqc/star/multiqc_report.html
-    key = [relativize: params.outdir]
+    key = [relativize: { params.outdir }]
   }
 }
 ```

@@ -33,7 +33,7 @@ The [`examples/rnaseq/nextflow.config`](https://github.com/laminlabs/nf-lamin/bl
 
 ```groovy
 plugins {
-  id 'nf-lamin@0.6.1'
+  id 'nf-lamin@0.6.2'
 }
 
 lamin {
@@ -52,7 +52,7 @@ lamin {
 
   output_artifacts {
     enabled = true
-    key = [relativize: params.outdir]
+    key = [relativize: { params.outdir }]
     exclude_pattern = '.*'
     rules {
       // Enabled by default
@@ -101,7 +101,7 @@ The [`examples/scrnaseq/nextflow.config`](https://github.com/laminlabs/nf-lamin/
 
 ```groovy
 plugins {
-  id 'nf-lamin@0.6.1'
+  id 'nf-lamin@0.6.2'
 }
 
 lamin {
@@ -120,7 +120,7 @@ lamin {
 
   output_artifacts {
     enabled = true
-    key = [relativize: params.outdir]
+    key = [relativize: { params.outdir }]
     exclude_pattern = '.*'
     rules {
       // Enabled by default
@@ -172,7 +172,7 @@ The [`examples/quantms/nextflow.config`](https://github.com/laminlabs/nf-lamin/b
 
 ```groovy
 plugins {
-  id 'nf-lamin@0.6.1'
+  id 'nf-lamin@0.6.2'
 }
 
 lamin {
@@ -189,7 +189,7 @@ lamin {
 
   output_artifacts {
     enabled = true
-    key = [relativize: params.outdir]
+    key = [relativize: { params.outdir }]
     exclude_pattern = '.*'
     rules {
       // Enabled by default
