@@ -1,3 +1,7 @@
+---
+execute_via: nbconvert
+---
+
 # Nextflow
 
 There are several ways to track Nextflow pipeline runs and artifacts in [LaminDB](https://lamin.ai/).
