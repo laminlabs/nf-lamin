@@ -139,7 +139,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: ["postrun", "plugin"]
+        group: ["guide"]
     permissions:
       contents: read
     steps:

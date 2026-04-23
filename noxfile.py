@@ -15,8 +15,7 @@ IS_CI = "CI" in os.environ
 nox.options.default_venv_backend = "none" if IS_CI else "uv"
 
 GROUPS = {}
-GROUPS["postrun"] = ["nextflow-postrun.ipynb"]
-GROUPS["plugin"] = ["nextflow.ipynb"]
+GROUPS["guide"] = ["guide.ipynb"]
 
 
 @nox.session
@@ -28,8 +27,7 @@ def lint(session: nox.Session) -> None:
 @nox.parametrize(
     "group",
     [
-        "postrun",
-        "plugin",
+        "guide",
     ],
 )
 def build(session, group):
@@ -55,8 +53,7 @@ def build(session, group):
 @nox.session
 def docs(session):
     for group in [
-        "postrun",
-        "plugin",
+        "guide",
     ]:
         for path in Path(f"./docs_{group}").glob("*"):
             path.rename(f"./docs/{path.name}")
