@@ -123,6 +123,14 @@ key = [relativize: { params.outdir }]
 // /home/user/results/multiqc/report.html → multiqc/report.html
 ```
 
+`relativize` strips the given directory prefix from each artifact path, preserving the subdirectory structure as the key. It is equivalent to writing `key = { path -> path.toString().removePrefix(params.outdir + '/') }` but handles `file://`, `s3://`, `gs://`, and other URI schemes uniformly. If an artifact path falls outside the base directory, the plugin falls back to the basename.
+
+The `relativize` value accepts either a plain string or a closure. Wrapping it in a closure (`{ params.outdir }` instead of `params.outdir`) is **strongly recommended** when using `params`: it delays evaluation until the workflow runs. Without the closure, Nextflow resolves the expression at config-parse time, and on Seqera Cloud (e.g. with `-with-tower`) this raises an error such as:
+
+```
+ERROR ~ Unknown config attribute `lamin.output_artifacts.params.outdir` -- check config file
+```
+
 **String template** with variables:
 
 - `{basename}`: filename with extension
@@ -178,7 +186,22 @@ input_artifacts {
 ```
 
 :::{note}
-Wrap `include_paths` in a closure (`{ ... }`) when accessing `params`, because `params` are not fully resolved at config parse time. Writing `include_paths = params.input` directly will cause an error.
+Always wrap `include_paths` in a closure (`{ ... }`) when referencing `params`. Locally, `include_paths = params.input` may work, but on Seqera Cloud (e.g. with `-with-tower`) Nextflow resolves config expressions at parse time and raises an error such as:
+
+```
+ERROR ~ Unknown config attribute `lamin.input_artifacts.params.input` -- check config file
+```
+
+The same applies to interpolated path lists:
+
+```groovy
+// ❌ Fails on Seqera Cloud
+include_paths = ["${params.outdir}/samplesheet/samplesheet.csv"]
+
+// ✅ Safe everywhere
+include_paths = { ["${params.outdir}/samplesheet/samplesheet.csv"] }
+```
+
 :::
 
 Input paths are resolved at the beginning of the workflow (`onFlowBegin`), and output paths just before finalizing the run. Resolved paths go through the same deduplication, metadata linking, and rule evaluation as auto-detected artifacts.
