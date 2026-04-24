@@ -68,7 +68,7 @@ After running the pipeline, a Python script registers inputs & outputs in LaminD
 Run it with:
 
 ```bash
-python register_scrnaseq_run.py --input scrnaseq_input --output scrnaseq_output
+python guide/register_scrnaseq_run.py --input scrnaseq_input --output scrnaseq_output
 ```
 
 If need be, such a script can be deployed via a serverless environment trigger (e.g., AWS Lambda).
