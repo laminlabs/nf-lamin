@@ -41,7 +41,6 @@ lamin {
   api_key = secrets.LAMIN_API_KEY
 
   input_artifacts {
-    enabled = true
     rules {
       samplesheet { include_paths = { params.input }; kind = 'dataset'; order = 1 }
       fastq_reads { pattern = '.*\\.fastq(\\.gz)?$'; kind = 'dataset'; order = 2 }
@@ -51,15 +50,16 @@ lamin {
   }
 
   output_artifacts {
-    enabled = true
-    key = [relativize: { params.outdir }]
+    key {
+      relativize = { params.outdir }
+    }
     exclude_pattern = '.*'
     rules {
       // Enabled by default
       multiqc_report { type = 'include'; pattern = '.*multiqc_report\\.html$'; kind = 'report' }
       gene_counts { type = 'include'; pattern = '.*salmon\\.merged\\.gene_(counts|tpm|counts_length_scaled|counts_scaled|lengths)\\.tsv$'; kind = 'dataset' }
       summarized_experiment { type = 'include'; pattern = '.*\\.SummarizedExperiment\\.rds$'; kind = 'dataset' }
-      // Disabled (set enabled = true to include)
+      // Disabled (opt-in)
       bam_files { type = 'include'; enabled = false; pattern = '.*\\.bam$'; kind = 'dataset' }
       bigwig_files { type = 'include'; enabled = false; pattern = '.*\\.bigWig$'; kind = 'dataset' }
       // ... see full config for all rules
@@ -109,7 +109,6 @@ lamin {
   api_key = secrets.LAMIN_API_KEY
 
   input_artifacts {
-    enabled = true
     rules {
       samplesheet { include_paths = { params.input }; kind = 'dataset'; order = 1 }
       fastq_reads { pattern = '.*\\.fastq(\\.gz)?$'; kind = 'dataset'; order = 2 }
@@ -119,8 +118,9 @@ lamin {
   }
 
   output_artifacts {
-    enabled = true
-    key = [relativize: { params.outdir }]
+    key {
+      relativize = { params.outdir }
+    }
     exclude_pattern = '.*'
     rules {
       // Enabled by default
@@ -128,7 +128,7 @@ lamin {
       combined_filtered_h5ad { type = 'include'; pattern = '.*/mtx_conversions/combined_filtered_matrix\\.h5ad$'; kind = 'dataset' }
       combined_raw_h5ad { type = 'include'; pattern = '.*/mtx_conversions/combined_raw_matrix\\.h5ad$'; kind = 'dataset' }
       sample_filtered_h5ad { type = 'include'; pattern = '.*/mtx_conversions/.+/.+_filtered_matrix\\.h5ad$'; kind = 'dataset' }
-      // Disabled (set enabled = true to include)
+      // Disabled (opt-in)
       rds_conversions { type = 'include'; enabled = false; pattern = '.*/mtx_conversions/.*\\.rds$'; kind = 'dataset' }
       bam_files { type = 'include'; enabled = false; pattern = '.*\\.bam$'; kind = 'dataset' }
       // ... see full config for all rules
@@ -180,23 +180,23 @@ lamin {
   api_key = secrets.LAMIN_API_KEY
 
   input_artifacts {
-    enabled = true
     rules {
-      sdrf { pattern = '.*\\.sdrf\\.tsv$'; kind = 'dataset' }
-      fasta { pattern = '.*\\.(fasta|fa)(\\.gz)?$'; kind = 'dataset' }
+      sdrf { pattern = '.*\.sdrf\.tsv$'; kind = 'dataset' }
+      fasta { pattern = '.*\.(fasta|fa)(\.gz)?$'; kind = 'dataset' }
     }
   }
 
   output_artifacts {
-    enabled = true
-    key = [relativize: { params.outdir }]
+    key {
+      relativize = { params.outdir }
+    }
     exclude_pattern = '.*'
     rules {
       // Enabled by default
-      mztab { type = 'include'; pattern = '.*\\.mzTab$'; kind = 'dataset' }
-      msstats_in { type = 'include'; pattern = '.*msstats_in\\.csv$'; kind = 'dataset' }
-      multiqc_report { type = 'include'; pattern = '.*/pmultiqc/multiqc_report\\.html$'; kind = 'report' }
-      // Disabled (set enabled = true to include)
+      mztab { type = 'include'; pattern = '.*\.mzTab$'; kind = 'dataset' }
+      msstats_in { type = 'include'; pattern = '.*msstats_in\.csv$'; kind = 'dataset' }
+      multiqc_report { type = 'include'; pattern = '.*/pmultiqc/multiqc_report\.html$'; kind = 'report' }
+      // Disabled (opt-in)
       consensusxml { type = 'include'; enabled = false; pattern = '.*\\.consensusXML$'; kind = 'dataset' }
       spectra_statistics { type = 'include'; enabled = false; pattern = '.*/mzml_statistics/.*\\.parquet$'; kind = 'dataset' }
       // ... see full config for all rules
