@@ -18,7 +18,7 @@ nextflow secrets set LAMIN_API_KEY <your-lamin-api-key>
 
 **2.** Add the plugin to your `nextflow.config`:
 
-```groovy
+```groovy tags=["skip-execution"]
 plugins {
   id 'nf-lamin'
 }
