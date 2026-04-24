@@ -12,7 +12,7 @@ The [`nf-lamin`](https://github.com/laminlabs/nf-lamin) Nextflow plugin automati
 
 **1.** Store your [Lamin API key](https://lamin.ai/settings) as a Nextflow secret:
 
-```bash
+```bash tags=["skip-execution"]
 nextflow secrets set LAMIN_API_KEY <your-lamin-api-key>
 ```
 
@@ -31,7 +31,7 @@ lamin {
 
 **3.** Run your pipeline:
 
-```bash
+```bash tags=["skip-execution"]
 nextflow run <your-pipeline>
 ```
 
