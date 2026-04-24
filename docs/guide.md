@@ -1,3 +1,7 @@
+---
+execute_via: nbconvert
+---
+
 # Nextflow
 
 There are several ways to track Nextflow pipeline runs and artifacts in [LaminDB](https://lamin.ai/).
@@ -8,13 +12,13 @@ The [`nf-lamin`](https://github.com/laminlabs/nf-lamin) Nextflow plugin automati
 
 **1.** Store your [Lamin API key](https://lamin.ai/settings) as a Nextflow secret:
 
-```bash
+```bash tags=["skip-execution"]
 nextflow secrets set LAMIN_API_KEY <your-lamin-api-key>
 ```
 
 **2.** Add the plugin to your `nextflow.config`:
 
-```groovy
+```groovy tags=["skip-execution"]
 plugins {
   id 'nf-lamin'
 }
@@ -27,13 +31,13 @@ lamin {
 
 **3.** Run your pipeline:
 
-```bash
+```bash tags=["skip-execution"]
 nextflow run <your-pipeline>
 ```
 
 After the run, explore the tracked data in LaminHub or via the Python SDK:
 
-```python
+```python tags=["skip-execution"]
 import lamindb as ln
 
 ln.Run.get("your-run-uid")
@@ -47,13 +51,20 @@ ln.Run.get("your-run-uid")
 
 ## Using a post-run script
 
-If you want to use Nextflow with LaminDB but without the `nf-lamin` plugin, you can register runs manually with a Python post-run script.
+You can register runs manually without using the `nf-lamin` plugin using a Python post-run script. First run the pipeline:
 
-:::{dropdown} Example: nf-core/scrnaseq post-run registration
+```python
+# the test profile uses all downloaded input files as an input
+!nextflow run nf-core/scrnaseq -r 4.0.0 -profile docker,test -resume --outdir scrnaseq_output
+```
+
+:::{dropdown} Example: nf-core/scrnaseq
 
 ![](guide/nf_core_scrnaseq_diagram.png)
 
-After running the pipeline, a Python script registers inputs & outputs in LaminDB:
+:::
+
+After the run is complete, use a post-run script to register inputs and outputs in LaminDB:
 
 ```{eval-rst}
 .. literalinclude:: guide/register_scrnaseq_run.py
@@ -61,12 +72,8 @@ After running the pipeline, a Python script registers inputs & outputs in LaminD
    :caption: nf-core/scrnaseq run registration
 ```
 
-Run it with:
-
-```bash
-python register_scrnaseq_run.py --input scrnaseq_input --output scrnaseq_output
+```python
+!python guide/register_scrnaseq_run.py --input scrnaseq_input --output scrnaseq_output
 ```
 
-If need be, such a script can be deployed via a serverless environment trigger (e.g., AWS Lambda).
-
-:::
+Such a script can also be triggered from a serverless environment (e.g., AWS Lambda).
