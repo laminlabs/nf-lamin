@@ -6,7 +6,7 @@ import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import groovy.json.JsonSlurper
 
-import ai.lamin.nf_lamin.instance.InstanceSettings
+import ai.lamin.nf_lamin.hub.InstanceSettings
 
 /**
  * Groovy client for interacting with specific LaminHub API endpoints.
@@ -54,10 +54,10 @@ class LaminHub {
     /**
      * Fetches a JWT access token using the API Key.
      *
-     * @return The fetched JWT access token.
+     * @return An {@link AccessTokenResponse} containing the JWT.
      * @throws RuntimeException If the API call fails or response parsing fails.
      */
-    String fetchAccessToken() {
+    AccessTokenResponse fetchAccessToken() {
         String url = "${this.apiUrl}/functions/v1/get-jwt-v1"
         String payload = """{"api_key": "${this.apiKey}"}"""
         String currentMethod = 'fetchAccessToken()'
@@ -65,23 +65,8 @@ class LaminHub {
         String responseJson = makePostRequest(url, payload, this.anonKey, false, currentMethod)
 
         try {
-            Object responseMap = parseJson(responseJson, currentMethod)
-
-            // Check for error response
-            if (responseMap?.containsKey('error')) {
-                String errorMessage = responseMap.error as String
-                throw new IllegalStateException("Failed to fetch access token: ${errorMessage}")
-            }
-
-            if (responseMap?.containsKey('accessToken')) {
-                String accessToken = responseMap.accessToken as String
-                if (!accessToken?.trim()) {
-                    throw new IllegalStateException('Access token is null or empty.')
-                }
-                return accessToken
-            } else {
-                throw new IllegalStateException("Failed to parse 'accessToken' from response. URL: ${url}. Response: ${responseJson}")
-            }
+            Map<String, Object> responseMap = parseJson(responseJson, currentMethod) as Map<String, Object>
+            return new AccessTokenResponse(responseMap)
         } catch (Exception e) {
             throw new IllegalStateException("Error parsing JWT response from ${url}. Response: ${responseJson}", e)
         }
@@ -152,7 +137,7 @@ class LaminHub {
             throw new IllegalStateException("LaminDB instance ${owner}/${name} could not be found.")
         }
 
-        return InstanceSettings.fromMap(instanceSettingsMap)
+        return new InstanceSettings(instanceSettingsMap as Map<String, Object>)
     }
 
     /**
@@ -164,13 +149,12 @@ class LaminHub {
      * it returns a map containing temporary credentials and storage accessibility information.
      *
      * @param storageRoot The storage root path (e.g., "s3://lamin-us-east-1/JwMEKs04D9WJ")
-     * @return A Map containing cloud access credentials and storage metadata if credentials are required,
-     *         or an empty Map if the storage is publicly accessible or no credentials are needed.
-     *         The map may contain keys like 'Credentials', 'StorageAccessibility', etc.
+     * @return A {@link CloudAccessResponse} with credentials and storage metadata, or an empty
+     *         response (no credentials) if the storage is publicly accessible.
      * @throws IllegalArgumentException If storageRoot is null or empty
      * @throws RuntimeException If the API call fails
      */
-    Map<String, Object> getCloudAccess(String storageRoot) {
+    CloudAccessResponse getCloudAccess(String storageRoot) {
         if (!storageRoot?.trim()) {
             throw new IllegalArgumentException('Storage root cannot be null or empty.')
         }
@@ -189,13 +173,11 @@ class LaminHub {
 
         Map<String, Object> cloudAccessMap = parseJson(responseJson, currentMethod)
 
-        // Return empty map if no credentials found
         if (!cloudAccessMap) {
             log.debug "No credentials found for storage root ${storageRoot}"
-            return Collections.emptyMap()
         }
 
-        return cloudAccessMap
+        return new CloudAccessResponse(cloudAccessMap ?: (Map<String, Object>) Collections.emptyMap())
     }
 
     // --- Private Helper Methods ---
@@ -326,7 +308,7 @@ class LaminHub {
 
     private void updateAccessToken() {
         try {
-            this.accessToken = fetchAccessToken()
+            this.accessToken = fetchAccessToken().accessToken
             log.debug('Access token refreshed successfully.')
         } catch (Exception e) {
             log.error("Failed to refresh access token: ${e.message}", e)

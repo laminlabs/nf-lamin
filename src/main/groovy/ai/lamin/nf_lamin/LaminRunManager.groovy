@@ -38,7 +38,7 @@ import ai.lamin.lamin_api_client.ApiException
 import ai.lamin.nf_lamin.hub.LaminHub
 import ai.lamin.nf_lamin.hub.LaminHubConfigResolver
 import ai.lamin.nf_lamin.instance.Instance
-import ai.lamin.nf_lamin.instance.InstanceSettings
+import ai.lamin.nf_lamin.hub.InstanceSettings
 import ai.lamin.nf_lamin.model.RunStatus
 import ai.lamin.nf_lamin.nio.LaminPath
 import ai.lamin.nf_lamin.util.TransformInfoHelper
