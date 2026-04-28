@@ -129,7 +129,7 @@ final class LaminRunManager {
         return hub
     }
 
-    protected LaminConfig getConfig() {
+    LaminConfig getConfig() {
         return config
     }
 
