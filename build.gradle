@@ -10,6 +10,17 @@ repositories {
 
 dependencies {
     implementation 'ai.lamin:lamin-api-client:0.0.5'
+    // AWS SDK v2 for LaminS3FileSystemProvider (session credentials + S3 operations).
+    // Bundled in the plugin JAR: nf-amazon uses an isolated PF4J classloader, so its
+    // AWS SDK classes are not accessible from nf-lamin at runtime.
+    implementation('software.amazon.awssdk:s3:2.33.2') {
+        // Nextflow provides slf4j-api in the parent classloader; exclude to avoid
+        // the "Failed to load StaticLoggerBinder" warning at startup.
+        exclude group: 'org.slf4j', module: 'slf4j-api'
+    }
+    implementation('software.amazon.awssdk:url-connection-client:2.33.2') {
+        exclude group: 'org.slf4j', module: 'slf4j-api'
+    }
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
