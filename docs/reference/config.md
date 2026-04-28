@@ -31,13 +31,15 @@ lamin {
 
   // Track output artifacts, stripping the outdir prefix from keys
   output_artifacts {
-    key = [relativize: { params.outdir }]
+    key {
+      relativize = { params.outdir }
+    }
     exclude_pattern = '.*'
     rules {
       // Enabled by default
       reports      { type = 'include'; pattern = '.*\\.html$'; kind = 'report' }
       mapped_reads { type = 'include'; pattern = '.*\\.bam$'; kind = 'dataset' }
-      // Disabled (set enabled = true to include)
+      // Disabled (opt-in)
       bam_index    { type = 'include'; enabled = false; pattern = '.*\\.bai$'; kind = 'dataset' }
     }
   }
@@ -116,10 +118,12 @@ Apply to `artifacts`, `input_artifacts`, or `output_artifacts`:
 
 The `key` option controls how artifact keys are generated from file paths. By default, the basename is used.
 
-**Map shorthand** (recommended for nf-core-style pipelines):
+**Scope notation** (recommended for nf-core-style pipelines):
 
 ```groovy
-key = [relativize: { params.outdir }]
+key {
+  relativize = { params.outdir }
+}
 // /home/user/results/multiqc/report.html → multiqc/report.html
 ```
 
@@ -244,7 +248,9 @@ lamin {
   }
 
   output_artifacts {
-    key = [relativize: { params.outdir }]
+    key {
+      relativize = { params.outdir }
+    }
     exclude_pattern = '.*\\.(log|tmp)$'
     rules {
       exclude_intermediate { type = 'exclude'; pattern = '.*intermediate.*'; order = 1 }

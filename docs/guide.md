@@ -1,5 +1,5 @@
 ---
-execute_via: nbconvert
+execute_via: python
 ---
 
 # Nextflow
