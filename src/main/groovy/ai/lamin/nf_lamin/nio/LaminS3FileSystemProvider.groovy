@@ -110,13 +110,7 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
             }
 
             // Create a new S3 client with the temporary session credentials
-            AwsSessionCredentials credentials = AwsSessionCredentials.create(accessKeyId, secretAccessKey, sessionToken)
-            AwsS3Client s3Client = AwsS3Client.builder()
-                .crossRegionAccessEnabled(true)
-                .region(Region.US_EAST_1)  // default; crossRegionAccessEnabled handles the rest
-                .credentialsProvider(StaticCredentialsProvider.create(credentials))
-                .httpClientBuilder(UrlConnectionHttpClient.builder())
-                .build()
+            AwsS3Client s3Client = createS3Client(accessKeyId, secretAccessKey, sessionToken)
 
             LaminS3FileSystem fs = new LaminS3FileSystem(this, storageRoot, s3Client, accessKeyId)
             fileSystems.put(storageRoot, fs)
@@ -127,6 +121,20 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
 
     void removeFileSystem(String storageRoot) {
         fileSystems.remove(storageRoot)
+    }
+
+    /**
+     * Creates an AWS S3 client with the given temporary session credentials.
+     * Protected to allow test subclasses to inject mock clients.
+     */
+    protected AwsS3Client createS3Client(String accessKeyId, String secretAccessKey, String sessionToken) {
+        AwsSessionCredentials credentials = AwsSessionCredentials.create(accessKeyId, secretAccessKey, sessionToken)
+        return AwsS3Client.builder()
+            .crossRegionAccessEnabled(true)
+            .region(Region.US_EAST_1)  // default; crossRegionAccessEnabled handles the rest
+            .credentialsProvider(StaticCredentialsProvider.create(credentials))
+            .httpClientBuilder(UrlConnectionHttpClient.builder())
+            .build()
     }
 
     // ==================== FileSystemProvider Core Methods ====================
