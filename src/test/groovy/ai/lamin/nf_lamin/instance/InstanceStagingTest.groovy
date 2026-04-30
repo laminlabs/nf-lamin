@@ -11,7 +11,7 @@ import ai.lamin.nf_lamin.LaminConfig
 import ai.lamin.nf_lamin.hub.LaminHub
 import ai.lamin.nf_lamin.hub.LaminHubConfigResolver
 import ai.lamin.nf_lamin.instance.Instance
-import ai.lamin.nf_lamin.instance.InstanceSettings
+import ai.lamin.nf_lamin.hub.InstanceSettings
 import spock.lang.IgnoreIf
 import spock.lang.Specification
 import spock.lang.Shared
@@ -60,9 +60,9 @@ class InstanceStagingTest extends Specification {
         owner == 'laminlabs'
         name == 'lamindata'
         settings != null
-        settings.id() != null
-        settings.apiUrl() != null
-        settings.schemaId() != null
+        settings.id != null
+        settings.apiUrl != null
+        settings.schemaId != null
     }
 
     @IgnoreIf({ !env.LAMIN_STAGING_API_KEY })
@@ -108,12 +108,12 @@ class InstanceStagingTest extends Specification {
         def settings = instance.getSettings()
 
         then:
-        settings.id() instanceof UUID
-        settings.owner() == 'laminlabs'
-        settings.name() == 'lamindata'
-        settings.apiUrl() instanceof String
-        settings.schemaId() instanceof UUID
-        settings.apiUrl().startsWith('http')
+        settings.id instanceof UUID
+        settings.owner == 'laminlabs'
+        settings.name == 'lamindata'
+        settings.apiUrl instanceof String
+        settings.schemaId instanceof UUID
+        settings.apiUrl.startsWith('http')
     }
 
     @IgnoreIf({ !env.LAMIN_STAGING_API_KEY })

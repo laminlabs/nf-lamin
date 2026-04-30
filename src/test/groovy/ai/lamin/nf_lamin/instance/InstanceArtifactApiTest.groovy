@@ -84,7 +84,7 @@ class InstanceArtifactApiTest extends Specification {
                 config.instanceName
             )
             instance = new Instance(hub, settings, 3, 1000)
-            instanceId = settings.id().toString()
+            instanceId = settings.id
 
             // --- Resolve test branch ---
             Map<String, Object> testBranch = instance.findOrCreateByName('core', 'branch', 'nf-lamin-test-branch')

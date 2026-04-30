@@ -14,6 +14,7 @@ import ai.lamin.lamin_api_client.api.InstanceStatisticsApi
 import ai.lamin.lamin_api_client.api.InstanceTransformsApi
 
 import ai.lamin.nf_lamin.hub.LaminHub
+import ai.lamin.nf_lamin.hub.InstanceSettings
 
 import nextflow.file.FileHelper
 
@@ -92,7 +93,7 @@ class Instance {
      * @return the owner
      */
     String getOwner() {
-        return this.settings.owner()
+        return this.settings.owner
     }
 
     /**
@@ -100,7 +101,7 @@ class Instance {
      * @return the name
      */
     String getName() {
-        return this.settings.name()
+        return this.settings.name
     }
 
     /**
@@ -153,7 +154,7 @@ class Instance {
 
         Object response = callApi { String accessToken ->
             this.statisticsApi.getInstanceStatisticsInstancesInstanceIdStatisticsGet(
-                this.settings.id(),
+                this.settings.id,
                 [],
                 accessToken
             )
@@ -172,7 +173,7 @@ class Instance {
 
         Map response = callApi { String accessToken ->
             this.statisticsApi.getNonEmptyTablesInstancesInstanceIdNonEmptyTablesGet(
-                this.settings.id(),
+                this.settings.id,
                 accessToken
             )
         } as Map
@@ -194,7 +195,7 @@ class Instance {
 
         Map response = callApi { String accessToken ->
             this.schemaApi.getSchemaInstancesInstanceIdSchemaGet(
-                this.settings.id(),
+                this.settings.id,
                 accessToken
             )
         } as Map
@@ -243,7 +244,7 @@ class Instance {
                 moduleName,
                 modelName,
                 idOrUid,
-                this.settings.id(),
+                this.settings.id,
                 limitToMany,
                 includeForeignKeys,
                 accessToken,
@@ -304,7 +305,7 @@ class Instance {
             this.recordsApi.getRecordsInstancesInstanceIdModulesModuleNameModelNamePost(
                 moduleName,
                 modelName,
-                this.settings.id(),
+                this.settings.id,
                 limit,
                 offset,
                 limitToMany,
@@ -344,7 +345,7 @@ class Instance {
             this.recordsApi.createRecordsInstancesInstanceIdModulesModuleNameModelNamePut(
                 moduleName,
                 modelName,
-                this.settings.id(),
+                this.settings.id,
                 data,
                 accessToken
             )
@@ -390,7 +391,7 @@ class Instance {
                 moduleName,
                 modelName,
                 uid,
-                this.settings.id(),
+                this.settings.id,
                 data,
                 accessToken
             ) as Map
@@ -426,7 +427,7 @@ class Instance {
                 moduleName,
                 modelName,
                 uid,
-                this.settings.id(),
+                this.settings.id,
                 accessToken
             )
         }
@@ -696,7 +697,7 @@ class Instance {
         log.trace "POST /instances/{instance_id}/transforms: ${body.toJson()}"
         Map response = callApi { String accessToken ->
             this.transformsApi.createTransformInstancesInstanceIdTransformsPost(
-                this.settings.id(),
+                this.settings.id,
                 body,
                 accessToken
             ) as Map
@@ -744,7 +745,7 @@ class Instance {
 
         Map<String, Object> response = callApi { String accessToken ->
             this.artifactsApi.createArtifactInstancesInstanceIdArtifactsCreatePost(
-                this.settings.id(),
+                this.settings.id,
                 body,
                 accessToken
             ) as Map<String, Object>
@@ -779,7 +780,7 @@ class Instance {
                 // This workaround prevents retries on DoesNotExist errors from legacy API.
                 // See: https://github.com/laminlabs/laminhub-public/issues/196
                 this.artifactsApi.getArtifactByPathInstancesInstanceIdArtifactsByPathGet(
-                    this.settings.id(),
+                    this.settings.id,
                     path,
                     accessToken
                 ) as Map<String, Object>
@@ -841,7 +842,7 @@ class Instance {
         log.trace "POST /instances/{instance_id}/artifacts/upload: file=${file}, kwargs=${kwargsString}"
         Map<String, Object> response = callApi { String accessToken ->
             this.artifactsApi.uploadArtifactInstancesInstanceIdArtifactsUploadPost(
-                this.settings.id(),
+                this.settings.id,
                 file,
                 accessToken,
                 kwargsString

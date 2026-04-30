@@ -40,7 +40,10 @@ import nextflow.file.FileHelper
 import nextflow.file.FileSystemTransferAware
 import nextflow.file.CopyOptions
 
+import ai.lamin.nf_lamin.LaminConfig
 import ai.lamin.nf_lamin.LaminRunManager
+import ai.lamin.nf_lamin.hub.CloudAccessResponse
+import ai.lamin.nf_lamin.hub.LaminHub
 import ai.lamin.nf_lamin.instance.Instance
 
 /**
@@ -61,6 +64,10 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
 
     // Cache of file systems by instance slug
     private final Map<String, LaminFileSystem> fileSystems = Collections.synchronizedMap(new LinkedHashMap<String, LaminFileSystem>())
+
+    // Cache: storageRoot -> CloudAccessResponse
+    // Avoids calling getCloudAccess() on every artifact resolution.
+    private final Map<String, CloudAccessResponse> cloudAccessCache = Collections.synchronizedMap(new LinkedHashMap<String, CloudAccessResponse>())
 
     /**
      * Get an Instance client for a specific LaminDB instance.
@@ -170,15 +177,16 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
     /**
      * Resolve a LaminPath to its underlying storage path.
      *
-     * This method queries the LaminDB API to find the artifact's storage
-     * location and returns a Path object pointing to that location.
+     * This method queries the LaminDB API to find the artifact's storage location and
+     * returns a Path object pointing to that location.
      *
-     * Note: This currently relies on credentials being configured in nextflow.config
-     * (e.g., aws.accessKey/secretKey). Future versions will support automatic
-     * credential federation from LaminHub.
+     * - For S3-backed artifacts in Lamin-managed buckets, this method attempts to obtain
+     *   temporary session credentials.
+     * - If the storage is not managed by LaminHub (public or externally-managed bucket) the
+     *   method falls back to resolving through the standard nf-amazon {@code s3://} provider.
      *
      * @param laminPath The LaminPath to resolve
-     * @return A Path to the underlying storage (e.g., S3Path, GcsPath, local Path)
+     * @return A Path to the underlying storage (LaminS3Path, S3Path, GcsPath, local Path, ...)
      */
     Path resolveToUnderlyingPath(LaminPath laminPath) {
         log.debug "Resolving LaminPath to underlying storage: ${laminPath}"
@@ -186,26 +194,104 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
         LaminFileSystem fs = (LaminFileSystem) laminPath.fileSystem
         Instance instance = fs.laminInstance
 
-        // Get the artifact storage info
+        // Retrieve storage root (e.g. "s3://lamin-us-east-1/JwMEKs04D9WJ") and relative key
         String uid = laminPath.resourceId
         Map<String, Object> artifactInfo = instance.getArtifactStorageInfo(uid)
 
         String storageRoot = artifactInfo.storageRoot as String
         String artifactKey = artifactInfo.artifactKey as String
 
-        // Build the full path
-        String fullPath = storageRoot.endsWith('/') ? storageRoot + artifactKey : storageRoot + '/' + artifactKey
+        // Attempt credential federation for Lamin-managed S3 storage
+        if (storageRoot?.startsWith('s3://')) {
+            LaminConfig config = LaminRunManager.getInstance().getConfig()
+            boolean manageCredentials = config?.features?.manageS3Credentials != false
+            if (manageCredentials) {
+                Path managed = tryResolveWithManagedS3Credentials(laminPath, storageRoot, artifactKey)
+                if (managed != null) {
+                    return managed
+                }
+            }
+        }
 
-        // Use FileHelper to create the path - this will use credentials from nextflow.config
+        // Fall back: resolve via the standard nf-amazon s3:// (or gs://, local, …) provider
+        String fullPath = storageRoot.endsWith('/') ? storageRoot + artifactKey : storageRoot + '/' + artifactKey
         Path artifactPath = FileHelper.asPath(fullPath)
 
-        // If there's a sub-path, resolve it
         if (laminPath.subPath) {
             artifactPath = artifactPath.resolve(laminPath.subPath)
         }
 
-        log.debug "Resolved ${laminPath.toUri()} to ${artifactPath.toUri()}"
+        log.debug "Resolved ${laminPath.toUri()} to ${artifactPath.toUri()} (standard provider)"
         return artifactPath
+    }
+
+    /**
+     * Return cloud access credentials for the given storage root, using a per-root cache.
+     *
+     * Cached entries are re-used until 5 minutes before their STS expiry (or 55 minutes
+     * if no Expiration field is present). A stale entry triggers a fresh call to
+     * {@code LaminHub.getCloudAccess()}.
+     */
+    private CloudAccessResponse getCachedCloudAccess(LaminHub hub, String storageRoot) {
+        CloudAccessResponse cached = cloudAccessCache.get(storageRoot)
+        if (cached != null && !cached.isCacheExpired()) {
+            log.debug "Using cached cloud credentials for ${storageRoot}"
+            return cached
+        }
+        if (cached != null) {
+            log.debug "Cached cloud credentials for ${storageRoot} expired, re-fetching"
+        }
+
+        CloudAccessResponse fresh = hub.getCloudAccess(storageRoot)
+        if (fresh.hasCredentials()) {
+            cloudAccessCache.put(storageRoot, fresh)
+        }
+        return fresh
+    }
+
+    /**
+     * Attempt to resolve a LaminPath to a {@link LaminS3Path} using Lamin-managed STS credentials.
+     *
+     * Credentials are obtained from LaminHub and are scoped to the given {@code storageRoot}.
+     * Multiple storage roots may share the same S3 bucket but carry independent credentials.
+     *
+     * @param laminPath   The LaminPath being resolved
+     * @param storageRoot The full storage root URI (e.g. {@code s3://bucket/prefix})
+     * @param artifactKey The relative key of the artifact within the storage root
+     * @return A {@link LaminS3Path} if managed credentials are available, or {@code null} to fall back
+     */
+    private Path tryResolveWithManagedS3Credentials(LaminPath laminPath, String storageRoot, String artifactKey) {
+        try {
+            LaminHub hub = LaminRunManager.getInstance().getHub()
+            if (hub == null) {
+                return null
+            }
+
+            CloudAccessResponse cloudAccess = getCachedCloudAccess(hub, storageRoot)
+            if (!cloudAccess.isUsable()) {
+                log.debug "No Lamin-managed credentials for ${storageRoot} (public or unsupported storage) — falling back to standard provider"
+                return null
+            }
+
+            // Parse storage-root prefix from the root URI
+            // e.g. s3://lamin-us-east-1/JwMEKs04D9WJ → prefix=JwMEKs04D9WJ
+            String storagePrefix = new URI(storageRoot).path?.replaceFirst('^/', '')  // strip leading /
+
+            String fullKey = storagePrefix ? "${storagePrefix}/${artifactKey}" : artifactKey
+            if (laminPath.subPath) {
+                fullKey = "${fullKey}/${laminPath.subPath}"
+            }
+
+            LaminS3FileSystemProvider s3Provider = FileHelper.getOrInstallProvider(LaminS3FileSystemProvider)
+            LaminS3FileSystem s3Fs = s3Provider.getOrCreateFileSystem(storageRoot, cloudAccess.accessKeyId, cloudAccess.secretAccessKey, cloudAccess.sessionToken)
+
+            log.debug "Resolved ${laminPath.toUri()} to lamin-s3://${s3Fs.bucketName}/${fullKey} (Lamin-managed credentials)"
+            return new LaminS3Path(s3Fs, fullKey)
+        } catch (Exception e) {
+            log.warn "Could not obtain cloud credentials for ${storageRoot}, falling back to standard S3 path: ${e.message}"
+            log.debug "getCloudAccess failure detail", e
+            return null
+        }
     }
 
     // ==================== File Operations (Delegated) ====================

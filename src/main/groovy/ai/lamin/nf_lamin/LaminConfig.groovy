@@ -26,6 +26,7 @@ import nextflow.script.dsl.Description
 
 import ai.lamin.nf_lamin.config.ArtifactConfig
 import ai.lamin.nf_lamin.config.ApiConfig
+import ai.lamin.nf_lamin.config.FeaturesConfig
 import ai.lamin.nf_lamin.config.RunConfig
 import ai.lamin.nf_lamin.config.TransformConfig
 
@@ -209,6 +210,12 @@ class LaminConfig implements ConfigScope {
     ''')
     final TransformConfig transform
 
+    @ConfigOption
+    @Description('''
+        (Advanced) Feature flags for enabling or disabling optional plugin features.
+    ''')
+    final FeaturesConfig features
+
     /* required by extension point -- do not remove */
     LaminConfig() {}
 
@@ -270,6 +277,9 @@ class LaminConfig implements ConfigScope {
         // Parse run and transform configurations
         this.run = opts.containsKey('run') ? new RunConfig(opts.run as Map) : new RunConfig()
         this.transform = opts.containsKey('transform') ? new TransformConfig(opts.transform as Map) : new TransformConfig()
+
+        // Parse feature flags
+        this.features = opts.containsKey('features') ? new FeaturesConfig(opts.features as Map) : new FeaturesConfig()
 
         validateConfiguration()
     }

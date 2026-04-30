@@ -2,7 +2,7 @@ package ai.lamin.nf_lamin
 
 import spock.lang.Specification
 import ai.lamin.nf_lamin.instance.Instance
-import ai.lamin.nf_lamin.instance.InstanceSettings
+import ai.lamin.nf_lamin.hub.InstanceSettings
 import java.nio.file.Path
 import java.nio.file.Paths
 
@@ -70,13 +70,13 @@ class LaminExtensionTest extends Specification {
 
     def 'getInstanceSlug returns slug when instance is set'() {
         given:
-        def settings = new InstanceSettings(
-            id: UUID.randomUUID(),
+        def settings = new InstanceSettings([
+            id: UUID.randomUUID().toString(),
             owner: 'laminlabs',
             name: 'lamindata',
-            schemaId: UUID.randomUUID(),
-            apiUrl: 'https://api.example.com'
-        )
+            schema_id: UUID.randomUUID().toString(),
+            api_url: 'https://api.example.com'
+        ])
         def mockInstance = Mock(Instance) {
             getSettings() >> settings
         }
@@ -88,13 +88,13 @@ class LaminExtensionTest extends Specification {
 
     def 'getInstanceSlug returns correct format for different owners and names'() {
         given:
-        def settings = new InstanceSettings(
-            id: UUID.randomUUID(),
+        def settings = new InstanceSettings([
+            id: UUID.randomUUID().toString(),
             owner: 'my-org',
             name: 'production-db',
-            schemaId: UUID.randomUUID(),
-            apiUrl: 'https://api.example.com'
-        )
+            schema_id: UUID.randomUUID().toString(),
+            api_url: 'https://api.example.com'
+        ])
         def mockInstance = Mock(Instance) {
             getSettings() >> settings
         }
@@ -152,13 +152,13 @@ class LaminExtensionTest extends Specification {
 
     def 'all extension functions work together'() {
         given:
-        def settings = new InstanceSettings(
-            id: UUID.randomUUID(),
+        def settings = new InstanceSettings([
+            id: UUID.randomUUID().toString(),
             owner: 'testorg',
             name: 'testinstance',
-            schemaId: UUID.randomUUID(),
-            apiUrl: 'https://api.example.com'
-        )
+            schema_id: UUID.randomUUID().toString(),
+            api_url: 'https://api.example.com'
+        ])
         def mockInstance = Mock(Instance) {
             getSettings() >> settings
         }
@@ -175,13 +175,13 @@ class LaminExtensionTest extends Specification {
 
     def 'reset clears all state accessible via extension'() {
         given:
-        def settings = new InstanceSettings(
-            id: UUID.randomUUID(),
+        def settings = new InstanceSettings([
+            id: UUID.randomUUID().toString(),
             owner: 'testorg',
             name: 'testinstance',
-            schemaId: UUID.randomUUID(),
-            apiUrl: 'https://api.example.com'
-        )
+            schema_id: UUID.randomUUID().toString(),
+            api_url: 'https://api.example.com'
+        ])
         def mockInstance = Mock(Instance) {
             getSettings() >> settings
         }
