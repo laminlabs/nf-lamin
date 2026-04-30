@@ -49,15 +49,23 @@ jobs:
       matrix:
         include:
           - java_version: 21
+            # nextflow_version: latest-stable
+            nextflow_version: 25.10.4
             validation_args: ""
             lamin_env: prod
           - java_version: 21
+            # nextflow_version: latest-stable
+            nextflow_version: 25.10.4
             validation_args: "--artifact-uri lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A --artifact-uid-on-current-instance cuQZhgVvDuy1GxxG"
             lamin_env: staging
           - java_version: 25
+            # nextflow_version: latest-edge
+            nextflow_version: 25.10.4
             validation_args: "-with-report"
             lamin_env: prod
           - java_version: 25
+            # nextflow_version: latest-edge
+            nextflow_version: 25.10.4
             validation_args: "-with-report --artifact-uri lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A --artifact-uid-on-current-instance cuQZhgVvDuy1GxxG"
             lamin_env: staging
     steps:
@@ -84,7 +92,7 @@ jobs:
 
       - uses: nf-core/setup-nextflow@v2
         with:
-          version: "latest-stable"
+          version: ${{ matrix.nextflow_version }}
 
       - name: Compile
         run: make assemble
