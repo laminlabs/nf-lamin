@@ -700,6 +700,13 @@ final class LaminRunManager {
         }
 
         String description = "Input artifact at ${path.toUri()}"
+        if (evaluation.descriptionConfig != null) {
+            Map<String, Object> descContext = [runId: null, path: path, outputName: null] as Map<String, Object>
+            String resolved = ConfigUtils.resolveDescription(evaluation.descriptionConfig, descContext)
+            if (resolved != null) {
+                description = resolved
+            }
+        }
 
         Map<String, Object> params = [
             path: path,
@@ -757,7 +764,16 @@ final class LaminRunManager {
             return null
         }
 
-        String description = "Output artifact for run ${runId}"
+        String outputStr = outputName ? " '${outputName}'" : ""
+        String defaultDescription = "Output artifact${outputStr} for run ${runId}"
+        String description = defaultDescription
+        if (evaluation.descriptionConfig != null) {
+            Map<String, Object> descContext = [runId: runId, path: path, outputName: outputName] as Map<String, Object>
+            String resolved = ConfigUtils.resolveDescription(evaluation.descriptionConfig, descContext)
+            if (resolved != null) {
+                description = resolved
+            }
+        }
 
         Map<String, Object> params = [
             path: path,
