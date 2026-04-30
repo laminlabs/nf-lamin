@@ -272,6 +272,28 @@ lamin {
 
 ---
 
+## `lamin.features` - Feature flags
+
+Optional toggles for plugin features.
+
+| Setting                 | Type    | Default | Description                                                                         |
+| ----------------------- | ------- | ------- | ----------------------------------------------------------------------------------- |
+| `manage_s3_credentials` | Boolean | `true`  | Enable automatic credential federation for S3 (see [`lamin://` URIs](lamin-uri.md)) |
+
+**Example** — disable credential federation if it causes issues in your environment:
+
+```groovy
+lamin {
+  features {
+    manage_s3_credentials = false
+  }
+}
+```
+
+When `manage_s3_credentials = false`, the plugin resolves `lamin://` URIs to their underlying `s3://` paths and lets Nextflow handle authentication via the standard credential provider chain (environment variables, AWS credentials file, instance profile, etc.).
+
+---
+
 ## `lamin.api` - API connection (Advanced settings)
 
 | Setting             | Type    | Default | Env variable        |

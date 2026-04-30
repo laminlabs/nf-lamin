@@ -68,9 +68,15 @@ nextflow run my-pipeline.nf --input 'lamin://laminlabs/lamindata/artifact/PnNjE9
 
 - The `nf-lamin` plugin must be configured with a valid API key
 - The workflow must have started (the plugin initializes on workflow start)
-- For private cloud storage, ensure your AWS/GCS credentials are configured in `nextflow.config`
+
+## Credential federation (automatic, S3)
+
+For artifacts stored in LaminHub-managed **S3** storage, the plugin automatically obtains temporary STS session credentials from LaminHub and uses them to stage the file. No AWS credential configuration is required in `nextflow.config`.
+
+The plugin resolves the `lamin://` URI to the artifact's storage location (`storageRoot` and key), then calls LaminHub's cloud-access API to get short-lived `AccessKeyId` / `SecretAccessKey` / `SessionToken` credentials scoped to that storage root. Nextflow stages the file through an internal `lamin-s3://` virtual filesystem backed by those credentials.
+
+This feature can be turned off by setting `lamin.features.manage_s3_credentials = false` in `nextflow.config`, in which case the plugin will attempt to resolve `lamin://` URIs using the default credential provider chain (e.g. environment variables, AWS credentials file, EC2 instance profile, etc).
 
 ## Limitations
 
-- `lamin://` paths are **read-only** - you cannot write to them
-- Currently uses cloud credentials from your `nextflow.config` (automatic credential federation from LaminHub is planned for a future release)
+- `lamin://` paths are **read-only** — you cannot write to them
