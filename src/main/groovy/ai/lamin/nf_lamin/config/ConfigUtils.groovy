@@ -62,6 +62,32 @@ class ConfigUtils {
     }
 
     /**
+     * Resolve a description from a config value (String or Closure) with a context map.
+     *
+     * The Closure receives a binding with the provided context variables
+     * (e.g. {@code runId}, {@code path}, {@code outputName}) via
+     * {@code DELEGATE_FIRST} resolution, matching how Nextflow evaluates closures.
+     * Additional context variables may be added in the future without breaking existing closures.
+     *
+     * @param descConfig The description config value (String, Closure, or null)
+     * @param context Map of context variables exposed to the closure
+     * @return The resolved description string, or null if descConfig is null
+     */
+    static String resolveDescription(Object descConfig, Map<String, Object> context) {
+        if (descConfig == null) {
+            return null
+        }
+        if (descConfig instanceof Closure) {
+            Closure cl = (Closure) descConfig
+            cl.delegate = context
+            cl.resolveStrategy = Closure.DELEGATE_FIRST
+            Object result = cl.call()
+            return result?.toString()
+        }
+        return descConfig.toString()
+    }
+
+    /**
      * Compile a regex pattern string into a Pattern object.
      * @param pattern The pattern string to compile (may be null)
      * @param fieldName The field name for error messages
