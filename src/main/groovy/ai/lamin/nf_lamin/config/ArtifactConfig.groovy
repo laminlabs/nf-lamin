@@ -120,6 +120,15 @@ class ArtifactConfig {
     ''')
     final Object key
 
+    @ConfigOption(types=[String, Closure])
+    @Description('''
+        Artifact description. Can be a plain String or a Closure whose return value
+        is used as the description. The Closure receives a binding with the following
+        variables: runId (Integer), path (Path), outputName (String, may be null).
+        Example: description = { "My output '${outputName}' in run ${runId}" }
+    ''')
+    final Object description
+
     @ConfigOption
     @Description('''
         Path-specific rules for fine-grained control over artifact tracking. Each rule can match files by pattern and override tracking decisions and metadata.
@@ -168,6 +177,7 @@ class ArtifactConfig {
         this.excludePattern = safeOpts.exclude_pattern as String
         this.kind = safeOpts.kind as String
         this.key = safeOpts.key  // keep as-is: String template or Closure
+        this.description = safeOpts.description  // keep as-is: String or Closure
 
         // Parse list fields (can be String, List, or Closure)
         this.ulabelUids = ConfigUtils.parseStringOrList(safeOpts.ulabel_uids)
@@ -267,6 +277,7 @@ class ArtifactConfig {
         List<String> ulabels = new ArrayList<>(this.ulabelUids)
         String artifactKind = this.kind
         Object effectiveKeyConfig = this.key
+        Object effectiveDescriptionConfig = this.description
         boolean shouldTrack = true
 
         // Apply global exclude pattern
@@ -306,6 +317,9 @@ class ArtifactConfig {
                 if (rule.key != null) {
                     effectiveKeyConfig = rule.key
                 }
+                if (rule.description != null) {
+                    effectiveDescriptionConfig = rule.description
+                }
             }
         }
 
@@ -321,7 +335,8 @@ class ArtifactConfig {
             shouldTrack,
             ulabels.unique(),
             artifactKind,
-            resolvedKey
+            resolvedKey,
+            effectiveDescriptionConfig
         )
     }
 
@@ -356,7 +371,8 @@ class ArtifactConfig {
                         true,
                         new ArrayList<>(this.ulabelUids),
                         this.kind,
-                        null  // key resolved later from resolved Path
+                        null,  // key resolved later from resolved Path
+                        this.description
                     )
                 ] as Map<String, Object>)
             }
@@ -377,6 +393,7 @@ class ArtifactConfig {
             String effectiveKind = rule.kind ?: this.kind
 
             Object effectiveKeyConfig = rule.key != null ? rule.key : this.key
+            Object effectiveDescriptionConfig = rule.description != null ? rule.description : this.description
 
             for (String pathStr : rule.resolvePaths(workflowParams)) {
                 result.add([
@@ -386,7 +403,8 @@ class ArtifactConfig {
                         true,
                         mergedUlabels,
                         effectiveKind,
-                        null  // key resolved later from resolved Path
+                        null,  // key resolved later from resolved Path
+                        effectiveDescriptionConfig
                     )
                 ] as Map<String, Object>)
             }
@@ -420,6 +438,7 @@ class ArtifactConfig {
             "ulabelUids=${ulabelUids}, " +
             "kind='${kind}', " +
             "key='${key instanceof Closure ? '<closure>' : key}', " +
+            "description=${description instanceof Closure ? '<closure>' : description}, " +
             "include_paths=${pathsClosure != null ? '<closure>' : include_paths}, " +
             "rules=${rules.size()} rules" +
             "}"

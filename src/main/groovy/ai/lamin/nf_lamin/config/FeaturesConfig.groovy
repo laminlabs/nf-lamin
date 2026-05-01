@@ -47,26 +47,40 @@ class FeaturesConfig {
     ''')
     final Boolean manageS3Credentials
 
+    @ConfigOption
+    @Description('''
+        Enable linking of publishDir labels to artifacts as ULabels.
+        When enabled (default: true), labels attached to publishDir directives
+        (via `publishDir label:`) are automatically created as ULabels in LaminDB
+        and linked to the corresponding artifact. Disable this if you do not want
+        publishDir labels to be stored in LaminDB.
+    ''')
+    final Boolean useOutputLabels
+
     /**
      * Default constructor
      */
     FeaturesConfig() {
         this.manageS3Credentials = true
+        this.useOutputLabels = true
     }
 
     /**
      * Create a FeaturesConfig from a configuration map.
      *
-     * @param opts Configuration map with keys: manage_s3_credentials
+     * @param opts Configuration map with keys: manage_s3_credentials, publish_dir_labels
      */
     FeaturesConfig(Map opts) {
         this.manageS3Credentials = opts?.containsKey('manage_s3_credentials')
             ? (opts.manage_s3_credentials as Boolean)
             : true
+        this.useOutputLabels = opts?.containsKey('use_output_labels')
+            ? (opts.use_output_labels as Boolean)
+            : true
     }
 
     @Override
     String toString() {
-        return "FeaturesConfig{manageS3Credentials=${manageS3Credentials}}"
+        return "FeaturesConfig{manageS3Credentials=${manageS3Credentials}, useOutputLabels=${useOutputLabels}}"
     }
 }

@@ -108,6 +108,16 @@ class ArtifactRule {
     ''')
     final Object key
 
+    @ConfigOption(types=[String, Closure])
+    @Description('''
+        Artifact description. Can be a plain String or a Closure whose return value
+        is used as the description. The Closure receives a binding with the following
+        variables: runId (Integer), path (Path), outputName (String, may be null).
+        Overrides the description set on the parent ArtifactConfig.
+        Example: description = { "My output '${outputName}' in run ${runId}" }
+    ''')
+    final Object description
+
     @ConfigOption(types=[String, List, Closure])
     @Description('''
         One or more file paths to explicitly track as artifacts.
@@ -135,6 +145,7 @@ class ArtifactRule {
         this.direction = opts.containsKey('direction') ? (opts.direction as String) : 'both'
         this.kind = opts.kind as String
         this.key = opts.key  // keep as-is: String template or Closure
+        this.description = opts.description  // keep as-is: String or Closure
         this.order = opts.containsKey('order') ? (opts.order as Integer) : 100
 
         // Parse list fields (can be String, List, or Closure)
@@ -232,6 +243,7 @@ class ArtifactRule {
             "ulabelUids=${ulabelUids}, " +
             "include_paths=${pathsClosure != null ? '<closure>' : include_paths}, " +
             "key='${key instanceof Closure ? '<closure>' : key}', " +
+            "description=${description instanceof Closure ? '<closure>' : description}, " +
             "order=${order}" +
             "}"
     }

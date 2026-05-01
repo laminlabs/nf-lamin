@@ -48,18 +48,27 @@ class ArtifactEvaluation {
     final String key
 
     /**
+     * Raw description config (String or Closure), or null if not specified.
+     * Resolved at artifact-creation time via ConfigUtils.resolveDescription with context
+     * variables: runId, path, outputName.
+     */
+    final Object descriptionConfig
+
+    /**
      * Create a new ArtifactEvaluation with typed fields.
      *
      * @param shouldTrack Whether the artifact should be tracked
      * @param ulabelUids Accumulated ULabel UIDs
      * @param kind Artifact kind, or null
      * @param key Artifact key, or null
+     * @param descriptionConfig Raw description config (String or Closure), or null
      */
-    ArtifactEvaluation(boolean shouldTrack, List<String> ulabelUids, String kind, String key = null) {
+    ArtifactEvaluation(boolean shouldTrack, List<String> ulabelUids, String kind, String key = null, Object descriptionConfig = null) {
         this.shouldTrack = shouldTrack
         this.ulabelUids = ulabelUids ?: []
         this.kind = kind
         this.key = key
+        this.descriptionConfig = descriptionConfig
     }
 
     /**
@@ -79,6 +88,6 @@ class ArtifactEvaluation {
 
     @Override
     String toString() {
-        return "ArtifactEvaluation{shouldTrack=${shouldTrack}, ulabelUids=${ulabelUids}, kind=${kind}, key=${key}}"
+        return "ArtifactEvaluation{shouldTrack=${shouldTrack}, ulabelUids=${ulabelUids}, kind=${kind}, key=${key}, descriptionConfig=${descriptionConfig instanceof Closure ? '<closure>' : descriptionConfig}}"
     }
 }

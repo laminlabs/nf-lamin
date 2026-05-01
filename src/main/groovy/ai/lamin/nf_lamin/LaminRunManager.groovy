@@ -44,6 +44,7 @@ import ai.lamin.nf_lamin.nio.LaminPath
 import ai.lamin.nf_lamin.util.TransformInfoHelper
 import ai.lamin.nf_lamin.config.ArtifactConfig
 import ai.lamin.nf_lamin.config.ArtifactEvaluation
+import ai.lamin.nf_lamin.config.ConfigUtils
 import ai.lamin.nf_lamin.config.KeyResolver
 
 /**
@@ -78,6 +79,10 @@ final class LaminRunManager {
     // Cache for resolved record lookups (key: "module/model/uidOrName", value: record map)
     private final Map<String, Map> recordResolutionCache = Collections.synchronizedMap(new LinkedHashMap<String, Map>())
 
+    // Cache of published output artifacts (key: path URI string, value: artifact map)
+    // Written by createOutputArtifact; read by createOutputArtifact(labels) and trackWorkflowOutput
+    private final Map<String, Map> publishedArtifactsByPath = Collections.synchronizedMap(new LinkedHashMap<String, Map>())
+
     private LaminRunManager() {
     }
 
@@ -97,6 +102,7 @@ final class LaminRunManager {
         resolvedBranchId = null
         instanceCache.clear()
         recordResolutionCache.clear()
+        publishedArtifactsByPath.clear()
     }
 
     /**
@@ -634,7 +640,7 @@ final class LaminRunManager {
                 if (direction == 'input') {
                     createInputArtifact(resolvedPath, prebuiltEvaluation)
                 } else {
-                    createOutputArtifact(resolvedPath, prebuiltEvaluation)
+                    createOutputArtifactFromConfigPaths(resolvedPath, prebuiltEvaluation)
                 }
             } catch (Exception e) {
                 log.warn "Failed to process configured ${direction} path '${pathStr}': ${e.message}"
@@ -700,6 +706,13 @@ final class LaminRunManager {
         }
 
         String description = "Input artifact at ${path.toUri()}"
+        if (evaluation.descriptionConfig != null) {
+            Map<String, Object> descContext = [runId: null, path: path, outputName: null] as Map<String, Object>
+            String resolved = ConfigUtils.resolveDescription(evaluation.descriptionConfig, descContext)
+            if (resolved != null) {
+                description = resolved
+            }
+        }
 
         Map<String, Object> params = [
             path: path,
@@ -731,11 +744,65 @@ final class LaminRunManager {
         return artifact
     }
 
-    Map<String, Object> createOutputArtifact(Path path) {
-        return createOutputArtifact(path, null)
+    /**
+     * Called from {@link ai.lamin.nf_lamin.LaminObserver#onFilePublish}.
+     *
+     * If the artifact was already created by {@code createOutputArtifactOnWorkflowOutput}
+     * (which fires first for index/manifest files), only the labels are linked to the
+     * existing artifact rather than creating a duplicate.
+     *
+     * @param path   The published file path ({@code FilePublishEvent.target})
+     * @param labels Labels from the publishDir {@code label} directive (may be null or empty)
+     */
+    Map<String, Object> createOutputArtifactOnFilePublish(Path path, List<String> labels) {
+        String pathKey = path.toUri().toString()
+        Map<String, Object> cachedArtifact = publishedArtifactsByPath.get(pathKey) as Map<String, Object>
+        if (cachedArtifact != null) {
+            if (labels && config?.features?.useOutputLabels != false) {
+                linkArtifactToUlabels(cachedArtifact, labels.collect { "+${it}" as String })
+            }
+            return cachedArtifact
+        }
+        return createOutputArtifact(path, null, labels, null)
     }
 
-    Map<String, Object> createOutputArtifact(Path path, ArtifactEvaluation prebuiltEvaluation) {
+    /**
+     * Called from {@link ai.lamin.nf_lamin.LaminRunManager#processConfigPaths} for paths
+     * declared explicitly in the {@code lamin.artifacts} config block.
+     *
+     * @param path       The output file path
+     * @param evaluation Pre-built evaluation carrying kind, key, ulabels, and description config
+     */
+    Map<String, Object> createOutputArtifactFromConfigPaths(Path path, ArtifactEvaluation evaluation) {
+        return createOutputArtifact(path, evaluation, null, null)
+    }
+
+    /**
+     * Called from {@link ai.lamin.nf_lamin.LaminObserver#onWorkflowOutput}.
+     *
+     * Associates a path with its named workflow output. If the artifact was already created
+     * by {@code createOutputArtifactOnFilePublish} (normal content files where
+     * {@code onFilePublish} fires first), this is a no-op. Otherwise the artifact is created now so that paths not
+     * published through a {@code publishDir} are still recorded.
+     *
+     * @param path       The published file path ({@code WorkflowOutputEvent.value} or {@code .index})
+     * @param outputName The workflow output block name ({@code WorkflowOutputEvent.name})
+     */
+    void createOutputArtifactOnWorkflowOutput(Path path, String outputName) {
+        if (run == null || laminInstance == null || config?.dryRun) {
+            return
+        }
+        String pathKey = path.toUri().toString()
+        if (!publishedArtifactsByPath.containsKey(pathKey)) {
+            // Path was not captured via onFilePublish – create it now so it is still recorded.
+            Map<String, Object> artifact = createOutputArtifact(path, null, null, outputName)
+            if (artifact == null) {
+                log.debug "No artifact tracked for workflow output '${outputName}' at ${pathKey}"
+            }
+        }
+    }
+
+    private Map<String, Object> createOutputArtifact(Path path, ArtifactEvaluation prebuiltEvaluation, List<String> labels, String outputName) {
         if (run == null || laminInstance == null || config.dryRun) {
             return null
         }
@@ -757,7 +824,16 @@ final class LaminRunManager {
             return null
         }
 
-        String description = "Output artifact for run ${runId}"
+        String outputStr = outputName ? " '${outputName}'" : ""
+        String defaultDescription = "Output artifact${outputStr} for run ${runId}"
+        String description = defaultDescription
+        if (evaluation.descriptionConfig != null) {
+            Map<String, Object> descContext = [runId: runId, path: path, outputName: outputName] as Map<String, Object>
+            String resolved = ConfigUtils.resolveDescription(evaluation.descriptionConfig, descContext)
+            if (resolved != null) {
+                description = resolved
+            }
+        }
 
         Map<String, Object> params = [
             path: path,
@@ -783,6 +859,14 @@ final class LaminRunManager {
         List<String> artifactUlabelUids = mergeUidLists(config.getUlabelUids(), evaluation.ulabelUids)
         linkArtifactToProjects(artifact, artifactProjectUids)
         linkArtifactToUlabels(artifact, artifactUlabelUids)
+
+        // Link output labels as ULabels if the feature is enabled
+        if (labels && config?.features?.useOutputLabels != false) {
+            linkArtifactToUlabels(artifact, labels.collect { "+${it}" as String })
+        }
+
+        // Cache so trackWorkflowOutput can find the artifact without creating a duplicate
+        publishedArtifactsByPath.put(path.toUri().toString(), artifact)
 
         return artifact
     }
