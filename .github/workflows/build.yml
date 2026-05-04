@@ -117,7 +117,7 @@ jobs:
 
       - name: Run validation workflow
         env:
-          LAMIN_CURRENT_INSTANCE: laminlabs/lamindata
+          LAMIN_CURRENT_INSTANCE: ${{ matrix.lamin_env == 'prod' && 'laminlabs/lamin-dev' || 'laminlabs/lamindata' }}
           LAMIN_API_KEY: ${{ matrix.lamin_env == 'staging' && secrets.LAMIN_API_KEY_TESTUSER1_STAGING || secrets.LAMIN_API_KEY_TESTUSER1 }}
           LAMIN_TEST_BUCKET: ${{ secrets.LAMIN_TEST_BUCKET }}
           LAMIN_ENV: ${{ matrix.lamin_env }}
