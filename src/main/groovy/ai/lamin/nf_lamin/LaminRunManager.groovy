@@ -454,15 +454,24 @@ final class LaminRunManager {
             reference_type: 'url',
             description: description
         ]
-        if (resolvedSpaceId != null) {
-            createArgs.put('space_id', resolvedSpaceId)
-        }
-        if (resolvedBranchId != null) {
-            createArgs.put('branch_id', resolvedBranchId)
-            createArgs.put('created_on_id', resolvedBranchId)
-        }
 
         transformRecord = laminInstance.createTransform(createArgs)
+
+        // The /transforms endpoint does not accept certain fields on creation; update separately
+        Map<String, Object> updateData = [:]
+        if (resolvedSpaceId != null) updateData['space_id'] = resolvedSpaceId
+        if (resolvedBranchId != null) {
+            updateData['branch_id'] = resolvedBranchId
+            updateData['created_on_id'] = resolvedBranchId
+        }
+        if (updateData) {
+            transformRecord = laminInstance.updateRecord(
+                moduleName: 'core',
+                modelName: 'transform',
+                uid: transformRecord.uid as String,
+                data: updateData
+            )
+        }
         updateTransform(transformRecord)
 
         // Link transform to projects and ulabels from config
