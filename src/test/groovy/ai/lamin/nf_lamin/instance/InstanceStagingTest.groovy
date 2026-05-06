@@ -155,11 +155,11 @@ class InstanceStagingTest extends Specification {
             api_key: stagingApiKey,
             env: 'staging'
         ])
-        def resolvedConfig = LaminHubConfigResolver.resolve(config)
+        def resolvedConfig = LaminHubSettings.resolve(config)
         def hub = new LaminHub(
             resolvedConfig.supabaseApiUrl,
             resolvedConfig.supabaseAnonKey,
-            resolvedConfig.apiKey
+            config.apiKey
         )
         def settings = hub.getInstanceSettings(
             config.instanceOwner,
@@ -184,11 +184,11 @@ class InstanceStagingTest extends Specification {
             api_key: stagingApiKey,
             env: 'staging'
         ])
-        def resolvedConfig = LaminHubConfigResolver.resolve(config)
+        def resolvedConfig = LaminHubSettings.resolve(config)
         def hub = new LaminHub(
             resolvedConfig.supabaseApiUrl,
             resolvedConfig.supabaseAnonKey,
-            resolvedConfig.apiKey
+            config.apiKey
         )
         def settings = hub.getInstanceSettings(
             config.instanceOwner,

@@ -1,4 +1,4 @@
-include { getRunUid; getTransformUid; getArtifactFromUid } from 'plugin/nf-lamin'
+include { getRunUid; getTransformUid } from 'plugin/nf-lamin'
 
 /*
   Parameters
@@ -6,9 +6,6 @@ include { getRunUid; getTransformUid; getArtifactFromUid } from 'plugin/nf-lamin
 
 // An artifact URI in lamin:// format
 params.artifactUri = 'lamin://laminlabs/lamindata/artifact/s3rtK8wIzJNKvg5Q'
-
-// An artifact UID on the current instance
-params.artifactUidOnCurrentInstance = 'HOpnASIDDLx3pFYD0000'
 
 // Output directory
 params.outputDir = "output"
@@ -65,15 +62,9 @@ workflow {
     log.error "Failed to read artifact via lamin:// path: ${e.message}"
   }
 
-  // Test artifact fetching via getArtifactFromUid (returns S3 path directly)
-  def artPath2 = getArtifactFromUid(params.artifactUidOnCurrentInstance)
-  log.info "Artifact via getArtifactFromUid('${params.artifactUidOnCurrentInstance}'): ${artPath2}"
-  log.info "Artifact path2 class: ${artPath2.class.name}"
-
   // create output channel
   ch_out = channel.fromList([
-    ["artifact1", artPath1],
-    ["artifact2", artPath2]
+    ["artifact1", artPath1]
   ])
     | view{it -> "Before publish: $it"}
     | summarizeData
