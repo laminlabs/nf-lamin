@@ -15,7 +15,7 @@ import spock.lang.Specification
 import nextflow.trace.event.FilePublishEvent
 
 import ai.lamin.nf_lamin.hub.LaminHub
-import ai.lamin.nf_lamin.hub.LaminHubConfigResolver
+import ai.lamin.nf_lamin.hub.LaminHubSettings
 import ai.lamin.nf_lamin.instance.Instance
 import ai.lamin.nf_lamin.hub.InstanceSettings
 import ai.lamin.nf_lamin.model.RunStatus
@@ -56,14 +56,14 @@ class LaminObserverIntegrationTest extends Specification {
     }
 
     private Instance createInstance(LaminConfig config) {
-        Map<String, Object> resolved = LaminHubConfigResolver.resolve(config)
+        LaminHubSettings resolved = LaminHubSettings.resolve(config)
         LaminHub hub = new LaminHub(
-            resolved.supabaseApiUrl as String,
-            resolved.supabaseAnonKey as String,
+            resolved.supabaseApiUrl,
+            resolved.supabaseAnonKey,
             config.apiKey
         )
         InstanceSettings settings = hub.getInstanceSettings(config.instanceOwner, config.instanceName)
-        return new Instance(hub, settings, config.maxRetries, config.retryDelay)
+        return new Instance(hub, settings, config.apiConfig.maxRetries, config.apiConfig.retryDelay)
     }
 
     private WorkflowMetadata buildMetadata(Map<String, Object> overrides = [:]) {
