@@ -236,6 +236,6 @@ def runUid = getRunUid()                                    // Current run UID
 def transformUid = getTransformUid()                        // Current transform UID
 def slug = getInstanceSlug()                                // "org/instance"
 
-// Use lamin:// URI instead of getArtifactFromUid (deprecated in 0.5.0)
+// Use lamin:// URI to resolve artifact paths
 def path = file('lamin://org/instance/artifact/uid16chars1234')
 ```
