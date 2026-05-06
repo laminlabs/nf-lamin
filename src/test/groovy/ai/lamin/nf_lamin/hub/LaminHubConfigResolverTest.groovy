@@ -21,7 +21,7 @@ import spock.lang.Specification
 import spock.lang.Unroll
 
 /**
- * Test for LaminHubConfigResolver - focuses on hub lookup functionality
+ * Test for LaminHubSettings - focuses on hub lookup functionality
  */
 class LaminHubConfigResolverTest extends Specification {
 
@@ -35,7 +35,7 @@ class LaminHubConfigResolverTest extends Specification {
         ])
 
         when:
-        def resolved = LaminHubConfigResolver.resolve(baseConfig)
+        def resolved = LaminHubSettings.resolve(baseConfig)
 
         then:
         resolved.env == env
@@ -59,7 +59,7 @@ class LaminHubConfigResolverTest extends Specification {
         ])
 
         when:
-        def resolved = LaminHubConfigResolver.resolve(baseConfig)
+        def resolved = LaminHubSettings.resolve(baseConfig)
 
         then:
         resolved.supabaseApiUrl == 'https://hub.lamin.ai'
@@ -73,12 +73,14 @@ class LaminHubConfigResolverTest extends Specification {
             instance: 'owner/repo',
             api_key: 'test-key',
             env: 'prod',
-            supabase_api_url: 'https://custom.supabase.co',
-            supabase_anon_key: 'custom-anon-key'
+            api: [
+                supabase_api_url: 'https://custom.supabase.co',
+                supabase_anon_key: 'custom-anon-key'
+            ]
         ])
 
         when:
-        def resolved = LaminHubConfigResolver.resolve(baseConfig)
+        def resolved = LaminHubSettings.resolve(baseConfig)
 
         then:
         resolved.supabaseApiUrl == 'https://custom.supabase.co'
@@ -95,7 +97,7 @@ class LaminHubConfigResolverTest extends Specification {
         ])
 
         when:
-        LaminHubConfigResolver.resolve(baseConfig)
+        LaminHubSettings.resolve(baseConfig)
 
         then:
         def ex = thrown(IllegalArgumentException)
@@ -108,38 +110,22 @@ class LaminHubConfigResolverTest extends Specification {
         def baseConfig = new LaminConfig([
             instance: 'owner/repo',
             api_key: 'test-key',
-            project: 'test-project',
             env: 'staging',
-            max_retries: 5,
-            retry_delay: 200
+            api: [
+                max_retries: 5,
+                retry_delay: 200
+            ]
         ])
 
         when:
-        def resolved = LaminHubConfigResolver.resolve(baseConfig)
+        def resolved = LaminHubSettings.resolve(baseConfig)
 
         then:
         resolved.instance == 'owner/repo'
         resolved.apiKey == 'test-key'
-        resolved.project == 'test-project'
         resolved.env == 'staging'
         resolved.maxRetries == 5
         resolved.retryDelay == 200
     }
 
-    @Unroll
-    def "should get web URL for environment '#env'"() {
-        when:
-        def webUrl = LaminHubConfigResolver.getWebUrl(env)
-
-        then:
-        webUrl == expectedWebUrl
-
-        where:
-        env            | expectedWebUrl
-        'prod'         | 'https://lamin.ai'
-        'staging'      | 'https://staging.laminhub.com'
-        'staging-test' | 'https://staging-test.laminhub.com'
-        'prod-test'    | 'https://prod-test.laminhub.com'
-        null           | 'https://lamin.ai'  // defaults to prod
-    }
 }

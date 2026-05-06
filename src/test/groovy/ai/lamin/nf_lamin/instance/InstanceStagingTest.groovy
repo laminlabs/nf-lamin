@@ -9,7 +9,7 @@ package ai.lamin.nf_lamin.instance
 
 import ai.lamin.nf_lamin.LaminConfig
 import ai.lamin.nf_lamin.hub.LaminHub
-import ai.lamin.nf_lamin.hub.LaminHubConfigResolver
+import ai.lamin.nf_lamin.hub.LaminHubSettings
 import ai.lamin.nf_lamin.instance.Instance
 import ai.lamin.nf_lamin.hub.InstanceSettings
 import spock.lang.IgnoreIf
@@ -35,7 +35,7 @@ class InstanceStagingTest extends Specification {
                 api_key: stagingApiKey,
                 env: 'staging'
             ])
-            def resolvedConfig = LaminHubConfigResolver.resolve(config)
+            def resolvedConfig = LaminHubSettings.resolve(config)
             def hub = new LaminHub(
                 resolvedConfig.supabaseApiUrl,
                 resolvedConfig.supabaseAnonKey,
@@ -155,11 +155,11 @@ class InstanceStagingTest extends Specification {
             api_key: stagingApiKey,
             env: 'staging'
         ])
-        def resolvedConfig = LaminHubConfigResolver.resolve(config)
+        def resolvedConfig = LaminHubSettings.resolve(config)
         def hub = new LaminHub(
             resolvedConfig.supabaseApiUrl,
             resolvedConfig.supabaseAnonKey,
-            resolvedConfig.apiKey
+            config.apiKey
         )
         def settings = hub.getInstanceSettings(
             config.instanceOwner,
@@ -184,11 +184,11 @@ class InstanceStagingTest extends Specification {
             api_key: stagingApiKey,
             env: 'staging'
         ])
-        def resolvedConfig = LaminHubConfigResolver.resolve(config)
+        def resolvedConfig = LaminHubSettings.resolve(config)
         def hub = new LaminHub(
             resolvedConfig.supabaseApiUrl,
             resolvedConfig.supabaseAnonKey,
-            resolvedConfig.apiKey
+            config.apiKey
         )
         def settings = hub.getInstanceSettings(
             config.instanceOwner,

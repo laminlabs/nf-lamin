@@ -36,7 +36,7 @@ import nextflow.script.WorkflowMetadata
 
 import ai.lamin.lamin_api_client.ApiException
 import ai.lamin.nf_lamin.hub.LaminHub
-import ai.lamin.nf_lamin.hub.LaminHubConfigResolver
+import ai.lamin.nf_lamin.hub.LaminHubSettings
 import ai.lamin.nf_lamin.instance.Instance
 import ai.lamin.nf_lamin.hub.InstanceSettings
 import ai.lamin.nf_lamin.model.RunStatus
@@ -63,7 +63,7 @@ final class LaminRunManager {
 
     private volatile Session session
     private volatile LaminConfig config
-    private volatile Map<String, Object> resolvedConfig
+    private volatile LaminHubSettings resolvedConfig
     private volatile LaminHub hub
     private volatile Instance laminInstance
     private volatile Map<String, Object> transform
@@ -121,8 +121,8 @@ final class LaminRunManager {
             return new Instance(
                 hub,
                 settings,
-                config.maxRetries,
-                config.retryDelay
+                config.apiConfig.maxRetries,
+                config.apiConfig.retryDelay
             )
         }
     }
@@ -190,12 +190,12 @@ final class LaminRunManager {
         log.debug "Parsed config: ${config.toString()}"
 
         log.debug 'Resolving Lamin configuration with hub settings'
-        this.resolvedConfig = LaminHubConfigResolver.resolve(config)
+        this.resolvedConfig = LaminHubSettings.resolve(config)
 
         log.debug 'Creating LaminHub client'
         this.hub = new LaminHub(
-            resolvedConfig.supabaseApiUrl as String,
-            resolvedConfig.supabaseAnonKey as String,
+            resolvedConfig.supabaseApiUrl,
+            resolvedConfig.supabaseAnonKey,
             config.apiKey
         )
 
@@ -454,14 +454,24 @@ final class LaminRunManager {
             reference_type: 'url',
             description: description
         ]
-        if (resolvedSpaceId != null) {
-            createArgs.put('space_id', resolvedSpaceId)
-        }
-        if (resolvedBranchId != null) {
-            createArgs.put('branch_id', resolvedBranchId)
-        }
 
         transformRecord = laminInstance.createTransform(createArgs)
+
+        // The /transforms endpoint does not accept certain fields on creation; update separately
+        Map<String, Object> updateData = [:]
+        if (resolvedSpaceId != null) updateData['space_id'] = resolvedSpaceId
+        if (resolvedBranchId != null) {
+            updateData['branch_id'] = resolvedBranchId
+            updateData['created_on_id'] = resolvedBranchId
+        }
+        if (updateData) {
+            transformRecord = laminInstance.updateRecord(
+                moduleName: 'core',
+                modelName: 'transform',
+                uid: transformRecord.uid as String,
+                data: updateData
+            )
+        }
         updateTransform(transformRecord)
 
         // Link transform to projects and ulabels from config
@@ -528,6 +538,7 @@ final class LaminRunManager {
         }
         if (resolvedBranchId != null) {
             runData.put('branch_id', resolvedBranchId)
+            runData.put('created_on_id', resolvedBranchId)
         }
         Map<String, Object> runRecord = laminInstance.createRun(runData)
         updateRun(runRecord)
@@ -1535,7 +1546,7 @@ final class LaminRunManager {
         Number artifactRunNumber = ((artifact.get('run') ?: artifact.get('run_id')) as Number)
         boolean isNewArtifact = runId == null || (artifactRunNumber != null && artifactRunNumber.intValue() == runId)
         String verb = isNewArtifact ? (isLocalFile ? 'Uploaded' : 'Created') : 'Detected previous'
-        String webUrl = resolvedConfig != null ? resolvedConfig.get('webUrl') as String : null
+        String webUrl = resolvedConfig != null ? resolvedConfig.webUrl : null
         String owner = laminInstance.getOwner()
         String name = laminInstance.getName()
         String artifactUid = artifact.get('uid') as String
@@ -1650,7 +1661,7 @@ final class LaminRunManager {
     }
 
     private void printTransformMessage(Map transformRecord, String message) {
-        String webUrl = resolvedConfig != null ? resolvedConfig.get('webUrl') as String : null
+        String webUrl = resolvedConfig != null ? resolvedConfig.webUrl : null
         String owner = laminInstance != null ? laminInstance.getOwner() : null
         String name = laminInstance != null ? laminInstance.getName() : null
         String transformUid = transformRecord.get('uid') as String
@@ -1662,7 +1673,7 @@ final class LaminRunManager {
     }
 
     private void printRunMessage(Map runRecord, String message) {
-        String webUrl = resolvedConfig != null ? resolvedConfig.get('webUrl') as String : null
+        String webUrl = resolvedConfig != null ? resolvedConfig.webUrl : null
         String owner = laminInstance != null ? laminInstance.getOwner() : null
         String name = laminInstance != null ? laminInstance.getName() : null
         String transformUid = transform != null ? transform.get('uid') as String : null

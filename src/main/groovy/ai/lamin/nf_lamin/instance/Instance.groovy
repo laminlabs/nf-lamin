@@ -541,7 +541,7 @@ class Instance {
         }
 
         // Validate numeric fields are int
-        for (String intField : ['_status_code', 'transform_id', 'space_id', 'branch_id']) {
+        for (String intField : ['_status_code', 'transform_id', 'space_id', 'branch_id', 'created_on_id']) {
             Object val = data.get(intField)
             if (val != null && !(val instanceof Integer)) {
                 throw new IllegalArgumentException(
@@ -687,7 +687,7 @@ class Instance {
         );
 
         // Optional args
-        for (field in ["version_tag", "reference", "reference_type", "description", "space_id", "branch_id"]) {
+        for (field in ["version_tag", "reference", "reference_type", "description"]) {
             if (args.containsKey(field)) {
                 body.putKwargsItem(field, args[field])
             }
@@ -998,6 +998,11 @@ class Instance {
                 // Do not retry - data conflict won't resolve with retry
                 log.debug "API call failed with status 409 (Conflict). Not retrying."
                 throw e
+            } else if (e.code >= 500 && isPermanentServerError(e)) {
+                // Permanent server error (e.g. FileNotFoundError, UnknownStorageLocation)
+                // Do not retry - the error indicates a permanent condition, not a transient failure
+                log.debug "API call failed with permanent server error. Not retrying."
+                throw e
             } else if (retries < this.maxRetries) {
                 // Retry for 5xx server errors and other unexpected errors
                 log.warn "API call failed with status ${e.code}. Retrying (${retries + 1}/${this.maxRetries})..."
@@ -1007,6 +1012,17 @@ class Instance {
 
             throw e
         }
+    }
+
+    /**
+     * Returns true if a 5xx ApiException represents a permanent error that should not be retried.
+     * Detects known error classes embedded in Lambda execution error messages.
+     */
+    protected static boolean isPermanentServerError(ApiException e) {
+        String body = e.responseBody ?: ''
+        return body.contains('FileNotFoundError') ||
+               body.contains('UnknownStorageLocation') ||
+               body.contains('BlobHashNotFound')
     }
 
     protected Map getStorage(Integer id) throws ApiException {

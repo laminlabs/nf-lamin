@@ -56,7 +56,7 @@ jobs:
           - java_version: 21
             # nextflow_version: latest-stable
             nextflow_version: 25.10.4
-            validation_args: "--artifact-uri lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A --artifact-uid-on-current-instance cuQZhgVvDuy1GxxG"
+            validation_args: "--artifact-uri lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A"
             lamin_env: staging
           - java_version: 25
             # nextflow_version: latest-edge
@@ -66,7 +66,7 @@ jobs:
           - java_version: 25
             # nextflow_version: latest-edge
             nextflow_version: 25.10.4
-            validation_args: "-with-report --artifact-uri lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A --artifact-uid-on-current-instance cuQZhgVvDuy1GxxG"
+            validation_args: "-with-report --artifact-uri lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A"
             lamin_env: staging
     steps:
       - name: Environment
@@ -117,7 +117,7 @@ jobs:
 
       - name: Run validation workflow
         env:
-          LAMIN_CURRENT_INSTANCE: laminlabs/lamindata
+          LAMIN_CURRENT_INSTANCE: ${{ matrix.lamin_env == 'prod' && 'laminlabs/lamin-dev' || 'laminlabs/lamindata' }}
           LAMIN_API_KEY: ${{ matrix.lamin_env == 'staging' && secrets.LAMIN_API_KEY_TESTUSER1_STAGING || secrets.LAMIN_API_KEY_TESTUSER1 }}
           LAMIN_TEST_BUCKET: ${{ secrets.LAMIN_TEST_BUCKET }}
           LAMIN_ENV: ${{ matrix.lamin_env }}

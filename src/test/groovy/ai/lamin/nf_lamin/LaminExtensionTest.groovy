@@ -4,7 +4,6 @@ import spock.lang.Specification
 import ai.lamin.nf_lamin.instance.Instance
 import ai.lamin.nf_lamin.hub.InstanceSettings
 import java.nio.file.Path
-import java.nio.file.Paths
 
 class LaminExtensionTest extends Specification {
 
@@ -103,50 +102,6 @@ class LaminExtensionTest extends Specification {
         expect:
         extension.getInstanceSlug() == 'my-org/production-db'
     }
-
-    // ========== getArtifactFromUid(artifactUid) tests ==========
-    // Note: getArtifactFromUid is deprecated since 0.5.0, use file('lamin://...') instead
-
-    def 'getArtifactFromUid with single arg throws when no instance is set'() {
-        when:
-        extension.getArtifactFromUid('artifact12345678')
-
-        then:
-        thrown(IllegalStateException)
-    }
-
-    def 'getArtifactFromUid with single arg returns path when instance is set'() {
-        given:
-        def expectedPath = Paths.get('/path/to/artifact.txt')
-        def mockInstance = Mock(Instance) {
-            getArtifactFromUid('artifact12345678') >> expectedPath
-        }
-        LaminRunManager.instance.setCurrentInstance(mockInstance)
-
-        when:
-        def result = extension.getArtifactFromUid('artifact12345678')
-
-        then:
-        result == expectedPath
-    }
-
-    def 'getArtifactFromUid with single arg handles 20-char UIDs'() {
-        given:
-        def expectedPath = Paths.get('s3://bucket/artifact.h5ad')
-        def mockInstance = Mock(Instance) {
-            getArtifactFromUid('artifact123456780001') >> expectedPath
-        }
-        LaminRunManager.instance.setCurrentInstance(mockInstance)
-
-        when:
-        def result = extension.getArtifactFromUid('artifact123456780001')
-
-        then:
-        result == expectedPath
-    }
-
-    // Note: getArtifactFromUid(owner, name, artifactUid) with three args is tested
-    // in integration tests since it requires full LaminHub/Instance setup
 
     // ========== Integration-style tests ==========
 

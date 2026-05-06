@@ -40,30 +40,8 @@ class LaminConfigTest extends Specification {
         laminConfig.instanceName == 'repo'
         laminConfig.apiKey == 'test-key'
         laminConfig.env == 'prod'  // default
-        laminConfig.maxRetries == 3  // default
-        laminConfig.retryDelay == 100  // default
-    }
-
-    def "should use provided values over defaults"() {
-        when:
-        def laminConfig = new LaminConfig([
-            instance: 'provided/instance',
-            api_key: 'provided-key',
-            project: 'provided-project',
-            env: 'staging'
-        ])
-
-        then:
-        laminConfig.instance == 'provided/instance'
-        laminConfig.apiKey == 'provided-key'
-        laminConfig.project == 'provided-project'
-        laminConfig.env == 'staging'
-
-        cleanup:
-        System.clearProperty('LAMIN_CURRENT_INSTANCE')
-        System.clearProperty('LAMIN_API_KEY')
-        System.clearProperty('LAMIN_CURRENT_PROJECT')
-        System.clearProperty('LAMIN_ENV')
+        laminConfig.apiConfig.maxRetries == 3  // default
+        laminConfig.apiConfig.retryDelay == 100  // default
     }
 
     @Unroll
@@ -140,34 +118,6 @@ class LaminConfigTest extends Specification {
         ]
     }
 
-    def "should handle custom retry configuration"() {
-        when:
-        def config = new LaminConfig([
-            instance: 'owner/repo',
-            api_key: 'test-key',
-            max_retries: 5,
-            retry_delay: 200
-        ])
-
-        then:
-        config.maxRetries == 5
-        config.retryDelay == 200
-    }
-
-    def "should handle custom Supabase configuration"() {
-        when:
-        def config = new LaminConfig([
-            instance: 'owner/repo',
-            api_key: 'test-key',
-            supabase_api_url: 'https://custom.supabase.co',
-            supabase_anon_key: 'custom-anon-key'
-        ])
-
-        then:
-        config.supabaseApiUrl == 'https://custom.supabase.co'
-        config.supabaseAnonKey == 'custom-anon-key'
-    }
-
     def "should handle manual transform and run UID configuration"() {
         when:
         def config = new LaminConfig([
@@ -198,25 +148,21 @@ class LaminConfigTest extends Specification {
         when:
         def config = new LaminConfig([
             instance: 'owner/repo',
-            api_key: 'very-secret-api-key',
-            supabase_anon_key: 'very-secret-anon-key'
+            api_key: 'very-secret-api-key'
         ])
 
         then:
         def str = config.toString()
         str.contains('owner/repo')
         str.contains('ve****ey')  // masked api key
-        str.contains('ve****ey')  // masked anon key
         !str.contains('very-secret-api-key')
-        !str.contains('very-secret-anon-key')
     }
 
     def "should use parseConfig static method with Map"() {
         given:
         def configMap = [
             instance: 'owner/repo',
-            api_key: 'test-key',
-            project: 'test-project'
+            api_key: 'test-key'
         ]
 
         when:
@@ -225,7 +171,6 @@ class LaminConfigTest extends Specification {
         then:
         config.instance == 'owner/repo'
         config.apiKey == 'test-key'
-        config.project == 'test-project'
     }
 
     def "should allow global artifacts config only"() {
@@ -419,37 +364,6 @@ class LaminConfigTest extends Specification {
         config.api.retryDelay == 500
     }
 
-    def "should show deprecation warning for old project field"() {
-        when:
-        def config = new LaminConfig([
-            instance: 'owner/repo',
-            api_key: 'test-key',
-            project: 'test-project'
-        ])
-
-        then:
-        config.project == 'test-project'
-        // Note: We can't easily test the log output, but we verify the field still works
-    }
-
-    def "should use deprecated fields when nested api config not provided"() {
-        when:
-        def config = new LaminConfig([
-            instance: 'owner/repo',
-            api_key: 'test-key',
-            supabase_api_url: 'https://deprecated.supabase.co',
-            supabase_anon_key: 'deprecated-key',
-            max_retries: 7,
-            retry_delay: 300
-        ])
-
-        then:
-        config.supabaseApiUrl == 'https://deprecated.supabase.co'
-        config.supabaseAnonKey == 'deprecated-key'
-        config.maxRetries == 7
-        config.retryDelay == 300
-    }
-
     def "should use nested api config values"() {
         when:
         def config = new LaminConfig([
@@ -462,8 +376,8 @@ class LaminConfigTest extends Specification {
         ])
 
         then:
-        config.supabaseApiUrl == 'https://nested.supabase.co'
-        config.maxRetries == 5
+        config.api.supabaseApiUrl == 'https://nested.supabase.co'
+        config.api.maxRetries == 5
     }
 
     def "should prefer explicit project_uids over defaults"() {

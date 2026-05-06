@@ -18,7 +18,7 @@ package ai.lamin.nf_lamin.instance
 import ai.lamin.lamin_api_client.ApiException
 import ai.lamin.nf_lamin.LaminConfig
 import ai.lamin.nf_lamin.hub.LaminHub
-import ai.lamin.nf_lamin.hub.LaminHubConfigResolver
+import ai.lamin.nf_lamin.hub.LaminHubSettings
 import ai.lamin.nf_lamin.model.RunStatus
 import spock.lang.IgnoreIf
 import spock.lang.Specification
@@ -73,17 +73,17 @@ class InstanceArtifactApiTest extends Specification {
                 instance: 'laminlabs/lamindata',
                 api_key: apiKey,
             ])
-            def resolvedConfig = LaminHubConfigResolver.resolve(config)
+            def resolvedConfig = LaminHubSettings.resolve(config)
             def hub = new LaminHub(
-                resolvedConfig.supabaseApiUrl as String,
-                resolvedConfig.supabaseAnonKey as String,
-                resolvedConfig.apiKey as String
+                resolvedConfig.supabaseApiUrl,
+                resolvedConfig.supabaseAnonKey,
+                resolvedConfig.apiKey
             )
             def settings = hub.getInstanceSettings(
                 config.instanceOwner,
                 config.instanceName
             )
-            instance = new Instance(hub, settings, 3, 1000)
+            instance = new Instance(hub, settings, 3, 100)
             instanceId = settings.id
 
             // --- Resolve test branch ---

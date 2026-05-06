@@ -20,21 +20,21 @@ import spock.lang.Specification
 import spock.lang.Unroll
 
 /**
- * Test for LaminHubLookup - tests the static environment configuration
+ * Test for LaminHubSettings - tests the static environment configuration
  */
 class LaminHubLookupTest extends Specification {
 
     @Unroll
     def "should return correct configuration for environment '#env'"() {
         when:
-        def config = LaminHubLookup.getConfig(env)
+        def settings = LaminHubSettings.resolve(new ai.lamin.nf_lamin.LaminConfig([instance: 'o/r', api_key: 'k', env: env]))
 
         then:
-        config != null
-        config.webUrl == expectedWebUrl
-        config.apiUrl == expectedApiUrl
-        config.anonKey != null
-        config.anonKey.startsWith('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9')
+        settings != null
+        settings.webUrl == expectedWebUrl
+        settings.supabaseApiUrl == expectedApiUrl
+        settings.supabaseAnonKey != null
+        settings.supabaseAnonKey.startsWith('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9')
 
         where:
         env            | expectedWebUrl                      | expectedApiUrl
@@ -44,17 +44,17 @@ class LaminHubLookupTest extends Specification {
         'prod-test'    | 'https://prod-test.laminhub.com'   | 'https://xtdacpwiqwpbxsatoyrv.supabase.co'
     }
 
-    def "should return null for invalid environment"() {
+    def "should throw for invalid environment"() {
         when:
-        def config = LaminHubLookup.getConfig('invalid-env')
+        LaminHubSettings.resolve(new ai.lamin.nf_lamin.LaminConfig([instance: 'o/r', api_key: 'k', env: 'invalid-env']))
 
         then:
-        config == null
+        thrown(IllegalArgumentException)
     }
 
     def "should return all available environments"() {
         when:
-        def envs = LaminHubLookup.getAvailableEnvironments()
+        def envs = LaminHubSettings.getAvailableEnvironments()
 
         then:
         envs.contains('prod')
@@ -67,7 +67,7 @@ class LaminHubLookupTest extends Specification {
     @Unroll
     def "should validate environment '#env' as '#isValid'"() {
         when:
-        def result = LaminHubLookup.isValidEnvironment(env)
+        def result = LaminHubSettings.isValidEnvironment(env)
 
         then:
         result == isValid
@@ -87,12 +87,12 @@ class LaminHubLookupTest extends Specification {
 
     def "should have consistent JWT token format for all environments"() {
         when:
-        def allEnvs = LaminHubLookup.getAvailableEnvironments()
+        def allEnvs = LaminHubSettings.getAvailableEnvironments()
 
         then:
         allEnvs.every { env ->
-            def config = LaminHubLookup.getConfig(env)
-            config.anonKey.startsWith('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9')
+            def settings = LaminHubSettings.resolve(new ai.lamin.nf_lamin.LaminConfig([instance: 'o/r', api_key: 'k', env: env]))
+            settings.supabaseAnonKey.startsWith('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9')
         }
     }
 }

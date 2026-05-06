@@ -98,7 +98,7 @@ class LaminHubTest extends Specification {
             api_key: 'invalid-api-key',
             env: 'staging'
         ])
-        def resolvedConfig = LaminHubConfigResolver.resolve(config)
+        def resolvedConfig = LaminHubSettings.resolve(config)
 
         when:
         def hub = new LaminHub(
@@ -118,7 +118,7 @@ class LaminHubTest extends Specification {
             api_key: 'test-api-key',
             env: 'staging'
         ])
-        def resolvedConfig = LaminHubConfigResolver.resolve(config)
+        def resolvedConfig = LaminHubSettings.resolve(config)
 
         when:
         def hub = new LaminHub(
@@ -140,7 +140,7 @@ class LaminHubTest extends Specification {
             api_key: prodApiKey,
             env: 'prod'
         ])
-        def resolvedConfig = LaminHubConfigResolver.resolve(config)
+        def resolvedConfig = LaminHubSettings.resolve(config)
         def hub = new LaminHub(
             resolvedConfig.supabaseApiUrl,
             resolvedConfig.supabaseAnonKey,
@@ -163,7 +163,7 @@ class LaminHubTest extends Specification {
             api_key: prodApiKey,
             env: 'prod'
         ])
-        def resolvedConfig = LaminHubConfigResolver.resolve(config)
+        def resolvedConfig = LaminHubSettings.resolve(config)
         def hub = new LaminHub(
             resolvedConfig.supabaseApiUrl,
             resolvedConfig.supabaseAnonKey,
@@ -194,7 +194,7 @@ class LaminHubTest extends Specification {
             api_key: stagingApiKey,
             env: 'staging'
         ])
-        def resolvedConfig = LaminHubConfigResolver.resolve(config)
+        def resolvedConfig = LaminHubSettings.resolve(config)
         def hub = new LaminHub(
             resolvedConfig.supabaseApiUrl,
             resolvedConfig.supabaseAnonKey,
@@ -217,7 +217,7 @@ class LaminHubTest extends Specification {
             api_key: stagingApiKey,
             env: 'staging'
         ])
-        def resolvedConfig = LaminHubConfigResolver.resolve(config)
+        def resolvedConfig = LaminHubSettings.resolve(config)
         def hub = new LaminHub(
             resolvedConfig.supabaseApiUrl,
             resolvedConfig.supabaseAnonKey,
