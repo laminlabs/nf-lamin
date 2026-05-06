@@ -36,7 +36,7 @@ import nextflow.script.WorkflowMetadata
 
 import ai.lamin.lamin_api_client.ApiException
 import ai.lamin.nf_lamin.hub.LaminHub
-import ai.lamin.nf_lamin.hub.LaminHubConfigResolver
+import ai.lamin.nf_lamin.hub.LaminHubSettings
 import ai.lamin.nf_lamin.instance.Instance
 import ai.lamin.nf_lamin.hub.InstanceSettings
 import ai.lamin.nf_lamin.model.RunStatus
@@ -63,7 +63,7 @@ final class LaminRunManager {
 
     private volatile Session session
     private volatile LaminConfig config
-    private volatile Map<String, Object> resolvedConfig
+    private volatile LaminHubSettings resolvedConfig
     private volatile LaminHub hub
     private volatile Instance laminInstance
     private volatile Map<String, Object> transform
@@ -190,12 +190,12 @@ final class LaminRunManager {
         log.debug "Parsed config: ${config.toString()}"
 
         log.debug 'Resolving Lamin configuration with hub settings'
-        this.resolvedConfig = LaminHubConfigResolver.resolve(config)
+        this.resolvedConfig = LaminHubSettings.resolve(config)
 
         log.debug 'Creating LaminHub client'
         this.hub = new LaminHub(
-            resolvedConfig.supabaseApiUrl as String,
-            resolvedConfig.supabaseAnonKey as String,
+            resolvedConfig.supabaseApiUrl,
+            resolvedConfig.supabaseAnonKey,
             config.apiKey
         )
 
@@ -1537,7 +1537,7 @@ final class LaminRunManager {
         Number artifactRunNumber = ((artifact.get('run') ?: artifact.get('run_id')) as Number)
         boolean isNewArtifact = runId == null || (artifactRunNumber != null && artifactRunNumber.intValue() == runId)
         String verb = isNewArtifact ? (isLocalFile ? 'Uploaded' : 'Created') : 'Detected previous'
-        String webUrl = resolvedConfig != null ? resolvedConfig.get('webUrl') as String : null
+        String webUrl = resolvedConfig != null ? resolvedConfig.webUrl : null
         String owner = laminInstance.getOwner()
         String name = laminInstance.getName()
         String artifactUid = artifact.get('uid') as String
@@ -1652,7 +1652,7 @@ final class LaminRunManager {
     }
 
     private void printTransformMessage(Map transformRecord, String message) {
-        String webUrl = resolvedConfig != null ? resolvedConfig.get('webUrl') as String : null
+        String webUrl = resolvedConfig != null ? resolvedConfig.webUrl : null
         String owner = laminInstance != null ? laminInstance.getOwner() : null
         String name = laminInstance != null ? laminInstance.getName() : null
         String transformUid = transformRecord.get('uid') as String
@@ -1664,7 +1664,7 @@ final class LaminRunManager {
     }
 
     private void printRunMessage(Map runRecord, String message) {
-        String webUrl = resolvedConfig != null ? resolvedConfig.get('webUrl') as String : null
+        String webUrl = resolvedConfig != null ? resolvedConfig.webUrl : null
         String owner = laminInstance != null ? laminInstance.getOwner() : null
         String name = laminInstance != null ? laminInstance.getName() : null
         String transformUid = transform != null ? transform.get('uid') as String : null
