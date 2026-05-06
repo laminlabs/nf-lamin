@@ -65,6 +65,12 @@ class ApiConfig {
     ''')
     final Integer retryDelay
 
+    @ConfigOption
+    @Description('''
+        The web URL for the Lamin hub (e.g. https://lamin.ai). Only needed for custom deployments.
+    ''')
+    final String webUrl
+
     /**
      * Default constructor required for extension point
      */
@@ -73,6 +79,7 @@ class ApiConfig {
         this.supabaseAnonKey = null
         this.maxRetries = 3
         this.retryDelay = 100
+        this.webUrl = null
     }
 
     /**
@@ -85,6 +92,7 @@ class ApiConfig {
         this.supabaseAnonKey = opts?.supabase_anon_key ?: System.getenv('SUPABASE_ANON_KEY')
         this.maxRetries = opts?.containsKey('max_retries') ? (opts.max_retries as Integer) : ((System.getenv('LAMIN_MAX_RETRIES') as Integer) ?: 3)
         this.retryDelay = opts?.containsKey('retry_delay') ? (opts.retry_delay as Integer) : ((System.getenv('LAMIN_RETRY_DELAY') as Integer) ?: 100)
+        this.webUrl = opts?.web_url
     }
 
     /**
@@ -119,9 +127,17 @@ class ApiConfig {
         return this.retryDelay != null ? this.retryDelay : 100
     }
 
+    /**
+     * Get the web URL
+     * @return The web URL
+     */
+    String getWebUrl() {
+        return this.webUrl
+    }
+
     @Override
     String toString() {
         def maskedAnonKey = supabaseAnonKey?.size() > 6 ? supabaseAnonKey[0..1] + '****' + supabaseAnonKey[-2..-1] : 'an****ed'
-        return "ApiConfig{supabaseApiUrl='${supabaseApiUrl}', supabaseAnonKey='${maskedAnonKey}', maxRetries=${maxRetries}, retryDelay=${retryDelay}}"
+        return "ApiConfig{supabaseApiUrl='${supabaseApiUrl}', supabaseAnonKey='${maskedAnonKey}', maxRetries=${maxRetries}, retryDelay=${retryDelay}, webUrl='${webUrl}'}"
     }
 }

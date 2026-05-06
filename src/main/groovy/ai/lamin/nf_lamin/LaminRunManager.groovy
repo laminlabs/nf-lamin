@@ -121,8 +121,8 @@ final class LaminRunManager {
             return new Instance(
                 hub,
                 settings,
-                config.maxRetries,
-                config.retryDelay
+                config.apiConfig.maxRetries,
+                config.apiConfig.retryDelay
             )
         }
     }
@@ -459,6 +459,7 @@ final class LaminRunManager {
         }
         if (resolvedBranchId != null) {
             createArgs.put('branch_id', resolvedBranchId)
+            createArgs.put('created_on_id', resolvedBranchId)
         }
 
         transformRecord = laminInstance.createTransform(createArgs)
@@ -528,6 +529,7 @@ final class LaminRunManager {
         }
         if (resolvedBranchId != null) {
             runData.put('branch_id', resolvedBranchId)
+            runData.put('created_on_id', resolvedBranchId)
         }
         Map<String, Object> runRecord = laminInstance.createRun(runData)
         updateRun(runRecord)

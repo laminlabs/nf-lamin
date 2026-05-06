@@ -36,14 +36,13 @@ class LaminHubConfigResolver {
         // Copy all existing values
         resolved.instance = config.instance
         resolved.apiKey = config.apiKey
-        resolved.project = config.project
         resolved.env = config.env
-        resolved.maxRetries = config.maxRetries
-        resolved.retryDelay = config.retryDelay
+        resolved.maxRetries = config.apiConfig.maxRetries
+        resolved.retryDelay = config.apiConfig.retryDelay
 
         // Start with configured values
-        resolved.supabaseApiUrl = config.supabaseApiUrl
-        resolved.supabaseAnonKey = config.supabaseAnonKey
+        resolved.supabaseApiUrl = config.apiConfig.supabaseApiUrl
+        resolved.supabaseAnonKey = config.apiConfig.supabaseAnonKey
 
         // If environment is specified and hub values are not explicitly configured, use hub lookup
         if (config.env) {
@@ -56,16 +55,16 @@ class LaminHubConfigResolver {
             Map<String, String> hubConfig = LaminHubLookup.getConfig(config.env)
             if (hubConfig) {
                 // Only override if not explicitly configured
-                resolved.supabaseApiUrl = config.supabaseApiUrl ?: hubConfig['apiUrl']
-                resolved.supabaseAnonKey = config.supabaseAnonKey ?: hubConfig['anonKey']
+                resolved.supabaseApiUrl = config.apiConfig.supabaseApiUrl ?: hubConfig['apiUrl']
+                resolved.supabaseAnonKey = config.apiConfig.supabaseAnonKey ?: hubConfig['anonKey']
                 resolved.webUrl = hubConfig['webUrl']
             }
         } else {
             // Default to prod environment if none specified
             Map<String, String> hubConfig = LaminHubLookup.getConfig('prod')
             if (hubConfig) {
-                resolved.supabaseApiUrl = config.supabaseApiUrl ?: hubConfig['apiUrl']
-                resolved.supabaseAnonKey = config.supabaseAnonKey ?: hubConfig['anonKey']
+                resolved.supabaseApiUrl = config.apiConfig.supabaseApiUrl ?: hubConfig['apiUrl']
+                resolved.supabaseAnonKey = config.apiConfig.supabaseAnonKey ?: hubConfig['anonKey']
                 resolved.webUrl = hubConfig['webUrl']
             }
         }
