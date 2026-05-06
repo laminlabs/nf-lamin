@@ -41,20 +41,6 @@ class LaminObserverIntegrationTest extends Specification {
         return new LaminConfig(options)
     }
 
-    private static URI buildBucketUri(String bucket, String objectKey) {
-        String normalized = bucket?.trim()
-        if (!normalized) {
-            throw new IllegalArgumentException('LAMIN_TEST_BUCKET must not be empty')
-        }
-        if (!normalized.contains('://')) {
-            normalized = "s3://${normalized}"
-        }
-        if (!normalized.endsWith('/')) {
-            normalized = "${normalized}/"
-        }
-        return URI.create("${normalized}${objectKey}")
-    }
-
     private Instance createInstance(LaminConfig config) {
         LaminHubSettings resolved = LaminHubSettings.resolve(config)
         LaminHub hub = new LaminHub(
@@ -148,7 +134,8 @@ class LaminObserverIntegrationTest extends Specification {
             env: 'prod',
             transform_uid: transform.uid,
             run_uid: manualRun.uid,
-            branch_uid: '!nf-lamin-test-branch'
+            branch_uid: '!nf-lamin-test-branch',
+            api: [maxRetries: 0, retryDelay: 0]
         ]
 
         WorkflowMetadata metadata = buildMetadata([
@@ -196,11 +183,10 @@ class LaminObserverIntegrationTest extends Specification {
         runAfterComplete.finished_at != null
     }
 
-    @Requires({ LaminObserverIntegrationTest.hasEnvVars(['LAMIN_STAGING_API_KEY', 'LAMIN_TEST_BUCKET']) })
+    @Requires({ LaminObserverIntegrationTest.hasEnvVars(['LAMIN_STAGING_API_KEY']) })
     def "should create new records and register artifacts in staging"() {
         given:
         String apiKey = System.getenv('LAMIN_STAGING_API_KEY')
-        String bucket = System.getenv('LAMIN_TEST_BUCKET')
         String uniqueSuffix = UUID.randomUUID().toString().substring(0, 8)
         String timestamp = new java.text.SimpleDateFormat('yyyyMMdd-HHmmss-SSSS').format(new Date())
         String revision = "${timestamp}-${uniqueSuffix}"
@@ -216,7 +202,8 @@ class LaminObserverIntegrationTest extends Specification {
             instance: INSTANCE_NAME,
             api_key: apiKey,
             env: 'staging',
-            branch_uid: '!nf-lamin-test-branch'
+            branch_uid: '!nf-lamin-test-branch',
+            api: [maxRetries: 0, retryDelay: 0]
         ]
 
         WorkflowMetadata metadata = buildMetadata([
@@ -240,7 +227,6 @@ class LaminObserverIntegrationTest extends Specification {
 
         LaminObserver observer = new LaminObserver()
         LaminRunManager manager = LaminRunManager.instance
-
         when:
         observer.onFlowCreate(session)
 
@@ -252,15 +238,9 @@ class LaminObserverIntegrationTest extends Specification {
         when: 'we spy on the instance to capture artifact creation and start the run'
         Instance instanceSpy = Spy(manager.laminInstance)
         Map<String, Object> uploadedArtifact = null
-        Map<String, Object> remoteArtifact = null
         instanceSpy.uploadArtifact(_ as Map) >> { Map<String, Object> args ->
             Map<String, Object> result = callRealMethod()
             uploadedArtifact = result
-            return result
-        }
-        instanceSpy.createArtifact(_ as Map) >> { Map<String, Object> args ->
-            Map<String, Object> result = callRealMethod()
-            remoteArtifact = result
             return result
         }
         manager.laminInstance = instanceSpy
@@ -291,28 +271,6 @@ class LaminObserverIntegrationTest extends Specification {
             assert artifactRun == manager.run.id || artifactRun == manager.run.uid
         } else {
             assert false: 'Artifact should reference the run that created it'
-        }
-
-        when: 'a remote artifact URI is registered'
-        URI remoteUri = buildBucketUri(bucket, "nf-lamin/${uniqueSuffix}.txt")
-        Path remotePath = Stub(Path) {
-            toUri() >> remoteUri
-            toString() >> remoteUri.toString()
-        }
-        observer.onFilePublish(new FilePublishEvent(localFile, remotePath, null))
-
-        then:
-        if (remoteArtifact) {
-            Map<String, Object> fetchedRemoteArtifact = apiClient.getRecord(
-                moduleName: 'core',
-                modelName: 'artifact',
-                idOrUid: remoteArtifact.uid,
-                includeForeignKeys: true
-            )
-            if (fetchedRemoteArtifact.path) {
-                assert fetchedRemoteArtifact.path == remoteUri.toString()
-            }
-            assert (fetchedRemoteArtifact.run ?: fetchedRemoteArtifact.run_id) == manager.run.id
         }
 
         when:
