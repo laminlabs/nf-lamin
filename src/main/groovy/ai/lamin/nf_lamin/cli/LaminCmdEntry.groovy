@@ -57,7 +57,7 @@ import ai.lamin.nf_lamin.instance.Instance
 class LaminCmdEntry implements PluginAbstractExec {
 
     // Set to false before releasing to disable the call-api command
-    private static final boolean CALL_API_ENABLED = true
+    private static final boolean CALL_API_ENABLED = false
 
     private static final List<String> CALL_API_SUBCOMMANDS = [
         'get-account', 'get-schema',
