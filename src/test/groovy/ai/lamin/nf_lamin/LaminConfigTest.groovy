@@ -148,17 +148,14 @@ class LaminConfigTest extends Specification {
         when:
         def config = new LaminConfig([
             instance: 'owner/repo',
-            api_key: 'very-secret-api-key',
-            supabase_anon_key: 'very-secret-anon-key'
+            api_key: 'very-secret-api-key'
         ])
 
         then:
         def str = config.toString()
         str.contains('owner/repo')
         str.contains('ve****ey')  // masked api key
-        str.contains('ve****ey')  // masked anon key
         !str.contains('very-secret-api-key')
-        !str.contains('very-secret-anon-key')
     }
 
     def "should use parseConfig static method with Map"() {
