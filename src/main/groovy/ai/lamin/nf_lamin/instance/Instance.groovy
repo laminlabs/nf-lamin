@@ -541,7 +541,7 @@ class Instance {
         }
 
         // Validate numeric fields are int
-        for (String intField : ['_status_code', 'transform_id', 'space_id', 'branch_id']) {
+        for (String intField : ['_status_code', 'transform_id', 'space_id', 'branch_id', 'created_on_id']) {
             Object val = data.get(intField)
             if (val != null && !(val instanceof Integer)) {
                 throw new IllegalArgumentException(
@@ -687,7 +687,7 @@ class Instance {
         );
 
         // Optional args
-        for (field in ["version_tag", "reference", "reference_type", "description", "space_id", "branch_id"]) {
+        for (field in ["version_tag", "reference", "reference_type", "description"]) {
             if (args.containsKey(field)) {
                 body.putKwargsItem(field, args[field])
             }
