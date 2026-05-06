@@ -40,45 +40,30 @@ class LaminHubConfigResolver {
         resolved.maxRetries = config.apiConfig.maxRetries
         resolved.retryDelay = config.apiConfig.retryDelay
 
-        // Start with configured values
-        resolved.supabaseApiUrl = config.apiConfig.supabaseApiUrl
-        resolved.supabaseAnonKey = config.apiConfig.supabaseAnonKey
+        // Validate environment if specified
+        if (config.env && !LaminHubLookup.isValidEnvironment(config.env)) {
+            throw new IllegalArgumentException("Provided environment '${config.env}' is not valid. Please provide a valid environment: ${LaminHubLookup.availableEnvironments.join(', ')}.")
+        }
 
-        // If environment is specified and hub values are not explicitly configured, use hub lookup
-        if (config.env) {
-            // Validate environment
-            if (!LaminHubLookup.isValidEnvironment(config.env)) {
-                throw new IllegalArgumentException("Provided environment '${config.env}' is not valid. Please provide a valid environment: ${LaminHubLookup.availableEnvironments.join(', ')}.")
-            }
+        // Use specified environment or default to prod
+        Map<String, String> hubConfig = LaminHubLookup.getConfig(config.env ?: 'prod')
+        if (hubConfig) {
+            resolved.supabaseApiUrl = hubConfig['apiUrl']
+            resolved.supabaseAnonKey = hubConfig['anonKey']
+            resolved.webUrl = hubConfig['webUrl']
+        }
 
-            // Get hub configuration for the environment
-            Map<String, String> hubConfig = LaminHubLookup.getConfig(config.env)
-            if (hubConfig) {
-                // Only override if not explicitly configured
-                resolved.supabaseApiUrl = config.apiConfig.supabaseApiUrl ?: hubConfig['apiUrl']
-                resolved.supabaseAnonKey = config.apiConfig.supabaseAnonKey ?: hubConfig['anonKey']
-                resolved.webUrl = hubConfig['webUrl']
-            }
-        } else {
-            // Default to prod environment if none specified
-            Map<String, String> hubConfig = LaminHubLookup.getConfig('prod')
-            if (hubConfig) {
-                resolved.supabaseApiUrl = config.apiConfig.supabaseApiUrl ?: hubConfig['apiUrl']
-                resolved.supabaseAnonKey = config.apiConfig.supabaseAnonKey ?: hubConfig['anonKey']
-                resolved.webUrl = hubConfig['webUrl']
-            }
+        if (config.apiConfig.supabaseApiUrl) {
+            resolved.supabaseApiUrl = config.apiConfig.supabaseApiUrl
+        }
+        if (config.apiConfig.supabaseAnonKey) {
+            resolved.supabaseAnonKey = config.apiConfig.supabaseAnonKey
+        }
+        if (config.apiConfig.webUrl) {
+            resolved.webUrl = config.apiConfig.webUrl
         }
 
         return resolved
     }
 
-    /**
-     * Get the web URL for the given environment
-     * @param env the environment name (defaults to 'prod' if null)
-     * @return the web URL for the environment
-     */
-    static String getWebUrl(String env) {
-        Map<String, String> hubConfig = LaminHubLookup.getConfig(env ?: 'prod')
-        return hubConfig ? hubConfig['webUrl'] : null
-    }
 }
