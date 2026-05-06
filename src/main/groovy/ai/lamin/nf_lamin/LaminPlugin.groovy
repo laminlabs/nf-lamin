@@ -19,10 +19,13 @@ package ai.lamin.nf_lamin
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 
+import nextflow.cli.Launcher
+import nextflow.cli.PluginExecAware
 import nextflow.file.FileHelper
 import nextflow.plugin.BasePlugin
 import org.pf4j.PluginWrapper
 
+import ai.lamin.nf_lamin.cli.LaminCmdEntry
 import ai.lamin.nf_lamin.nio.LaminFileSystemProvider
 
 /**
@@ -32,7 +35,7 @@ import ai.lamin.nf_lamin.nio.LaminFileSystemProvider
  */
 @Slf4j
 @CompileStatic
-class LaminPlugin extends BasePlugin {
+class LaminPlugin extends BasePlugin implements PluginExecAware {
 
     LaminPlugin(PluginWrapper wrapper) {
         super(wrapper)
@@ -44,5 +47,10 @@ class LaminPlugin extends BasePlugin {
         // Register the Lamin file system provider
         FileHelper.getOrInstallProvider(LaminFileSystemProvider)
         log.debug "Registered LaminFileSystemProvider for lamin:// URIs"
+    }
+
+    @Override
+    int exec(Launcher launcher, String pluginId, String cmd, List<String> args) {
+        return new LaminCmdEntry().exec(launcher, pluginId, cmd, args)
     }
 }
