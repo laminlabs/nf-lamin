@@ -48,27 +48,31 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # test oldest supported versions of java & nextflow
+          # test oldest supported versions of java & nextflow (legacy syntax parser)
           - java_version: 21
             nextflow_version: 25.10.4
+            validation_target: validate-legacy
             validation_args: "-with-report"
             lamin_env: prod
 
-          # test oldest supported versions of java & nextflow on staging environment
+          # test oldest supported versions of java & nextflow on staging (legacy syntax parser)
           - java_version: 21
             nextflow_version: 25.10.4
+            validation_target: validate-legacy
             validation_args: "--artifact-uri lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A"
             lamin_env: staging
 
-          # test latest stable version of nextflow on staging environment
+          # test latest stable nextflow (26.04+): typed params/processes/workflows + output block
           - java_version: 25
             nextflow_version: latest-stable
+            validation_target: validate-run
             validation_args: "-with-report --artifact-uri lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A"
             lamin_env: staging
 
-          # test latest edge version of nextflow on staging environment
+          # test latest edge nextflow: typed params/processes/workflows + output block
           - java_version: 25
             nextflow_version: latest-edge
+            validation_target: validate-run
             validation_args: "-with-report --artifact-uri lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A"
             lamin_env: staging
     steps:
@@ -127,7 +131,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
-          make validate BRANCH="$BRANCH" ARGS="${{ matrix.validation_args }}"
+          make ${{ matrix.validation_target }} BRANCH="$BRANCH" ARGS="${{ matrix.validation_args }}"
 
       - name: Print Nextflow log
         if: always()
