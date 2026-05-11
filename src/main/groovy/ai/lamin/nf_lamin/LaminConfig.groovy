@@ -25,6 +25,7 @@ import nextflow.config.schema.ScopeName
 import nextflow.script.dsl.Description
 
 import ai.lamin.nf_lamin.config.ArtifactConfig
+import ai.lamin.nf_lamin.util.MaskingUtils
 import ai.lamin.nf_lamin.config.ApiConfig
 import ai.lamin.nf_lamin.config.FeaturesConfig
 import ai.lamin.nf_lamin.config.RunConfig
@@ -454,7 +455,7 @@ class LaminConfig implements ConfigScope {
      */
     @Override
     String toString() {
-        def maskedApiKey = apiKey?.size() > 6 ? apiKey[0..1] + '****' + apiKey[-2..-1] : 'ap****ed'
+        def maskedApiKey = MaskingUtils.maskValue(apiKey)
 
         return "LaminConfig{" +
             "instance='${instance}', " +
