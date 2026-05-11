@@ -23,20 +23,20 @@ class MaskingUtilsTest extends Specification {
 
     // ========== maskValue tests ==========
 
-    def 'maskValue returns *** for null'() {
+    def 'maskValue returns **** for null'() {
         expect:
-        MaskingUtils.maskValue(null) == '***'
+        MaskingUtils.maskValue(null) == '****'
     }
 
-    def 'maskValue returns *** for empty string'() {
+    def 'maskValue returns **** for empty string'() {
         expect:
-        MaskingUtils.maskValue('') == '***'
+        MaskingUtils.maskValue('') == '****'
     }
 
     @Unroll
-    def 'maskValue returns *** for short value "#value" (length #value.length())'() {
+    def 'maskValue returns **** for short value "#value" (length #value.length())'() {
         expect:
-        MaskingUtils.maskValue(value) == '***'
+        MaskingUtils.maskValue(value) == '****'
 
         where:
         value << ['a', 'ab', 'abc', 'abcd', 'abcde', 'abcdefghijk']  // up to length 11
@@ -44,11 +44,11 @@ class MaskingUtilsTest extends Specification {
 
     def 'maskValue shows first 2 and last 2 chars for value of exactly 12 characters'() {
         expect:
-        MaskingUtils.maskValue('abcdefghijkl') == 'ab***kl'
+        MaskingUtils.maskValue('abcdefghijkl') == 'ab****kl'
     }
 
     def 'maskValue shows first 2 and last 2 chars for long value'() {
         expect:
-        MaskingUtils.maskValue('ABCDEFGHIJKLMNOPQRSTUVWXYZ') == 'AB***YZ'
+        MaskingUtils.maskValue('ABCDEFGHIJKLMNOPQRSTUVWXYZ') == 'AB****YZ'
     }
 }

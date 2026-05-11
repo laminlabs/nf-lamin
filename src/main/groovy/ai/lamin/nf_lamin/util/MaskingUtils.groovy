@@ -23,16 +23,16 @@ class MaskingUtils {
 
     /**
      * Masks a sensitive value. If the number of characters is at least 12, shows
-     * the first 2 and last 2 characters with '***' in between; otherwise fully redacts.
+     * the first 2 and last 2 characters with '****' in between; otherwise fully redacts.
      *
      * @param value The sensitive value to mask
      * @return The masked string
      */
     static String maskValue(String value) {
-        if (value == null) return '***'
+        if (value == null) return '****'
         if (value.length() >= 12) {
-            return "${value[0..1]}***${value[-2..-1]}"
+            return "${value[0..1]}****${value[-2..-1]}"
         }
-        return '***'
+        return '****'
     }
 }
