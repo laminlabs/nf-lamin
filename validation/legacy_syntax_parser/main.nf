@@ -5,7 +5,7 @@ include { getRunUid; getTransformUid } from 'plugin/nf-lamin'
 */
 
 // An artifact URI in lamin:// format
-params.artifactUri = 'lamin://laminlabs/lamindata/artifact/s3rtK8wIzJNKvg5Q'
+params.artifactUri = 'lamin://laminlabs/lamin-dev/artifact/CVlzCRxONUviN55m'
 
 // Output directory
 params.outputDir = "output"

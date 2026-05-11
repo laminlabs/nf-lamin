@@ -15,7 +15,7 @@ include { getRunUid; getTransformUid } from 'plugin/nf-lamin'
 */
 params {
   // An artifact URI in lamin:// format
-  artifactUri: String = 'lamin://laminlabs/lamindata/artifact/s3rtK8wIzJNKvg5Q'
+  artifactUri: String = 'lamin://laminlabs/lamin-dev/artifact/CVlzCRxONUviN55m'
 }
 
 /*
