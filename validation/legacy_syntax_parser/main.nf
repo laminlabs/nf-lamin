@@ -14,7 +14,7 @@ params.outputDir = "output"
   Process to summarize data and generate output.json with metadata
 */
 process summarizeData {
-  publishDir "${params.outputDir}/${id}", mode: 'copy', overwrite: true
+  publishDir { "${params.outputDir}/${id}" }, mode: 'copy', overwrite: true
 
   input:
   tuple val(id), path(input)
