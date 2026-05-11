@@ -16,6 +16,7 @@
 
 package ai.lamin.nf_lamin.config
 
+import ai.lamin.nf_lamin.util.MaskingUtils
 import groovy.transform.CompileStatic
 import nextflow.config.schema.ConfigOption
 import nextflow.script.dsl.Description
@@ -137,7 +138,7 @@ class ApiConfig {
 
     @Override
     String toString() {
-        def maskedAnonKey = supabaseAnonKey?.size() > 6 ? supabaseAnonKey[0..1] + '****' + supabaseAnonKey[-2..-1] : 'an****ed'
+        def maskedAnonKey = MaskingUtils.maskValue(supabaseAnonKey)
         return "ApiConfig{supabaseApiUrl='${supabaseApiUrl}', supabaseAnonKey='${maskedAnonKey}', maxRetries=${maxRetries}, retryDelay=${retryDelay}, webUrl='${webUrl}'}"
     }
 }
