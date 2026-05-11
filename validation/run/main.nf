@@ -101,10 +101,10 @@ workflow {
 
   // Construct typed record channel and run named workflow
   ch_input = channel.of(record(id: "artifact1", artifact: artPath))
-  out = SUMMARIZE_ARTIFACTS(ch_input)
+  ch_results = SUMMARIZE_ARTIFACTS(ch_input)
 
   publish:
-  results = out.results
+  results = ch_results
 }
 
 /*
