@@ -15,7 +15,7 @@ include { getRunUid; getTransformUid } from 'plugin/nf-lamin'
 */
 params {
   // An artifact URI in lamin:// format
-  artifactUri: String = 'lamin://laminlabs/lamin-dev/artifact/CVlzCRxONUviN55m'
+  input: String = 'lamin://laminlabs/lamin-dev/artifact/CUrOAtaYX5OZDgcf'
 }
 
 /*
@@ -84,8 +84,8 @@ workflow {
   main:
 
   // Test artifact fetching via lamin:// URI
-  def artPath = file(params.artifactUri)
-  log.info "Resolved artifact URL for '${params.artifactUri}': ${artPath.resolveToStorage()}"
+  def artPath = file(params.input)
+  log.info "Resolved artifact URL for '${params.input}': ${artPath.resolveToStorage()}"
   log.info "Artifact path class: ${artPath.class.name}"
 
   try {
