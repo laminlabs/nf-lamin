@@ -48,24 +48,27 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # test oldest supported versions of java & nextflow
           - java_version: 21
-            # nextflow_version: latest-stable
-            nextflow_version: 25.10.4
-            validation_args: ""
-            lamin_env: prod
-          - java_version: 21
-            # nextflow_version: latest-stable
-            nextflow_version: 25.10.4
-            validation_args: "--artifact-uri lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A"
-            lamin_env: staging
-          - java_version: 25
-            # nextflow_version: latest-edge
             nextflow_version: 25.10.4
             validation_args: "-with-report"
             lamin_env: prod
-          - java_version: 25
-            # nextflow_version: latest-edge
+
+          # test oldest supported versions of java & nextflow on staging environment
+          - java_version: 21
             nextflow_version: 25.10.4
+            validation_args: "--artifact-uri lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A"
+            lamin_env: staging
+
+          # test latest stable version of nextflow on staging environment
+          - java_version: 25
+            nextflow_version: latest-stable
+            validation_args: "-with-report --artifact-uri lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A"
+            lamin_env: staging
+
+          # test latest edge version of nextflow on staging environment
+          - java_version: 25
+            nextflow_version: latest-edge
             validation_args: "-with-report --artifact-uri lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A"
             lamin_env: staging
     steps:
