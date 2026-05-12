@@ -21,6 +21,7 @@ import groovy.util.logging.Slf4j
 import java.nio.file.Path
 import java.util.regex.Pattern
 import nextflow.config.spec.ConfigOption
+import nextflow.config.spec.ConfigScope
 import nextflow.script.dsl.Description
 
 /**
@@ -54,7 +55,7 @@ import nextflow.script.dsl.Description
  */
 @Slf4j
 @CompileStatic
-class ArtifactConfig {
+class ArtifactConfig implements ConfigScope {
 
     @ConfigOption
     @Description('''
@@ -129,7 +130,7 @@ class ArtifactConfig {
     ''')
     final Object description
 
-    @ConfigOption
+    @ConfigOption(types=[Map])
     @Description('''
         Path-specific rules for fine-grained control over artifact tracking. Each rule can match files by pattern and override tracking decisions and metadata.
     ''')
