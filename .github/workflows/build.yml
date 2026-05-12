@@ -69,10 +69,11 @@ jobs:
             validation_args: "-with-report --input lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A"
             lamin_env: staging
 
-          # test latest edge nextflow: typed params/processes/workflows + output block
+          # test latest edge nextflow
+          # NOTE: switch back to validate-run when latest-edge is >= 26.04
           - java_version: 25
             nextflow_version: latest-edge
-            validation_target: validate-run
+            validation_target: validate-legacy
             validation_args: "-with-report --input lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A"
             lamin_env: staging
     steps:
