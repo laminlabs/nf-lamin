@@ -74,7 +74,7 @@ jobs:
           - java_version: 25
             nextflow_version: latest-edge
             validation_target: validate-legacy
-            validation_args: "-with-report --input lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A"
+            validation_args: "--input lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A"
             lamin_env: staging
     steps:
       - name: Environment
@@ -116,7 +116,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: test-report-java${{ matrix.java_version }}-${{ matrix.lamin_env }}
+          name: test-report-java${{ matrix.java_version }}-nf${{ matrix.nextflow_version }}-${{ matrix.lamin_env }}
           path: build/reports
 
       - name: Build plugin
@@ -132,6 +132,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "providers.github.token='$GITHUB_TOKEN'" > ~/.nextflow/scm
+          nextflow secrets set LAMIN_API_KEY "$LAMIN_API_KEY"
           BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
           make ${{ matrix.validation_target }} BRANCH="$BRANCH" ARGS="${{ matrix.validation_args }}"
 
