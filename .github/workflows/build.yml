@@ -130,6 +130,7 @@ jobs:
           LAMIN_ENV: ${{ matrix.lamin_env }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          echo "providers.github.token='$GITHUB_TOKEN'" > ~/.nextflow/scm
           BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
           make ${{ matrix.validation_target }} BRANCH="$BRANCH" ARGS="${{ matrix.validation_args }}"
 
