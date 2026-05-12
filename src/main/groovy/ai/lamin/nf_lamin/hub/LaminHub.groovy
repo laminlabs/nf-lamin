@@ -7,6 +7,7 @@ import groovy.util.logging.Slf4j
 import groovy.json.JsonSlurper
 
 import ai.lamin.nf_lamin.hub.InstanceSettings
+import ai.lamin.nf_lamin.util.MaskingUtils
 
 /**
  * Groovy client for interacting with specific LaminHub API endpoints.
@@ -269,7 +270,7 @@ class LaminHub {
                 // Construct detailed error message
                 String errorMessage = "HTTP Error: ${responseCode} ${connection.getResponseMessage()}. " +
                     "URL: ${requestUrl}. Method: ${callingMethod}. " +
-                    "Payload: ${jsonPayload}. " +
+                    "Payload: ${redactSensitiveFields(jsonPayload)}. " +
                     "Retry Allowed: ${allowRetry}. " +
                     "Response: ${errorBody ?: 'No error body'}"
 
@@ -348,15 +349,9 @@ class LaminHub {
         String result = jsonString
         for (String field : sensitiveFields) {
             // Match patterns like "field":"value" or "field": "value"
-            result = result.replaceAll(
-                /"${field}"\s*:\s*"([^"]+)"/,
-                "\"${field}\":\"***REDACTED***\""
-            )
-            // Match patterns without quotes around value (for non-string values, though less common for secrets)
-            result = result.replaceAll(
-                /"${field}"\s*:\s*([^,}\]]+)/,
-                "\"${field}\":\"***REDACTED***\""
-            )
+            result = result.replaceAll(/"${field}"\s*:\s*"([^"]+)"/) { List<String> m ->
+                "\"${field}\":\"${MaskingUtils.maskValue(m[1])}\""
+            }
         }
 
         return result
