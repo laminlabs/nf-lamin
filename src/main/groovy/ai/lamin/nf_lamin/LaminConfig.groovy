@@ -151,19 +151,16 @@ class LaminConfig implements ConfigScope {
     ''')
     final Boolean dry_run
 
-    @ConfigOption
     @Description('''
         Configuration for artifact tracking (both inputs and outputs). Use this for rules that apply to all artifacts regardless of direction.
     ''')
     final ArtifactConfig artifacts
 
-    @ConfigOption
     @Description('''
         Configuration for input artifact tracking. Use this to control which input files are tracked and what metadata is attached.
     ''')
     final ArtifactConfig input_artifacts
 
-    @ConfigOption
     @Description('''
         Configuration for output artifact tracking. Use this to control which output files are tracked and what metadata is attached.
     ''')
