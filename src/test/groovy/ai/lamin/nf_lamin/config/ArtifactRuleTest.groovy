@@ -34,7 +34,7 @@ class ArtifactRuleTest extends Specification {
         rule.type == 'include'
         rule.direction == 'both'
         rule.order == 100
-        rule.ulabelUids == []
+        rule.ulabel_uids == []
         rule.include_paths == []
         rule.key == null
     }
@@ -57,7 +57,7 @@ class ArtifactRuleTest extends Specification {
         rule.type == 'exclude'
         rule.direction == 'output'
         rule.kind == 'dataset'
-        rule.ulabelUids == ['uid1', 'uid2']
+        rule.ulabel_uids == ['uid1', 'uid2']
         rule.order == 5
     }
 
@@ -69,7 +69,7 @@ class ArtifactRuleTest extends Specification {
         ])
 
         then:
-        rule.ulabelUids == ['single-uid']
+        rule.ulabel_uids == ['single-uid']
     }
 
 
@@ -174,7 +174,7 @@ class ArtifactRuleTest extends Specification {
         then:
         rule.enabled == true
         rule.pattern == null
-        rule.compiledPattern == null
+        rule.compiled_pattern == null
         rule.include_paths == ['s3://bucket/samplesheet.csv', '/local/data.txt']
         rule.direction == 'input'
         rule.hasPaths()

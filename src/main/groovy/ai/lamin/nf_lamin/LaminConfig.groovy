@@ -19,9 +19,9 @@ package ai.lamin.nf_lamin
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import nextflow.Session
-import nextflow.config.schema.ConfigOption
-import nextflow.config.schema.ConfigScope
-import nextflow.config.schema.ScopeName
+import nextflow.config.spec.ConfigOption
+import nextflow.config.spec.ConfigScope
+import nextflow.config.spec.ScopeName
 import nextflow.script.dsl.Description
 
 import ai.lamin.nf_lamin.config.ArtifactConfig
@@ -90,35 +90,35 @@ class LaminConfig implements ConfigScope {
     @Description('''
         The access token for the Lamin API.
     ''')
-    final String apiKey
+    final String api_key
 
     @ConfigOption
     @Description('''
         List of project UIDs to link to all artifacts, runs, and transforms.
         Also accepts named references (see "Named record resolution" above).
     ''')
-    final List<String> projectUids
+    final List<String> project_uids
 
     @ConfigOption
     @Description('''
         List of ulabel UIDs to link to all artifacts, runs, and transforms.
         Also accepts named references (see "Named record resolution" above).
     ''')
-    final List<String> ulabelUids
+    final List<String> ulabel_uids
 
     @ConfigOption
     @Description('''
         The UID of the space to use for all transforms, runs, and artifacts.
         Also accepts named references (see "Named record resolution" above).
     ''')
-    final String spaceUid
+    final String space_uid
 
     @ConfigOption
     @Description('''
         The UID of the branch to use for all transforms, runs, and artifacts.
         Also accepts named references (see "Named record resolution" above).
     ''')
-    final String branchUid
+    final String branch_uid
 
     @ConfigOption
     @Description('''
@@ -136,19 +136,19 @@ class LaminConfig implements ConfigScope {
     @Description('''
         (Advanced) Manually specify a transform UID if known. If provided, the plugin will use this existing transform instead of looking up or creating a new one.
     ''')
-    final String transformUid
+    final String transform_uid
 
     @ConfigOption
     @Description('''
         (Advanced) Manually specify a run UID if known. If provided, the plugin will use this existing run instead of creating a new one. The run must have status SCHEDULED (-3), otherwise a warning will be logged and a new run will be created.
     ''')
-    final String runUid
+    final String run_uid
 
     @ConfigOption
     @Description('''
         (Advanced) Enable dry-run mode. When true, the plugin will not create any transforms, runs, or artifacts in LaminDB. Useful for testing configuration without modifying the database (default: false).
     ''')
-    final Boolean dryRun
+    final Boolean dry_run
 
     @ConfigOption
     @Description('''
@@ -160,13 +160,13 @@ class LaminConfig implements ConfigScope {
     @Description('''
         Configuration for input artifact tracking. Use this to control which input files are tracked and what metadata is attached.
     ''')
-    final ArtifactConfig inputArtifacts
+    final ArtifactConfig input_artifacts
 
     @ConfigOption
     @Description('''
         Configuration for output artifact tracking. Use this to control which output files are tracked and what metadata is attached.
     ''')
-    final ArtifactConfig outputArtifacts
+    final ArtifactConfig output_artifacts
 
     @ConfigOption
     @Description('''
@@ -197,29 +197,29 @@ class LaminConfig implements ConfigScope {
         // Extract values from map or environment variables
         // Use containsKey to distinguish between "not provided" vs "explicitly null/empty"
         this.instance = opts.containsKey('instance') ? opts.instance : System.getenv('LAMIN_CURRENT_INSTANCE')
-        this.apiKey = opts.containsKey('api_key') ? opts.api_key : System.getenv('LAMIN_API_KEY')
+        this.api_key = opts.containsKey('api_key') ? opts.api_key : System.getenv('LAMIN_API_KEY')
 
         // Parse project_uids, ulabel_uids
-        this.projectUids = parseUidList(opts.containsKey('project_uids') ? opts.project_uids : System.getenv('LAMIN_CURRENT_PROJECT'))
-        this.ulabelUids = parseUidList(opts.containsKey('ulabel_uids') ? opts.ulabel_uids : null)
+        this.project_uids = parseUidList(opts.containsKey('project_uids') ? opts.project_uids : System.getenv('LAMIN_CURRENT_PROJECT'))
+        this.ulabel_uids = parseUidList(opts.containsKey('ulabel_uids') ? opts.ulabel_uids : null)
 
         // Parse space and branch (UID only)
-        this.spaceUid = opts.space_uid
-        this.branchUid = opts.branch_uid
+        this.space_uid = opts.space_uid
+        this.branch_uid = opts.branch_uid
 
         this.env = opts.containsKey('env') ? (opts.env ?: 'prod') : (System.getenv('LAMIN_ENV') ?: 'prod')
 
         // Parse api configuration
         this.api = opts.containsKey('api') ? new ApiConfig(opts.api as Map) : new ApiConfig()
 
-        this.transformUid = opts.containsKey('transform_uid') ? opts.transform_uid : System.getenv('LAMIN_TRANSFORM_UID')
-        this.runUid = opts.containsKey('run_uid') ? opts.run_uid : System.getenv('LAMIN_RUN_UID')
-        this.dryRun = opts.containsKey('dry_run') ? (opts.dry_run as Boolean) : ((System.getenv('LAMIN_DRY_RUN') as Boolean) ?: false)
+        this.transform_uid = opts.containsKey('transform_uid') ? opts.transform_uid : System.getenv('LAMIN_TRANSFORM_UID')
+        this.run_uid = opts.containsKey('run_uid') ? opts.run_uid : System.getenv('LAMIN_RUN_UID')
+        this.dry_run = opts.containsKey('dry_run') ? (opts.dry_run as Boolean) : ((System.getenv('LAMIN_DRY_RUN') as Boolean) ?: false)
 
         // Parse artifact configurations
         this.artifacts = opts.containsKey('artifacts') ? new ArtifactConfig(opts.artifacts as Map, 'both') : null
-        this.inputArtifacts = opts.containsKey('input_artifacts') ? new ArtifactConfig(opts.input_artifacts as Map, 'input') : null
-        this.outputArtifacts = opts.containsKey('output_artifacts') ? new ArtifactConfig(opts.output_artifacts as Map, 'output') : null
+        this.input_artifacts = opts.containsKey('input_artifacts') ? new ArtifactConfig(opts.input_artifacts as Map, 'input') : null
+        this.output_artifacts = opts.containsKey('output_artifacts') ? new ArtifactConfig(opts.output_artifacts as Map, 'output') : null
 
         // Parse run and transform configurations
         this.run = opts.containsKey('run') ? new RunConfig(opts.run as Map) : new RunConfig()
@@ -240,7 +240,7 @@ class LaminConfig implements ConfigScope {
         if (!this.instance?.trim()) {
             throw new IllegalArgumentException('Lamin instance is not set. Please set the "lamin.instance" in your nextflow.config file.')
         }
-        if (!this.apiKey?.trim()) {
+        if (!this.api_key?.trim()) {
             throw new IllegalArgumentException('Lamin API key is not set. Please set the "lamin.api_key" in your nextflow.config file.')
         }
 
@@ -251,7 +251,7 @@ class LaminConfig implements ConfigScope {
 
         // Validate artifact config mutual exclusivity
         boolean hasGlobalArtifacts = this.artifacts != null
-        boolean hasDirectionSpecific = this.inputArtifacts != null || this.outputArtifacts != null
+        boolean hasDirectionSpecific = this.input_artifacts != null || this.output_artifacts != null
         if (hasGlobalArtifacts && hasDirectionSpecific) {
             throw new IllegalArgumentException(
                 "Cannot use both 'artifacts' and 'input_artifacts'/'output_artifacts' configurations. " +
@@ -289,7 +289,7 @@ class LaminConfig implements ConfigScope {
      * @return the API key
      */
     String getApiKey() {
-        return this.apiKey
+        return this.api_key
     }
 
     /**
@@ -297,7 +297,7 @@ class LaminConfig implements ConfigScope {
      * @return list of project UIDs
      */
     List<String> getProjectUids() {
-        return this.projectUids ?: []
+        return this.project_uids ?: []
     }
 
     /**
@@ -305,7 +305,7 @@ class LaminConfig implements ConfigScope {
      * @return list of ulabel UIDs
      */
     List<String> getUlabelUids() {
-        return this.ulabelUids ?: []
+        return this.ulabel_uids ?: []
     }
 
     /**
@@ -313,7 +313,7 @@ class LaminConfig implements ConfigScope {
      * @return the space UID, or null if not set
      */
     String getSpaceUid() {
-        return this.spaceUid
+        return this.space_uid
     }
 
     /**
@@ -321,7 +321,7 @@ class LaminConfig implements ConfigScope {
      * @return the branch UID, or null if not set
      */
     String getBranchUid() {
-        return this.branchUid
+        return this.branch_uid
     }
 
     /**
@@ -337,7 +337,7 @@ class LaminConfig implements ConfigScope {
      * @return the transform UID, or null if not specified
      */
     String getTransformUid() {
-        return this.transformUid
+        return this.transform_uid
     }
 
     /**
@@ -345,7 +345,7 @@ class LaminConfig implements ConfigScope {
      * @return the run UID, or null if not specified
      */
     String getRunUid() {
-        return this.runUid
+        return this.run_uid
     }
 
     /**
@@ -353,7 +353,7 @@ class LaminConfig implements ConfigScope {
      * @return true if dry-run mode is enabled
      */
     Boolean getDryRun() {
-        return this.dryRun
+        return this.dry_run
     }
 
     /**
@@ -369,7 +369,7 @@ class LaminConfig implements ConfigScope {
      * @return the input artifact configuration, or null if not set
      */
     ArtifactConfig getInputArtifacts() {
-        return this.inputArtifacts
+        return this.input_artifacts
     }
 
     /**
@@ -377,7 +377,7 @@ class LaminConfig implements ConfigScope {
      * @return the output artifact configuration, or null if not set
      */
     ArtifactConfig getOutputArtifacts() {
-        return this.outputArtifacts
+        return this.output_artifacts
     }
 
     /**
@@ -454,19 +454,19 @@ class LaminConfig implements ConfigScope {
      */
     @Override
     String toString() {
-        def maskedApiKey = apiKey?.size() > 6 ? apiKey[0..1] + '****' + apiKey[-2..-1] : 'ap****ed'
+        def maskedApiKey = api_key?.size() > 6 ? api_key[0..1] + '****' + api_key[-2..-1] : 'ap****ed'
 
         return "LaminConfig{" +
             "instance='${instance}', " +
-            "apiKey='${maskedApiKey}', " +
-            "projectUids=${projectUids}, " +
-            "ulabelUids=${ulabelUids}, " +
-            "spaceUid='${spaceUid}', " +
-            "branchUid='${branchUid}', " +
+            "api_key='${maskedApiKey}', " +
+            "project_uids=${project_uids}, " +
+            "ulabel_uids=${ulabel_uids}, " +
+            "space_uid='${space_uid}', " +
+            "branch_uid='${branch_uid}', " +
             "env='${env}', " +
             "api=${api}, " +
-            "transformUid='${transformUid}', " +
-            "runUid='${runUid}', " +
+            "transform_uid='${transform_uid}', " +
+            "run_uid='${run_uid}', " +
             "run=${run}, " +
             "transform=${transform}" +
             "}"

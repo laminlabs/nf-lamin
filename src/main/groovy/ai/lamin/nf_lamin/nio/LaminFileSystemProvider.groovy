@@ -204,7 +204,7 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
         // Attempt credential federation for Lamin-managed S3 storage
         if (storageRoot?.startsWith('s3://')) {
             LaminConfig config = LaminRunManager.getInstance().getConfig()
-            boolean manageCredentials = config?.features?.manageS3Credentials != false
+            boolean manageCredentials = config?.features?.manage_s3_credentials != false
             if (manageCredentials) {
                 Path managed = tryResolveWithManagedS3Credentials(laminPath, storageRoot, artifactKey)
                 if (managed != null) {

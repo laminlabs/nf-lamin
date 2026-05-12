@@ -475,7 +475,7 @@ class LaminConfigTest extends Specification {
         def str = config.toString()
 
         then:
-        str.contains("spaceUid='!my-space'")
-        str.contains("branchUid='+my-branch'")
+        str.contains("space_uid='!my-space'")
+        str.contains("branch_uid='+my-branch'")
     }
 }

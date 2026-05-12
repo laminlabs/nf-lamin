@@ -136,6 +136,6 @@ class TransformConfigTest extends Specification {
         def str = config.toString()
 
         then:
-        str.contains('ulabelUids=[ulab111]')
+        str.contains('ulabel_uids=[ulab111]')
     }
 }

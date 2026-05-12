@@ -33,9 +33,9 @@ class ArtifactConfigTest extends Specification {
         then:
         config.enabled == true
         config.direction == 'both'
-        config.includePattern == null
-        config.excludePattern == null
-        config.ulabelUids == []
+        config.include_pattern == null
+        config.exclude_pattern == null
+        config.ulabel_uids == []
         config.rules.isEmpty()
     }
 
@@ -52,9 +52,9 @@ class ArtifactConfigTest extends Specification {
         then:
         config.enabled == true
         config.direction == 'output'
-        config.includePattern == '.*\\.(fastq|bam)$'
-        config.excludePattern == '.*temp.*'
-        config.ulabelUids == ['global-label']
+        config.include_pattern == '.*\\.(fastq|bam)$'
+        config.exclude_pattern == '.*temp.*'
+        config.ulabel_uids == ['global-label']
         config.kind == 'dataset'
     }
 
@@ -65,7 +65,7 @@ class ArtifactConfigTest extends Specification {
         ], 'both')
 
         then:
-        config.ulabelUids == ['single-label']
+        config.ulabel_uids == ['single-label']
     }
 
     def "should parse rules from config"() {
@@ -126,7 +126,7 @@ class ArtifactConfigTest extends Specification {
         result.shouldTrack == expectedShouldTrack
         // When tracked, should include global values
         if (expectedShouldTrack) {
-            result.ulabelUids.contains('global-label')
+            result.ulabel_uids.contains('global-label')
             result.kind == 'global-kind'
         }
 
@@ -157,7 +157,7 @@ class ArtifactConfigTest extends Specification {
 
         then:
         !result.shouldTrack
-        result.ulabelUids == []
+        result.ulabel_uids == []
         result.kind == null
     }
 
@@ -195,7 +195,7 @@ class ArtifactConfigTest extends Specification {
         def result = config.evaluate(Paths.get('/test/file.txt'), 'output')
 
         then:
-        result.ulabelUids == ['global-label']
+        result.ulabel_uids == ['global-label']
         result.kind == 'dataset'
     }
 
@@ -217,7 +217,7 @@ class ArtifactConfigTest extends Specification {
         def result = config.evaluate(Paths.get('/test/file.fastq'), 'output')
 
         then:
-        result.ulabelUids.containsAll(['global-label', 'fastq-label'])
+        result.ulabel_uids.containsAll(['global-label', 'fastq-label'])
         result.kind == 'raw_data'  // rule overrides global
     }
 
@@ -237,8 +237,8 @@ class ArtifactConfigTest extends Specification {
         def result = config.evaluate(Paths.get('/test/file.txt'), 'output')
 
         then:
-        result.ulabelUids.size() == 3
-        result.ulabelUids.containsAll(['label1', 'label2', 'label3'])
+        result.ulabel_uids.size() == 3
+        result.ulabel_uids.containsAll(['label1', 'label2', 'label3'])
     }
 
     def "should accumulate metadata from multiple matching rules"() {
@@ -266,7 +266,7 @@ class ArtifactConfigTest extends Specification {
 
         then:
         // Labels accumulated from global + both matching rules
-        result.ulabelUids.containsAll(['global-label', 'fastq-label', 'all-files-label'])
+        result.ulabel_uids.containsAll(['global-label', 'fastq-label', 'all-files-label'])
         // Kind from last matching rule with kind (all_files has order=10, processed last)
         result.kind == 'fastq-kind'  // actually fastq has order=1, so all_files comes later but doesn't have kind
     }
@@ -342,7 +342,7 @@ class ArtifactConfigTest extends Specification {
         expect:
         // exclude_all matches but include_fastq (later) overrides it
         config.evaluate(Paths.get('/test/file.fastq'), 'output').shouldTrack
-        config.evaluate(Paths.get('/test/file.fastq'), 'output').ulabelUids == ['fastq-label']
+        config.evaluate(Paths.get('/test/file.fastq'), 'output').ulabel_uids == ['fastq-label']
         // Only exclude_all matches, so excluded
         !config.evaluate(Paths.get('/test/file.txt'), 'output').shouldTrack
     }
@@ -509,7 +509,7 @@ class ArtifactConfigTest extends Specification {
         result.size() == 2
         result[0].path == 's3://bucket/samplesheet.csv'
         result[0].evaluation.shouldTrack
-        result[0].evaluation.ulabelUids == ['global-label']
+        result[0].evaluation.ulabel_uids == ['global-label']
         result[0].evaluation.kind == 'dataset'
         result[1].path == '/local/data.txt'
     }
@@ -535,7 +535,7 @@ class ArtifactConfigTest extends Specification {
         result.size() == 1
         result[0].path == 's3://bucket/samplesheet.csv'
         result[0].evaluation.shouldTrack
-        result[0].evaluation.ulabelUids.containsAll(['global-label', 'rule-label'])
+        result[0].evaluation.ulabel_uids.containsAll(['global-label', 'rule-label'])
         result[0].evaluation.kind == 'dataset'
     }
 

@@ -642,7 +642,7 @@ final class LaminRunManager {
                     String resolvedKey = KeyResolver.resolveKey(keyConfig, resolvedPath, workflowParams)
                     prebuiltEvaluation = new ArtifactEvaluation(
                         prebuiltEvaluation.shouldTrack,
-                        prebuiltEvaluation.ulabelUids,
+                        prebuiltEvaluation.ulabel_uids,
                         prebuiltEvaluation.kind,
                         resolvedKey
                     )
@@ -748,7 +748,7 @@ final class LaminRunManager {
         // Link artifact to run and metadata
         linkInputArtifactToRun(artifact)
         List<String> artifactProjectUids = mergeUidLists(config.getProjectUids())
-        List<String> artifactUlabelUids = mergeUidLists(config.getUlabelUids(), evaluation.ulabelUids)
+        List<String> artifactUlabelUids = mergeUidLists(config.getUlabelUids(), evaluation.ulabel_uids)
         linkArtifactToProjects(artifact, artifactProjectUids)
         linkArtifactToUlabels(artifact, artifactUlabelUids)
 
@@ -769,7 +769,7 @@ final class LaminRunManager {
         String pathKey = path.toUri().toString()
         Map<String, Object> cachedArtifact = publishedArtifactsByPath.get(pathKey) as Map<String, Object>
         if (cachedArtifact != null) {
-            if (labels && config?.features?.useOutputLabels != false) {
+            if (labels && config?.features?.use_output_labels != false) {
                 linkArtifactToUlabels(cachedArtifact, labels.collect { "+${it}" as String })
             }
             return cachedArtifact
@@ -867,12 +867,12 @@ final class LaminRunManager {
 
         // Link artifact metadata (projects, ulabels) - run is already linked via run_id
         List<String> artifactProjectUids = mergeUidLists(config.getProjectUids())
-        List<String> artifactUlabelUids = mergeUidLists(config.getUlabelUids(), evaluation.ulabelUids)
+        List<String> artifactUlabelUids = mergeUidLists(config.getUlabelUids(), evaluation.ulabel_uids)
         linkArtifactToProjects(artifact, artifactProjectUids)
         linkArtifactToUlabels(artifact, artifactUlabelUids)
 
         // Link output labels as ULabels if the feature is enabled
-        if (labels && config?.features?.useOutputLabels != false) {
+        if (labels && config?.features?.use_output_labels != false) {
             linkArtifactToUlabels(artifact, labels.collect { "+${it}" as String })
         }
 
@@ -1094,9 +1094,9 @@ final class LaminRunManager {
      */
     private boolean shouldSkipArtifact(Path path, String direction) {
         ArtifactConfig ac = resolveArtifactConfig(direction)
-        boolean includeLocal     = ac != null ? ac.includeLocal     : true
-        boolean excludeWorkDir   = ac != null ? ac.excludeWorkDir   : true
-        boolean excludeAssetsDir = ac != null ? ac.excludeAssetsDir : true
+        boolean includeLocal     = ac != null ? ac.include_local     : true
+        boolean excludeWorkDir   = ac != null ? ac.exclude_work_dir   : true
+        boolean excludeAssetsDir = ac != null ? ac.exclude_assets_dir : true
 
         if (!includeLocal && isLocalPath(path)) {
             log.debug "Skipping ${direction} artifact creation for local file at ${path.toUri()} (include_local=false)"
