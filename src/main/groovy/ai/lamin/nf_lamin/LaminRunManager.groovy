@@ -45,7 +45,6 @@ import ai.lamin.nf_lamin.util.TransformInfoHelper
 import ai.lamin.nf_lamin.config.ArtifactConfig
 import ai.lamin.nf_lamin.config.ArtifactEvaluation
 import ai.lamin.nf_lamin.config.ConfigUtils
-import ai.lamin.nf_lamin.config.KeyResolver
 
 /**
  * Holds shared state about the currently active Lamin transform and run.
@@ -82,6 +81,9 @@ final class LaminRunManager {
     // Cache of published output artifacts (key: path URI string, value: artifact map)
     // Written by createOutputArtifact; read by createOutputArtifact(labels) and trackWorkflowOutput
     private final Map<String, Map> publishedArtifactsByPath = Collections.synchronizedMap(new LinkedHashMap<String, Map>())
+
+    // Tracks whether the one-time local file warning has been shown this session
+    private volatile boolean localFileWarningShown = false
 
     private LaminRunManager() {
     }
@@ -839,9 +841,6 @@ final class LaminRunManager {
         if (evaluation.kind) {
             params.kind = evaluation.kind
         }
-        if (evaluation.key) {
-            params.key = evaluation.key
-        }
 
         Map<String, Object> artifact = fetchOrCreateArtifact(params)
 
@@ -1065,11 +1064,9 @@ final class LaminRunManager {
 
     /**
      * Check whether an artifact should be skipped based on its path type
-     * and the resolved config values for include_local, include_work_dir,
-     * and include_assets_dir.
+     * and the resolved config values for exclude_work_dir and exclude_assets_dir.
      *
      * Defaults when no config is present:
-     *   include_local      = true
      *   exclude_work_dir   = true
      *   exclude_assets_dir = true
      *
@@ -1079,12 +1076,15 @@ final class LaminRunManager {
      */
     private boolean shouldSkipArtifact(Path path, String direction) {
         ArtifactConfig ac = resolveArtifactConfig(direction)
-        boolean includeLocal     = ac != null ? ac.include_local     : true
         boolean excludeWorkDir   = ac != null ? ac.exclude_work_dir   : true
         boolean excludeAssetsDir = ac != null ? ac.exclude_assets_dir : true
 
-        if (!includeLocal && isLocalPath(path)) {
-            log.debug "Skipping ${direction} artifact creation for local file at ${path.toUri()} (include_local=false)"
+        if (isLocalPath(path)) {
+            if (!localFileWarningShown) {
+                localFileWarningShown = true
+                log.warn "Local file detected at ${path.toUri()}. nf-lamin only tracks remote paths (s3://, gs://, etc.). Local files will be ignored. This warning is only shown once per session."
+            }
+            log.debug "Skipping ${direction} artifact creation for local file at ${path.toUri()}"
             return true
         }
 
@@ -1501,7 +1501,7 @@ final class LaminRunManager {
             }
 
             apiParams.put('path', pathStr)
-                artifact = laminInstance.createArtifact(apiParams)
+            artifact = laminInstance.createArtifact(apiParams)
         } catch (Exception e) {
             log.error "Failed to create artifact ${logContext} at ${path.toUri()}"
             log.debug "Exception: ${e.getMessage()}", e
