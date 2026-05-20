@@ -127,7 +127,7 @@ key {
 // /home/user/results/multiqc/report.html → multiqc/report.html
 ```
 
-`relativize` strips the given directory prefix from each artifact path, preserving the subdirectory structure as the key. It is equivalent to writing `key = { path -> path.toString().removePrefix(params.outdir + '/') }` but handles `file://`, `s3://`, `gs://`, and other URI schemes uniformly. If an artifact path falls outside the base directory, the plugin falls back to the basename.
+`relativize` strips the given directory prefix from each artifact path, preserving the subdirectory structure as the key. It is equivalent to writing `key = { path -> path.toString().minus(params.outdir + '/') }` but handles `file://`, `s3://`, `gs://`, and other URI schemes uniformly. If an artifact path falls outside the base directory, the plugin falls back to the basename.
 
 The `relativize` value accepts either a plain string or a closure. Wrapping it in a closure (`{ params.outdir }` instead of `params.outdir`) is **strongly recommended** when using `params`: it delays evaluation until the workflow runs. Without the closure, Nextflow resolves the expression at config-parse time, and on Seqera Cloud (e.g. with `-with-tower`) this raises an error such as:
 
