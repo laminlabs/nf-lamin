@@ -70,7 +70,7 @@ class InstanceArtifactApiTest extends Specification {
     def setupSpec() {
         if (apiKey) {
             def config = LaminConfig.parseConfig([
-                instance: 'laminlabs/lamindata',
+                instance: 'laminlabs/lamin-dev',
                 api_key: apiKey,
             ])
             def resolvedConfig = LaminHubSettings.resolve(config)
@@ -89,6 +89,7 @@ class InstanceArtifactApiTest extends Specification {
             // --- Resolve test branch ---
             Map<String, Object> testBranch = instance.findOrCreateByName('core', 'branch', 'nf-lamin-test-branch')
             testBranchId = (testBranch.get('id') as Number)?.intValue()
+            assert testBranchId != null : "Failed to resolve test branch 'nf-lamin-test-branch': findOrCreateByName returned no id. Response: ${testBranch}"
             println "Resolved test branch: id=${testBranchId}, uid=${testBranch.get('uid')}"
 
             // --- Get or create transform ---
@@ -498,7 +499,7 @@ class InstanceArtifactApiTest extends Specification {
         Files.writeString(tempFile, "Upload test without run_id — ${uniqueSuffix} — ${System.nanoTime()}")
 
         when:
-        Map<String, Object> inputArgs = [file: tempFile.toFile(), description: "Upload test ${uniqueSuffix}"]
+        Map<String, Object> inputArgs = [file: tempFile.toFile(), description: "InstanceArtifactApiTest: upload no run_id ${uniqueSuffix}"]
         Map<String, Object> artifact = null
         try {
             artifact = instance.uploadArtifact(inputArgs)
@@ -557,7 +558,7 @@ class InstanceArtifactApiTest extends Specification {
         Files.write(tempFile, randomBytes)
 
         when:
-        Map<String, Object> inputArgs = [file: tempFile.toFile(), description: "Binary upload test ${uniqueSuffix}"]
+        Map<String, Object> inputArgs = [file: tempFile.toFile(), description: "InstanceArtifactApiTest: binary upload ${uniqueSuffix}"]
         Map<String, Object> artifact = null
         try {
             artifact = instance.uploadArtifact(inputArgs)
@@ -585,7 +586,7 @@ class InstanceArtifactApiTest extends Specification {
         Files.writeString(tempFile, "Upload test with description — ${uniqueSuffix}")
 
         when:
-        Map<String, Object> inputArgs = [file: tempFile.toFile(), description: "Test artifact from InstanceArtifactApiTest ${uniqueSuffix}"]
+        Map<String, Object> inputArgs = [file: tempFile.toFile(), description: "InstanceArtifactApiTest: upload with description ${uniqueSuffix}"]
         Map<String, Object> artifact = null
         try {
             artifact = instance.uploadArtifact(inputArgs)
@@ -625,7 +626,7 @@ class InstanceArtifactApiTest extends Specification {
         deleteArtifactIfExists(s3Path)
 
         when:
-        Map<String, Object> inputArgs = [path: s3Path, description: "S3 artifact with description ${uniqueSuffix}"]
+        Map<String, Object> inputArgs = [path: s3Path, description: "InstanceArtifactApiTest: S3 artifact with description ${uniqueSuffix}"]
         Map<String, Object> artifact = null
         try {
             artifact = instance.createArtifact(inputArgs)
@@ -788,7 +789,7 @@ class InstanceArtifactApiTest extends Specification {
         deleteArtifactIfExists(s3Path)
 
         when:
-        Map<String, Object> inputArgs = [path: s3Path, run_id: testRunId, description: "Full params test ${uniqueSuffix}"]
+        Map<String, Object> inputArgs = [path: s3Path, run_id: testRunId, description: "InstanceArtifactApiTest: S3 full params ${uniqueSuffix}"]
         Map<String, Object> artifact = null
         try {
             artifact = instance.createArtifact(inputArgs)
@@ -825,7 +826,7 @@ class InstanceArtifactApiTest extends Specification {
         Files.writeString(tempFile, "col1,col2\n1,2\n3,4\n${uniqueSuffix},${System.nanoTime()}\n")
 
         when:
-        Map<String, Object> inputArgs = [file: tempFile.toFile(), run_id: testRunId, description: "CSV upload test ${uniqueSuffix}"]
+        Map<String, Object> inputArgs = [file: tempFile.toFile(), run_id: testRunId, description: "InstanceArtifactApiTest: CSV upload ${uniqueSuffix}"]
         Map<String, Object> artifact = null
         try {
             artifact = instance.uploadArtifact(inputArgs)
