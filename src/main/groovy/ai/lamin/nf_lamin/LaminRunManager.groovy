@@ -632,21 +632,9 @@ final class LaminRunManager {
         for (Map<String, Object> entry : pathEntries) {
             String pathStr = entry.path as String
             ArtifactEvaluation prebuiltEvaluation = entry.evaluation as ArtifactEvaluation
-            Object keyConfig = entry.keyConfig
             try {
                 Path resolvedPath = FileHelper.asPath(pathStr)
                 log.debug "Resolved configured ${direction} path '${pathStr}' to ${resolvedPath.toUri()}"
-
-                // Resolve the key now that we have the actual Path object
-                if (prebuiltEvaluation != null && prebuiltEvaluation.key == null && keyConfig != null) {
-                    String resolvedKey = KeyResolver.resolveKey(keyConfig, resolvedPath, workflowParams)
-                    prebuiltEvaluation = new ArtifactEvaluation(
-                        prebuiltEvaluation.shouldTrack,
-                        prebuiltEvaluation.ulabel_uids,
-                        prebuiltEvaluation.kind,
-                        resolvedKey
-                    )
-                }
 
                 if (direction == 'input') {
                     createInputArtifact(resolvedPath, prebuiltEvaluation)
@@ -731,9 +719,6 @@ final class LaminRunManager {
         ]
         if (evaluation.kind) {
             params.kind = evaluation.kind
-        }
-        if (evaluation.key) {
-            params.key = evaluation.key
         }
 
         Map<String, Object> artifact = fetchOrCreateArtifact(params)
@@ -1477,28 +1462,19 @@ final class LaminRunManager {
             kind = kindValue as String
         }
 
-        // Extract key: use provided key, or default to filename
-        String key = null
-        if (params.containsKey('key')) {
-            Object keyValue = params.get('key')
-            if (keyValue != null && !(keyValue instanceof String)) {
-                throw new IllegalArgumentException("Parameter 'key' must be a String or null")
-            }
-            key = keyValue as String
+        if ((path.toUri().getScheme() ?: 'file') == 'file') {
+            log.debug "Skipping artifact creation for local file at ${path.toUri()} (local files are not tracked)"
+            return null
         }
-        if (key == null) {
-            key = KeyResolver.defaultKeyFromPath(path.toUri().toString())
-        }
-
-        boolean isLocalFile = (path.toUri().getScheme() ?: 'file') == 'file'
 
         String logContext = runId != null ? "for run ${runId}" : "without run association"
         Map<String, Object> artifact = null
         artifactLock.lock()
         try {
             // First, check if artifact already exists at this path
-            String remotePath = isLocalFile ? null : path.toUri().toString().replaceAll('^(\\w+)://*', '$1://')
-            artifact = fetchArtifact(remotePath)
+            // Note: need to clean path because the protocol can get printed as s3:/ or s3:///
+            String pathStr = path.toUri().toString().replaceAll('^(\\w+)://*', '$1://')
+            artifact = fetchArtifact(pathStr)
             if (artifact != null) {
                 // If artifact exists but needs to be linked to current run, link it
                 if (runId != null) {
@@ -1523,18 +1499,9 @@ final class LaminRunManager {
             if (kind != null) {
                 apiParams.put('kind', kind)
             }
-            if (key != null) {
-                apiParams.put('key', key)
-            }
 
-            if (isLocalFile) {
-                File file = path.toFile()
-                apiParams.put('file', file)
-                artifact = laminInstance.uploadArtifact(apiParams)
-            } else {
-                apiParams.put('path', remotePath)
+            apiParams.put('path', pathStr)
                 artifact = laminInstance.createArtifact(apiParams)
-            }
         } catch (Exception e) {
             log.error "Failed to create artifact ${logContext} at ${path.toUri()}"
             log.debug "Exception: ${e.getMessage()}", e
@@ -1545,7 +1512,7 @@ final class LaminRunManager {
 
         Number artifactRunNumber = ((artifact.get('run') ?: artifact.get('run_id')) as Number)
         boolean isNewArtifact = runId == null || (artifactRunNumber != null && artifactRunNumber.intValue() == runId)
-        String verb = isNewArtifact ? (isLocalFile ? 'Uploaded' : 'Created') : 'Detected previous'
+        String verb = isNewArtifact ? 'Created' : 'Detected previous'
         String webUrl = resolvedConfig != null ? resolvedConfig.webUrl : null
         String owner = laminInstance.getOwner()
         String name = laminInstance.getName()
