@@ -499,7 +499,7 @@ class InstanceArtifactApiTest extends Specification {
         Files.writeString(tempFile, "Upload test without run_id — ${uniqueSuffix} — ${System.nanoTime()}")
 
         when:
-        Map<String, Object> inputArgs = [file: tempFile.toFile(), description: "Upload test ${uniqueSuffix}"]
+        Map<String, Object> inputArgs = [file: tempFile.toFile(), description: "InstanceArtifactApiTest: upload no run_id ${uniqueSuffix}"]
         Map<String, Object> artifact = null
         try {
             artifact = instance.uploadArtifact(inputArgs)
@@ -626,7 +626,7 @@ class InstanceArtifactApiTest extends Specification {
         deleteArtifactIfExists(s3Path)
 
         when:
-        Map<String, Object> inputArgs = [path: s3Path, description: "S3 artifact with description ${uniqueSuffix}"]
+        Map<String, Object> inputArgs = [path: s3Path, description: "InstanceArtifactApiTest: S3 artifact with description ${uniqueSuffix}"]
         Map<String, Object> artifact = null
         try {
             artifact = instance.createArtifact(inputArgs)
@@ -789,7 +789,7 @@ class InstanceArtifactApiTest extends Specification {
         deleteArtifactIfExists(s3Path)
 
         when:
-        Map<String, Object> inputArgs = [path: s3Path, run_id: testRunId, description: "Full params test ${uniqueSuffix}"]
+        Map<String, Object> inputArgs = [path: s3Path, run_id: testRunId, description: "InstanceArtifactApiTest: S3 full params ${uniqueSuffix}"]
         Map<String, Object> artifact = null
         try {
             artifact = instance.createArtifact(inputArgs)
