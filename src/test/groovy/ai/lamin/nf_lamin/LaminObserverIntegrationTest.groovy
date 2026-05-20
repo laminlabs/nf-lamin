@@ -25,15 +25,17 @@ import ai.lamin.nf_lamin.model.RunStatus
  */
 class LaminObserverIntegrationTest extends Specification {
 
-    private static final String INSTANCE_NAME = 'laminlabs/lamindata'
+    private static final String PROD_INSTANCE = 'laminlabs/lamin-dev'
+    private static final String STAGING_INSTANCE = 'laminlabs/lamindata'
 
     private static boolean hasEnvVars(Collection<String> names) {
         names.every { System.getenv(it)?.trim() }
     }
 
     private LaminConfig buildConfig(String apiKey, String envName, Map<String, Object> overrides = [:]) {
+        String instanceName = (envName == 'staging') ? STAGING_INSTANCE : PROD_INSTANCE
         Map<String, Object> options = [
-            instance: INSTANCE_NAME,
+            instance: instanceName,
             api_key: apiKey,
             env: envName
         ]
@@ -99,19 +101,31 @@ class LaminObserverIntegrationTest extends Specification {
     def "should respect manual transform and run overrides in prod"() {
         given:
         String apiKey = System.getenv('LAMIN_API_KEY')
-        LaminConfig config = buildConfig(apiKey, 'prod', [transform_uid: 'PhX5TXQhj3l6wowA'])
+        LaminConfig config = buildConfig(apiKey, 'prod')
         Instance apiClient = createInstance(config)
 
-        Map<String, Object> transform = apiClient.getRecord(
-            moduleName: 'core',
-            modelName: 'transform',
-            idOrUid: config.transformUid
-        )
-        assert transform?.id : 'Expected manual transform to exist in LaminDB'
-
-        // Resolve the test branch so we can set branch_id on the manually created run
+        // Find or create a test transform in laminlabs/lamin-dev
+        String transformKey = 'nf-lamin-test-manual-override'
         Map<String, Object> testBranch = apiClient.findOrCreateByName('core', 'branch', 'nf-lamin-test-branch')
         Integer testBranchId = (testBranch.get('id') as Number)?.intValue()
+        assert testBranchId != null : "Failed to resolve test branch 'nf-lamin-test-branch': findOrCreateByName returned no id. Response: ${testBranch}"
+        try {
+            List<Map> existing = apiClient.findTransforms([and: [[key: [eq: transformKey]]]])
+            if (existing) {
+                transform = existing[0]
+            }
+        } catch (Exception e) {
+            // fall through to create
+        }
+        if (!transform) {
+            transform = apiClient.createTransform([
+                key: transformKey,
+                kind: 'pipeline',
+                source_code: '// LaminObserverIntegrationTest manual-override test stub',
+                branch_id: testBranchId,
+            ])
+        }
+        assert transform?.id : 'Expected test transform to exist in LaminDB (laminlabs/lamin-dev)'
 
         String runName = "nf-lamin-manual-${UUID.randomUUID().toString().substring(0, 8)}"
         OffsetDateTime runStart = OffsetDateTime.now().minusMinutes(2)
@@ -129,7 +143,7 @@ class LaminObserverIntegrationTest extends Specification {
         )
 
         Map<String, Object> sessionConfig = [
-            instance: INSTANCE_NAME,
+            instance: PROD_INSTANCE,
             api_key: apiKey,
             env: 'prod',
             transform_uid: transform.uid,
@@ -199,7 +213,7 @@ class LaminObserverIntegrationTest extends Specification {
         Instance apiClient = createInstance(config)
 
         Map<String, Object> sessionConfig = [
-            instance: INSTANCE_NAME,
+            instance: STAGING_INSTANCE,
             api_key: apiKey,
             env: 'staging',
             branch_uid: '!nf-lamin-test-branch',
@@ -249,7 +263,7 @@ class LaminObserverIntegrationTest extends Specification {
 
         and: 'a local artifact is published'
         Path localFile = Files.createTempFile("nf-lamin-local-${uniqueSuffix}", '.txt')
-        Files.writeString(localFile, "nf-lamin integration test artifact ${uniqueSuffix}-${System.nanoTime()}")
+        Files.writeString(localFile, "LaminObserverIntegrationTest: integration test artifact ${uniqueSuffix}-${System.nanoTime()}")
         observer.onFilePublish(new FilePublishEvent(localFile, localFile, null))
 
         then:
