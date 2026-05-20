@@ -43,11 +43,6 @@ class ArtifactEvaluation {
     final String kind
 
     /**
-     * Artifact key, or null if not specified.
-     */
-    final String key
-
-    /**
      * Raw description config (String or Closure), or null if not specified.
      * Resolved at artifact-creation time via ConfigUtils.resolveDescription with context
      * variables: runId, path, outputName.
@@ -60,14 +55,12 @@ class ArtifactEvaluation {
      * @param shouldTrack Whether the artifact should be tracked
      * @param ulabel_uids Accumulated ULabel UIDs
      * @param kind Artifact kind, or null
-     * @param key Artifact key, or null
      * @param descriptionConfig Raw description config (String or Closure), or null
      */
-    ArtifactEvaluation(boolean shouldTrack, List<String> ulabel_uids, String kind, String key = null, Object descriptionConfig = null) {
+    ArtifactEvaluation(boolean shouldTrack, List<String> ulabel_uids, String kind, Object descriptionConfig = null) {
         this.shouldTrack = shouldTrack
         this.ulabel_uids = ulabel_uids ?: []
         this.kind = kind
-        this.key = key
         this.descriptionConfig = descriptionConfig
     }
 
@@ -75,19 +68,11 @@ class ArtifactEvaluation {
      * Factory for a "not tracked" result with empty metadata.
      */
     static ArtifactEvaluation notTracked() {
-        return new ArtifactEvaluation(false, [], null, null)
-    }
-
-    /**
-     * Get artifact key
-     * @return Artifact key or null
-     */
-    String getKey() {
-        return this.key
+        return new ArtifactEvaluation(false, [], null)
     }
 
     @Override
     String toString() {
-        return "ArtifactEvaluation{shouldTrack=${shouldTrack}, ulabel_uids=${ulabel_uids}, kind=${kind}, key=${key}, descriptionConfig=${descriptionConfig instanceof Closure ? '<closure>' : descriptionConfig}}"
+        return "ArtifactEvaluation{shouldTrack=${shouldTrack}, ulabel_uids=${ulabel_uids}, kind=${kind}, descriptionConfig=${descriptionConfig instanceof Closure ? '<closure>' : descriptionConfig}}"
     }
 }

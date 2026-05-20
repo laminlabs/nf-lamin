@@ -65,12 +65,6 @@ class ArtifactConfig implements ConfigScope {
 
     @ConfigOption
     @Description('''
-        Whether to track local (file://) artifacts (default: true).
-    ''')
-    final Boolean include_local
-
-    @ConfigOption
-    @Description('''
         Whether to exclude artifacts in the Nextflow workdir (default: true). Intermediate files between processes live here.
     ''')
     final Boolean exclude_work_dir
@@ -114,12 +108,6 @@ class ArtifactConfig implements ConfigScope {
         Global artifact kind (e.g., 'dataset', 'model', 'report').
     ''')
     final String kind
-
-    @ConfigOption(types=[String, Closure, Map])
-    @Description('''
-        Key template or closure for deriving artifact keys from file paths. Supports String templates with variables ({basename}, {filename}, {ext}, {parent}, {parent.parent}, etc.), a Closure that receives a Path and returns a String, or a Map shorthand like `[relativize: params.outdir]`.
-    ''')
-    final Object key
 
     @ConfigOption(types=[String, Closure])
     @Description('''
@@ -171,13 +159,11 @@ class ArtifactConfig implements ConfigScope {
         Map safeOpts = opts ?: [:]
         this.direction = direction
         this.enabled = safeOpts.containsKey('enabled') ? (safeOpts.enabled as Boolean) : true
-        this.include_local = safeOpts.containsKey('include_local') ? (safeOpts.include_local as Boolean) : true
         this.exclude_work_dir = safeOpts.containsKey('exclude_work_dir') ? (safeOpts.exclude_work_dir as Boolean) : true
         this.exclude_assets_dir = safeOpts.containsKey('exclude_assets_dir') ? (safeOpts.exclude_assets_dir as Boolean) : true
         this.include_pattern = safeOpts.include_pattern as String
         this.exclude_pattern = safeOpts.exclude_pattern as String
         this.kind = safeOpts.kind as String
-        this.key = safeOpts.key  // keep as-is: String template or Closure
         this.description = safeOpts.description  // keep as-is: String or Closure
 
         // Parse list fields (can be String, List, or Closure)
@@ -277,7 +263,6 @@ class ArtifactConfig implements ConfigScope {
         // Initialize state with global metadata
         List<String> ulabels = new ArrayList<>(this.ulabel_uids)
         String artifactKind = this.kind
-        Object effectiveKeyConfig = this.key
         Object effectiveDescriptionConfig = this.description
         boolean shouldTrack = true
 
@@ -315,9 +300,6 @@ class ArtifactConfig implements ConfigScope {
                 if (rule.kind) {
                     artifactKind = rule.kind
                 }
-                if (rule.key != null) {
-                    effectiveKeyConfig = rule.key
-                }
                 if (rule.description != null) {
                     effectiveDescriptionConfig = rule.description
                 }
@@ -327,16 +309,11 @@ class ArtifactConfig implements ConfigScope {
         if (!shouldTrack) {
             return ArtifactEvaluation.notTracked()
         }
-        String resolvedKey = null
-        if (effectiveKeyConfig != null) {
-            resolvedKey = KeyResolver.resolveKey(effectiveKeyConfig, path, workflowParams)
-        }
 
         return new ArtifactEvaluation(
             shouldTrack,
             ulabels.unique(),
             artifactKind,
-            resolvedKey,
             effectiveDescriptionConfig
         )
     }
@@ -367,12 +344,10 @@ class ArtifactConfig implements ConfigScope {
             for (String pathStr : configPaths) {
                 result.add([
                     path: pathStr,
-                    keyConfig: this.key,
                     evaluation: new ArtifactEvaluation(
                         true,
                         new ArrayList<>(this.ulabel_uids),
                         this.kind,
-                        null,  // key resolved later from resolved Path
                         this.description
                     )
                 ] as Map<String, Object>)
@@ -393,18 +368,15 @@ class ArtifactConfig implements ConfigScope {
 
             String effectiveKind = rule.kind ?: this.kind
 
-            Object effectiveKeyConfig = rule.key != null ? rule.key : this.key
             Object effectiveDescriptionConfig = rule.description != null ? rule.description : this.description
 
             for (String pathStr : rule.resolvePaths(workflowParams)) {
                 result.add([
                     path: pathStr,
-                    keyConfig: effectiveKeyConfig,
                     evaluation: new ArtifactEvaluation(
                         true,
                         mergedUlabels,
                         effectiveKind,
-                        null,  // key resolved later from resolved Path
                         effectiveDescriptionConfig
                     )
                 ] as Map<String, Object>)
@@ -430,7 +402,6 @@ class ArtifactConfig implements ConfigScope {
     String toString() {
         return "ArtifactConfig{" +
             "enabled=${enabled}, " +
-            "include_local=${include_local}, " +
             "exclude_work_dir=${exclude_work_dir}, " +
             "exclude_assets_dir=${exclude_assets_dir}, " +
             "direction='${direction}', " +
@@ -438,7 +409,6 @@ class ArtifactConfig implements ConfigScope {
             "exclude_pattern='${exclude_pattern}', " +
             "ulabel_uids=${ulabel_uids}, " +
             "kind='${kind}', " +
-            "key='${key instanceof Closure ? '<closure>' : key}', " +
             "description=${description instanceof Closure ? '<closure>' : description}, " +
             "include_paths=${pathsClosure != null ? '<closure>' : include_paths}, " +
             "rules=${rules.size()} rules" +

@@ -98,16 +98,6 @@ class ArtifactRule {
     ''')
     final Integer order
 
-    @ConfigOption(types=[String, Closure, Map])
-    @Description('''
-        Key template or closure for deriving artifact keys from file paths.
-        Supports String templates with variables ({basename}, {filename}, {ext},
-        {parent}, {parent.parent}, etc.), a Closure that receives a Path and
-        returns a String, or a Map shorthand like `[relativize: params.outdir]`.
-        If null, inherits the global key from ArtifactConfig.
-    ''')
-    final Object key
-
     @ConfigOption(types=[String, Closure])
     @Description('''
         Artifact description. Can be a plain String or a Closure whose return value
@@ -144,7 +134,6 @@ class ArtifactRule {
         this.type = opts.containsKey('type') ? (opts.type as String) : 'include'
         this.direction = opts.containsKey('direction') ? (opts.direction as String) : 'both'
         this.kind = opts.kind as String
-        this.key = opts.key  // keep as-is: String template or Closure
         this.description = opts.description  // keep as-is: String or Closure
         this.order = opts.containsKey('order') ? (opts.order as Integer) : 100
 
@@ -242,7 +231,6 @@ class ArtifactRule {
             "kind='${kind}', " +
             "ulabel_uids=${ulabel_uids}, " +
             "include_paths=${pathsClosure != null ? '<closure>' : include_paths}, " +
-            "key='${key instanceof Closure ? '<closure>' : key}', " +
             "description=${description instanceof Closure ? '<closure>' : description}, " +
             "order=${order}" +
             "}"
