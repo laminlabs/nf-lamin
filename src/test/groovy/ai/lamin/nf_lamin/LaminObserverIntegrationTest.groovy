@@ -243,6 +243,7 @@ class LaminObserverIntegrationTest extends Specification {
 
         LaminObserver observer = new LaminObserver()
         LaminRunManager manager = LaminRunManager.instance
+        Instance instanceSpy = null
         when:
         observer.onFlowCreate(session)
 
@@ -252,7 +253,7 @@ class LaminObserverIntegrationTest extends Specification {
         waitForRunStatus(apiClient, manager.run.uid as String, RunStatus.SCHEDULED.code)
 
         when: 'we spy on the instance and start the run'
-        Instance instanceSpy = Spy(manager.laminInstance)
+        instanceSpy = Spy(manager.laminInstance)
         manager.laminInstance = instanceSpy
         observer.onFlowBegin()
         waitForRunStatus(apiClient, manager.run.uid as String, RunStatus.STARTED.code)
