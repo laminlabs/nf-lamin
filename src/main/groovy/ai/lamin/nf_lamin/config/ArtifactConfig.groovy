@@ -20,7 +20,8 @@ import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import java.nio.file.Path
 import java.util.regex.Pattern
-import nextflow.config.schema.ConfigOption
+import nextflow.config.spec.ConfigOption
+import nextflow.config.spec.ConfigScope
 import nextflow.script.dsl.Description
 
 /**
@@ -54,7 +55,7 @@ import nextflow.script.dsl.Description
  */
 @Slf4j
 @CompileStatic
-class ArtifactConfig {
+class ArtifactConfig implements ConfigScope {
 
     @ConfigOption
     @Description('''
@@ -66,47 +67,47 @@ class ArtifactConfig {
     @Description('''
         Whether to track local (file://) artifacts (default: true).
     ''')
-    final Boolean includeLocal
+    final Boolean include_local
 
     @ConfigOption
     @Description('''
         Whether to exclude artifacts in the Nextflow workdir (default: true). Intermediate files between processes live here.
     ''')
-    final Boolean excludeWorkDir
+    final Boolean exclude_work_dir
 
     @ConfigOption
     @Description('''
         Whether to exclude artifacts in the Nextflow assets directory (default: true). Pipeline source files live here.
     ''')
-    final Boolean excludeAssetsDir
+    final Boolean exclude_assets_dir
 
     @ConfigOption
     @Description('''
         Global include pattern (regex). Files must match this to be tracked.
     ''')
-    final String includePattern
+    final String include_pattern
 
     /**
      * Compiled include pattern (for performance)
      */
-    final Pattern compiledIncludePattern
+    final Pattern compiled_include_pattern
 
     @ConfigOption
     @Description('''
         Global exclude pattern (regex). Files matching this will not be tracked.
     ''')
-    final String excludePattern
+    final String exclude_pattern
 
     /**
      * Compiled exclude pattern (for performance)
      */
-    final Pattern compiledExcludePattern
+    final Pattern compiled_exclude_pattern
 
     @ConfigOption
     @Description('''
         List of ULabel UIDs to attach to all artifacts matched by this config.
     ''')
-    final List<String> ulabelUids
+    final List<String> ulabel_uids
 
     @ConfigOption
     @Description('''
@@ -129,7 +130,7 @@ class ArtifactConfig {
     ''')
     final Object description
 
-    @ConfigOption
+    @ConfigOption(types=[Map])
     @Description('''
         Path-specific rules for fine-grained control over artifact tracking. Each rule can match files by pattern and override tracking decisions and metadata.
     ''')
@@ -170,17 +171,17 @@ class ArtifactConfig {
         Map safeOpts = opts ?: [:]
         this.direction = direction
         this.enabled = safeOpts.containsKey('enabled') ? (safeOpts.enabled as Boolean) : true
-        this.includeLocal = safeOpts.containsKey('include_local') ? (safeOpts.include_local as Boolean) : true
-        this.excludeWorkDir = safeOpts.containsKey('exclude_work_dir') ? (safeOpts.exclude_work_dir as Boolean) : true
-        this.excludeAssetsDir = safeOpts.containsKey('exclude_assets_dir') ? (safeOpts.exclude_assets_dir as Boolean) : true
-        this.includePattern = safeOpts.include_pattern as String
-        this.excludePattern = safeOpts.exclude_pattern as String
+        this.include_local = safeOpts.containsKey('include_local') ? (safeOpts.include_local as Boolean) : true
+        this.exclude_work_dir = safeOpts.containsKey('exclude_work_dir') ? (safeOpts.exclude_work_dir as Boolean) : true
+        this.exclude_assets_dir = safeOpts.containsKey('exclude_assets_dir') ? (safeOpts.exclude_assets_dir as Boolean) : true
+        this.include_pattern = safeOpts.include_pattern as String
+        this.exclude_pattern = safeOpts.exclude_pattern as String
         this.kind = safeOpts.kind as String
         this.key = safeOpts.key  // keep as-is: String template or Closure
         this.description = safeOpts.description  // keep as-is: String or Closure
 
         // Parse list fields (can be String, List, or Closure)
-        this.ulabelUids = ConfigUtils.parseStringOrList(safeOpts.ulabel_uids)
+        this.ulabel_uids = ConfigUtils.parseStringOrList(safeOpts.ulabel_uids)
         if (safeOpts.include_paths instanceof Closure) {
             this.pathsClosure = safeOpts.include_paths as Closure
             this.include_paths = []
@@ -190,8 +191,8 @@ class ArtifactConfig {
         }
 
         // Compile patterns
-        this.compiledIncludePattern = ConfigUtils.compilePattern(this.includePattern, 'include_pattern')
-        this.compiledExcludePattern = ConfigUtils.compilePattern(this.excludePattern, 'exclude_pattern')
+        this.compiled_include_pattern = ConfigUtils.compilePattern(this.include_pattern, 'include_pattern')
+        this.compiled_exclude_pattern = ConfigUtils.compilePattern(this.exclude_pattern, 'exclude_pattern')
 
         // Parse rules
         this.rules = parseRules(safeOpts.rules as Map, direction)
@@ -274,20 +275,20 @@ class ArtifactConfig {
         }
 
         // Initialize state with global metadata
-        List<String> ulabels = new ArrayList<>(this.ulabelUids)
+        List<String> ulabels = new ArrayList<>(this.ulabel_uids)
         String artifactKind = this.kind
         Object effectiveKeyConfig = this.key
         Object effectiveDescriptionConfig = this.description
         boolean shouldTrack = true
 
         // Apply global exclude pattern
-        if (compiledExcludePattern && compiledExcludePattern.matcher(pathStr).matches()) {
+        if (compiled_exclude_pattern && compiled_exclude_pattern.matcher(pathStr).matches()) {
             log.debug "Path '${pathStr}' excluded by global exclude_pattern"
             shouldTrack = false
         }
 
         // Apply global include pattern (only if still tracking)
-        if (shouldTrack && compiledIncludePattern && !compiledIncludePattern.matcher(pathStr).matches()) {
+        if (shouldTrack && compiled_include_pattern && !compiled_include_pattern.matcher(pathStr).matches()) {
             log.debug "Path '${pathStr}' does not match global include_pattern"
             shouldTrack = false
         }
@@ -308,8 +309,8 @@ class ArtifactConfig {
                 }
 
                 // Accumulate metadata from matching rules
-                if (rule.ulabelUids) {
-                    ulabels.addAll(rule.ulabelUids)
+                if (rule.ulabel_uids) {
+                    ulabels.addAll(rule.ulabel_uids)
                 }
                 if (rule.kind) {
                     artifactKind = rule.kind
@@ -369,7 +370,7 @@ class ArtifactConfig {
                     keyConfig: this.key,
                     evaluation: new ArtifactEvaluation(
                         true,
-                        new ArrayList<>(this.ulabelUids),
+                        new ArrayList<>(this.ulabel_uids),
                         this.kind,
                         null,  // key resolved later from resolved Path
                         this.description
@@ -384,9 +385,9 @@ class ArtifactConfig {
                 continue
             }
             // Merge ulabels from config + rule
-            List<String> mergedUlabels = new ArrayList<>(this.ulabelUids)
-            if (rule.ulabelUids) {
-                mergedUlabels.addAll(rule.ulabelUids)
+            List<String> mergedUlabels = new ArrayList<>(this.ulabel_uids)
+            if (rule.ulabel_uids) {
+                mergedUlabels.addAll(rule.ulabel_uids)
             }
             mergedUlabels = mergedUlabels.unique() as List<String>
 
@@ -429,13 +430,13 @@ class ArtifactConfig {
     String toString() {
         return "ArtifactConfig{" +
             "enabled=${enabled}, " +
-            "includeLocal=${includeLocal}, " +
-            "excludeWorkDir=${excludeWorkDir}, " +
-            "excludeAssetsDir=${excludeAssetsDir}, " +
+            "include_local=${include_local}, " +
+            "exclude_work_dir=${exclude_work_dir}, " +
+            "exclude_assets_dir=${exclude_assets_dir}, " +
             "direction='${direction}', " +
-            "includePattern='${includePattern}', " +
-            "excludePattern='${excludePattern}', " +
-            "ulabelUids=${ulabelUids}, " +
+            "include_pattern='${include_pattern}', " +
+            "exclude_pattern='${exclude_pattern}', " +
+            "ulabel_uids=${ulabel_uids}, " +
             "kind='${kind}', " +
             "key='${key instanceof Closure ? '<closure>' : key}', " +
             "description=${description instanceof Closure ? '<closure>' : description}, " +

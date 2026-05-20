@@ -29,7 +29,7 @@ class RunConfigTest extends Specification {
         def config = new RunConfig()
 
         then:
-        config.ulabelUids == []
+        config.ulabel_uids == []
     }
 
     def "should create config with empty map"() {
@@ -37,7 +37,7 @@ class RunConfigTest extends Specification {
         def config = new RunConfig([:])
 
         then:
-        config.ulabelUids == []
+        config.ulabel_uids == []
     }
 
     def "should create config with null map"() {
@@ -45,7 +45,7 @@ class RunConfigTest extends Specification {
         def config = new RunConfig(null)
 
         then:
-        config.ulabelUids == []
+        config.ulabel_uids == []
     }
 
     def "should parse single ulabel UID as string"() {
@@ -53,7 +53,7 @@ class RunConfigTest extends Specification {
         def config = new RunConfig([ulabel_uids: 'ulab123456789012'])
 
         then:
-        config.ulabelUids == ['ulab123456789012']
+        config.ulabel_uids == ['ulab123456789012']
     }
 
     def "should parse multiple ulabel UIDs as list"() {
@@ -61,7 +61,7 @@ class RunConfigTest extends Specification {
         def config = new RunConfig([ulabel_uids: ['ulab111111111111', 'ulab222222222222']])
 
         then:
-        config.ulabelUids == ['ulab111111111111', 'ulab222222222222']
+        config.ulabel_uids == ['ulab111111111111', 'ulab222222222222']
     }
 
     def "should parse multiple ulabel UIDs"() {
@@ -71,7 +71,7 @@ class RunConfigTest extends Specification {
         ])
 
         then:
-        config.ulabelUids == ['ulab111111111111', 'ulab222222222222']
+        config.ulabel_uids == ['ulab111111111111', 'ulab222222222222']
     }
 
     @Unroll
@@ -80,7 +80,7 @@ class RunConfigTest extends Specification {
         def config = new RunConfig([ulabel_uids: input])
 
         then:
-        config.ulabelUids == expected
+        config.ulabel_uids == expected
 
         where:
         input                                  | expected
@@ -97,7 +97,7 @@ class RunConfigTest extends Specification {
         ])
 
         then:
-        config.ulabelUids == ['456', 'ulab111']
+        config.ulabel_uids == ['456', 'ulab111']
     }
 
     def "should return empty list when ulabel_uids is null"() {
@@ -105,7 +105,7 @@ class RunConfigTest extends Specification {
         def config = new RunConfig([ulabel_uids: null])
 
         then:
-        config.ulabelUids == []
+        config.ulabel_uids == []
     }
 
     def "should handle non-standard input types gracefully"() {
@@ -115,7 +115,7 @@ class RunConfigTest extends Specification {
         ])
 
         then:
-        config.ulabelUids == []
+        config.ulabel_uids == []
     }
 
     def "should provide getter methods"() {
@@ -136,6 +136,6 @@ class RunConfigTest extends Specification {
         def str = config.toString()
 
         then:
-        str.contains('ulabelUids=[ulab111]')
+        str.contains('ulabel_uids=[ulab111]')
     }
 }

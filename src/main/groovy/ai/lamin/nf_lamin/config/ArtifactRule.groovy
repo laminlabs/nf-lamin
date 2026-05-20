@@ -19,7 +19,7 @@ package ai.lamin.nf_lamin.config
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import java.util.regex.Pattern
-import nextflow.config.schema.ConfigOption
+import nextflow.config.spec.ConfigOption
 import nextflow.script.dsl.Description
 
 /**
@@ -65,7 +65,7 @@ class ArtifactRule {
     /**
      * Compiled regex pattern (for performance)
      */
-    final Pattern compiledPattern
+    final Pattern compiled_pattern
 
     @ConfigOption
     @Description('''
@@ -90,7 +90,7 @@ class ArtifactRule {
         List of ULabel UIDs to attach to matching artifacts.
         Also accepts named references (see "Named record resolution" in plugin docs).
     ''')
-    final List<String> ulabelUids
+    final List<String> ulabel_uids
 
     @ConfigOption
     @Description('''
@@ -149,7 +149,7 @@ class ArtifactRule {
         this.order = opts.containsKey('order') ? (opts.order as Integer) : 100
 
         // Parse list fields (can be String, List, or Closure)
-        this.ulabelUids = ConfigUtils.parseStringOrList(opts.ulabel_uids)
+        this.ulabel_uids = ConfigUtils.parseStringOrList(opts.ulabel_uids)
         if (opts.include_paths instanceof Closure) {
             this.pathsClosure = opts.include_paths as Closure
             this.include_paths = []
@@ -162,7 +162,7 @@ class ArtifactRule {
         validate()
 
         // Compile pattern (may be null when paths is used instead)
-        this.compiledPattern = ConfigUtils.compilePattern(this.pattern, 'pattern')
+        this.compiled_pattern = ConfigUtils.compilePattern(this.pattern, 'pattern')
     }
 
     /**
@@ -192,10 +192,10 @@ class ArtifactRule {
      * @return true if the path matches the pattern
      */
     boolean matches(String path) {
-        if (!enabled || compiledPattern == null) {
+        if (!enabled || compiled_pattern == null) {
             return false
         }
-        return compiledPattern.matcher(path).matches()
+        return compiled_pattern.matcher(path).matches()
     }
 
     /**
@@ -240,7 +240,7 @@ class ArtifactRule {
             "type='${type}', " +
             "direction='${direction}', " +
             "kind='${kind}', " +
-            "ulabelUids=${ulabelUids}, " +
+            "ulabel_uids=${ulabel_uids}, " +
             "include_paths=${pathsClosure != null ? '<closure>' : include_paths}, " +
             "key='${key instanceof Closure ? '<closure>' : key}', " +
             "description=${description instanceof Closure ? '<closure>' : description}, " +

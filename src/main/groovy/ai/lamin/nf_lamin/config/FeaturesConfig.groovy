@@ -17,7 +17,7 @@
 package ai.lamin.nf_lamin.config
 
 import groovy.transform.CompileStatic
-import nextflow.config.schema.ConfigOption
+import nextflow.config.spec.ConfigOption
 import nextflow.script.dsl.Description
 
 /**
@@ -45,7 +45,7 @@ class FeaturesConfig {
         the user to configure AWS credentials. Disable this if credential federation
         causes issues in your environment.
     ''')
-    final Boolean manageS3Credentials
+    final Boolean manage_s3_credentials
 
     @ConfigOption
     @Description('''
@@ -55,14 +55,14 @@ class FeaturesConfig {
         and linked to the corresponding artifact. Disable this if you do not want
         publishDir labels to be stored in LaminDB.
     ''')
-    final Boolean useOutputLabels
+    final Boolean use_output_labels
 
     /**
      * Default constructor
      */
     FeaturesConfig() {
-        this.manageS3Credentials = true
-        this.useOutputLabels = true
+        this.manage_s3_credentials = true
+        this.use_output_labels = true
     }
 
     /**
@@ -71,16 +71,16 @@ class FeaturesConfig {
      * @param opts Configuration map with keys: manage_s3_credentials, publish_dir_labels
      */
     FeaturesConfig(Map opts) {
-        this.manageS3Credentials = opts?.containsKey('manage_s3_credentials')
+        this.manage_s3_credentials = opts?.containsKey('manage_s3_credentials')
             ? (opts.manage_s3_credentials as Boolean)
             : true
-        this.useOutputLabels = opts?.containsKey('use_output_labels')
+        this.use_output_labels = opts?.containsKey('use_output_labels')
             ? (opts.use_output_labels as Boolean)
             : true
     }
 
     @Override
     String toString() {
-        return "FeaturesConfig{manageS3Credentials=${manageS3Credentials}, useOutputLabels=${useOutputLabels}}"
+        return "FeaturesConfig{manage_s3_credentials=${manage_s3_credentials}, use_output_labels=${use_output_labels}}"
     }
 }

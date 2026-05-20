@@ -18,7 +18,7 @@ package ai.lamin.nf_lamin.config
 
 import ai.lamin.nf_lamin.util.MaskingUtils
 import groovy.transform.CompileStatic
-import nextflow.config.schema.ConfigOption
+import nextflow.config.spec.ConfigOption
 import nextflow.script.dsl.Description
 
 /**
@@ -46,41 +46,41 @@ class ApiConfig {
     @Description('''
         The Supabase API URL for the Lamin API.
     ''')
-    final String supabaseApiUrl
+    final String supabase_api_url
 
     @ConfigOption
     @Description('''
         The Supabase Anon Key for the Lamin API.
     ''')
-    final String supabaseAnonKey
+    final String supabase_anon_key
 
     @ConfigOption
     @Description('''
         Maximum number of retries for API requests (default: 3).
     ''')
-    final Integer maxRetries
+    final Integer max_retries
 
     @ConfigOption
     @Description('''
         Delay between retries for API requests in milliseconds (default: 100).
     ''')
-    final Integer retryDelay
+    final Integer retry_delay
 
     @ConfigOption
     @Description('''
         The web URL for the Lamin hub (e.g. https://lamin.ai). Only needed for custom deployments.
     ''')
-    final String webUrl
+    final String web_url
 
     /**
      * Default constructor required for extension point
      */
     ApiConfig() {
-        this.supabaseApiUrl = null
-        this.supabaseAnonKey = null
-        this.maxRetries = 3
-        this.retryDelay = 100
-        this.webUrl = null
+        this.supabase_api_url = null
+        this.supabase_anon_key = null
+        this.max_retries = 3
+        this.retry_delay = 100
+        this.web_url = null
     }
 
     /**
@@ -89,11 +89,11 @@ class ApiConfig {
      * @param opts Configuration map with keys: supabase_api_url, supabase_anon_key, max_retries, retry_delay
      */
     ApiConfig(Map opts) {
-        this.supabaseApiUrl = opts?.supabase_api_url ?: System.getenv('SUPABASE_API_URL')
-        this.supabaseAnonKey = opts?.supabase_anon_key ?: System.getenv('SUPABASE_ANON_KEY')
-        this.maxRetries = opts?.containsKey('max_retries') ? (opts.max_retries as Integer) : ((System.getenv('LAMIN_MAX_RETRIES') as Integer) ?: 3)
-        this.retryDelay = opts?.containsKey('retry_delay') ? (opts.retry_delay as Integer) : ((System.getenv('LAMIN_RETRY_DELAY') as Integer) ?: 100)
-        this.webUrl = opts?.web_url
+        this.supabase_api_url = opts?.supabase_api_url ?: System.getenv('SUPABASE_API_URL')
+        this.supabase_anon_key = opts?.supabase_anon_key ?: System.getenv('SUPABASE_ANON_KEY')
+        this.max_retries = opts?.containsKey('max_retries') ? (opts.max_retries as Integer) : ((System.getenv('LAMIN_MAX_RETRIES') as Integer) ?: 3)
+        this.retry_delay = opts?.containsKey('retry_delay') ? (opts.retry_delay as Integer) : ((System.getenv('LAMIN_RETRY_DELAY') as Integer) ?: 100)
+        this.web_url = opts?.web_url
     }
 
     /**
@@ -101,7 +101,7 @@ class ApiConfig {
      * @return The Supabase API URL
      */
     String getSupabaseApiUrl() {
-        return this.supabaseApiUrl
+        return this.supabase_api_url
     }
 
     /**
@@ -109,7 +109,7 @@ class ApiConfig {
      * @return The Supabase Anon Key
      */
     String getSupabaseAnonKey() {
-        return this.supabaseAnonKey
+        return this.supabase_anon_key
     }
 
     /**
@@ -117,7 +117,7 @@ class ApiConfig {
      * @return The maximum number of retries
      */
     Integer getMaxRetries() {
-        return this.maxRetries != null ? this.maxRetries : 3
+        return this.max_retries != null ? this.max_retries : 3
     }
 
     /**
@@ -125,7 +125,7 @@ class ApiConfig {
      * @return The delay between retries in milliseconds
      */
     Integer getRetryDelay() {
-        return this.retryDelay != null ? this.retryDelay : 100
+        return this.retry_delay != null ? this.retry_delay : 100
     }
 
     /**
@@ -133,12 +133,12 @@ class ApiConfig {
      * @return The web URL
      */
     String getWebUrl() {
-        return this.webUrl
+        return this.web_url
     }
 
     @Override
     String toString() {
-        def maskedAnonKey = MaskingUtils.maskValue(supabaseAnonKey)
-        return "ApiConfig{supabaseApiUrl='${supabaseApiUrl}', supabaseAnonKey='${maskedAnonKey}', maxRetries=${maxRetries}, retryDelay=${retryDelay}, webUrl='${webUrl}'}"
+        def maskedAnonKey = MaskingUtils.maskValue(supabase_anon_key)
+        return "ApiConfig{supabase_api_url='${supabase_api_url}', supabase_anon_key='${maskedAnonKey}', max_retries=${max_retries}, retry_delay=${retry_delay}, web_url='${web_url}'}"
     }
 }

@@ -35,7 +35,7 @@ class ArtifactEvaluation {
     /**
      * Accumulated ULabel UIDs from artifact config and matching rules.
      */
-    final List<String> ulabelUids
+    final List<String> ulabel_uids
 
     /**
      * Artifact kind (e.g., 'dataset', 'model'), or null if not specified.
@@ -58,14 +58,14 @@ class ArtifactEvaluation {
      * Create a new ArtifactEvaluation with typed fields.
      *
      * @param shouldTrack Whether the artifact should be tracked
-     * @param ulabelUids Accumulated ULabel UIDs
+     * @param ulabel_uids Accumulated ULabel UIDs
      * @param kind Artifact kind, or null
      * @param key Artifact key, or null
      * @param descriptionConfig Raw description config (String or Closure), or null
      */
-    ArtifactEvaluation(boolean shouldTrack, List<String> ulabelUids, String kind, String key = null, Object descriptionConfig = null) {
+    ArtifactEvaluation(boolean shouldTrack, List<String> ulabel_uids, String kind, String key = null, Object descriptionConfig = null) {
         this.shouldTrack = shouldTrack
-        this.ulabelUids = ulabelUids ?: []
+        this.ulabel_uids = ulabel_uids ?: []
         this.kind = kind
         this.key = key
         this.descriptionConfig = descriptionConfig
@@ -88,6 +88,6 @@ class ArtifactEvaluation {
 
     @Override
     String toString() {
-        return "ArtifactEvaluation{shouldTrack=${shouldTrack}, ulabelUids=${ulabelUids}, kind=${kind}, key=${key}, descriptionConfig=${descriptionConfig instanceof Closure ? '<closure>' : descriptionConfig}}"
+        return "ArtifactEvaluation{shouldTrack=${shouldTrack}, ulabel_uids=${ulabel_uids}, kind=${kind}, key=${key}, descriptionConfig=${descriptionConfig instanceof Closure ? '<closure>' : descriptionConfig}}"
     }
 }

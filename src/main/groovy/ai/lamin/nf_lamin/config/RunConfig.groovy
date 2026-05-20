@@ -17,7 +17,7 @@
 package ai.lamin.nf_lamin.config
 
 import groovy.transform.CompileStatic
-import nextflow.config.schema.ConfigOption
+import nextflow.config.spec.ConfigOption
 import nextflow.script.dsl.Description
 
 /**
@@ -42,13 +42,13 @@ class RunConfig {
     @Description('''
         List of ulabel UIDs to link to the run.
     ''')
-    final List<String> ulabelUids
+    final List<String> ulabel_uids
 
     /**
      * Default constructor required for extension point
      */
     RunConfig() {
-        this.ulabelUids = []
+        this.ulabel_uids = []
     }
 
     /**
@@ -57,7 +57,7 @@ class RunConfig {
      * @param opts Configuration map with keys: ulabel_uids
      */
     RunConfig(Map opts) {
-        this.ulabelUids = parseUidList(opts?.ulabel_uids)
+        this.ulabel_uids = parseUidList(opts?.ulabel_uids)
     }
 
     /**
@@ -84,11 +84,11 @@ class RunConfig {
      * @return List of ulabel UIDs
      */
     List<String> getUlabelUids() {
-        return this.ulabelUids
+        return this.ulabel_uids
     }
 
     @Override
     String toString() {
-        return "RunConfig{ulabelUids=${ulabelUids}}"
+        return "RunConfig{ulabel_uids=${ulabel_uids}}"
     }
 }

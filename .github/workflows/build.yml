@@ -48,25 +48,33 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # test oldest supported versions of java & nextflow (legacy syntax parser)
           - java_version: 21
-            # nextflow_version: latest-stable
             nextflow_version: 25.10.4
-            validation_args: ""
-            lamin_env: prod
-          - java_version: 21
-            # nextflow_version: latest-stable
-            nextflow_version: 25.10.4
-            validation_args: "--artifact-uri lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A"
-            lamin_env: staging
-          - java_version: 25
-            # nextflow_version: latest-edge
-            nextflow_version: 25.10.4
+            validation_target: validate-legacy
             validation_args: "-with-report"
             lamin_env: prod
-          - java_version: 25
-            # nextflow_version: latest-edge
+
+          # test oldest supported versions of java & nextflow on staging (legacy syntax parser)
+          - java_version: 21
             nextflow_version: 25.10.4
-            validation_args: "-with-report --artifact-uri lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A"
+            validation_target: validate-legacy
+            validation_args: "--input lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A"
+            lamin_env: staging
+
+          # test latest stable nextflow (26.04+): typed params/processes/workflows + output block
+          - java_version: 25
+            nextflow_version: latest-stable
+            validation_target: validate-run
+            validation_args: "-with-report --input lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A"
+            lamin_env: staging
+
+          # test latest edge nextflow
+          # NOTE: switch back to validate-run when latest-edge is >= 26.04
+          - java_version: 25
+            nextflow_version: latest-edge
+            validation_target: validate-legacy
+            validation_args: "--input lamin://laminlabs/lamindata/artifact/zZ3rE7ySAoGQtx3A"
             lamin_env: staging
     steps:
       - name: Environment
@@ -108,7 +116,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: test-report-java${{ matrix.java_version }}-${{ matrix.lamin_env }}
+          name: test-report-java${{ matrix.java_version }}-nf${{ matrix.nextflow_version }}-${{ matrix.lamin_env }}
           path: build/reports
 
       - name: Build plugin
@@ -123,8 +131,10 @@ jobs:
           LAMIN_ENV: ${{ matrix.lamin_env }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          echo "providers.github.token='$GITHUB_TOKEN'" > ~/.nextflow/scm
+          nextflow secrets set LAMIN_API_KEY "$LAMIN_API_KEY"
           BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
-          make validate BRANCH="$BRANCH" ARGS="${{ matrix.validation_args }}"
+          make ${{ matrix.validation_target }} BRANCH="$BRANCH" ARGS="${{ matrix.validation_args }}"
 
       - name: Print Nextflow log
         if: always()
@@ -133,7 +143,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: validation-logs-java${{ matrix.java_version }}-${{ matrix.lamin_env }}
+          name: validation-logs-java${{ matrix.java_version }}-nf${{ matrix.nextflow_version }}-${{ matrix.lamin_env }}
           path: .nextflow.log
           include-hidden-files: true
 
