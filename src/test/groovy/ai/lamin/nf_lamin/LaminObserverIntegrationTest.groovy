@@ -109,6 +109,8 @@ class LaminObserverIntegrationTest extends Specification {
         Map<String, Object> testBranch = apiClient.findOrCreateByName('core', 'branch', 'nf-lamin-test-branch')
         Integer testBranchId = (testBranch.get('id') as Number)?.intValue()
         assert testBranchId != null : "Failed to resolve test branch 'nf-lamin-test-branch': findOrCreateByName returned no id. Response: ${testBranch}"
+
+        Map transform = null
         try {
             List<Map> existing = apiClient.findTransforms([and: [[key: [eq: transformKey]]]])
             if (existing) {
