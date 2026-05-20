@@ -29,11 +29,8 @@ lamin {
     }
   }
 
-  // Track output artifacts, stripping the outdir prefix from keys
+  // Track output artifacts
   output_artifacts {
-    key {
-      relativize = { params.outdir }
-    }
     exclude_pattern = '.*'
     rules {
       // Enabled by default
@@ -103,56 +100,14 @@ Apply to `artifacts`, `input_artifacts`, or `output_artifacts`:
 | Setting              | Type                    | Default | Description                                      |
 | -------------------- | ----------------------- | ------- | ------------------------------------------------ |
 | `enabled`            | Boolean                 | `true`  | Enable/disable tracking                          |
-| `include_local`      | Boolean                 | `true`  | Track local (`file://`) artifacts                |
 | `exclude_work_dir`   | Boolean                 | `true`  | Skip Nextflow work dir (input artifacts only)    |
 | `exclude_assets_dir` | Boolean                 | `true`  | Skip `~/.nextflow/assets` (input artifacts only) |
 | `include_pattern`    | String                  | `null`  | Regex; only matching files are tracked           |
 | `exclude_pattern`    | String                  | `null`  | Regex; matching files are skipped                |
 | `ulabel_uids`        | List                    | `null`  | ULabel UIDs for matched artifacts                |
 | `kind`               | String                  | `null`  | Artifact kind (e.g. `'dataset'`, `'report'`)     |
-| `key`                | String / Closure / Map  | `null`  | How to derive artifact keys (see below)          |
 | `include_paths`      | String / List / Closure | `null`  | Paths to explicitly track (see below)            |
 | `rules`              | Map                     | `{}`    | Pattern-based rules (see below)                  |
-
-### Key derivation
-
-The `key` option controls how artifact keys are generated from file paths. By default, the basename is used.
-
-**Scope notation** (recommended for nf-core-style pipelines):
-
-```groovy
-key {
-  relativize = { params.outdir }
-}
-// /home/user/results/multiqc/report.html → multiqc/report.html
-```
-
-`relativize` strips the given directory prefix from each artifact path, preserving the subdirectory structure as the key. It is equivalent to writing `key = { path -> path.toString().minus(params.outdir + '/') }` but handles `file://`, `s3://`, `gs://`, and other URI schemes uniformly. If an artifact path falls outside the base directory, the plugin falls back to the basename.
-
-The `relativize` value accepts either a plain string or a closure. Wrapping it in a closure (`{ params.outdir }` instead of `params.outdir`) is **strongly recommended** when using `params`: it delays evaluation until the workflow runs. Without the closure, Nextflow resolves the expression at config-parse time, and on Seqera Cloud (e.g. with `-with-tower`) this raises an error such as:
-
-```
-ERROR ~ Unknown config attribute `lamin.output_artifacts.params.outdir` -- check config file
-```
-
-**String template** with variables:
-
-- `{basename}`: filename with extension
-- `{filename}`: filename without extension
-- `{ext}`: extension including dot
-- `{parent}`: parent directory name (`{parent.parent}` for grandparent, etc.)
-
-```groovy
-key = '{parent}/{basename}'
-```
-
-**Closure** for full control:
-
-```groovy
-key = { path -> "${path.parent.fileName}/${path.fileName}" }
-```
-
-Falls back to basename if resolution fails.
 
 ### Explicit paths (`include_paths`)
 
