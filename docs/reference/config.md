@@ -137,7 +137,7 @@ input_artifacts {
 ```
 
 :::{note}
-"Use closures for `params.*` references"
+**Use closures for `params.*` references**
 
 When the `lamin {}` config scope is first evaluated, not all Nextflow params may be available yet. For example, params set by a profile (`-profile test`) or pulled in via `includeConfig` are resolved later. Using a closure defers the evaluation until params are fully resolved:
 
