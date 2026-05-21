@@ -361,6 +361,45 @@ class Instance {
     }
 
     /**
+     * Upsert records in the Lamin API (insert or update based on conflict columns).
+     * @param args A map containing the following keys:
+     *    - moduleName: The name of the module (required)
+     *    - modelName: The name of the model (required)
+     *    - conflictColumns: List of column names to detect conflicts on (required)
+     *    - data: List of record maps to upsert (required)
+     * @return a list of upserted record maps
+     * @throws IllegalStateException if any of the required arguments are null
+     * @throws ApiException if an error occurs while upserting the records
+     */
+    List<Map> upsertRecords(Map args) {
+        String moduleName = args.moduleName as String
+        String modelName = args.modelName as String
+        List<String> conflictColumns = args.conflictColumns as List<String>
+        List<Map> data = args.data as List<Map>
+
+        if (!moduleName) { throw new IllegalStateException('Module name is null. Please check the module name.') }
+        if (!modelName) { throw new IllegalStateException('Model name is null. Please check the model name.') }
+        if (!conflictColumns) { throw new IllegalStateException('Conflict columns is null.') }
+        if (data == null) { throw new IllegalStateException('Data is null.') }
+
+        Body body = new Body(data)
+
+        log.trace "PUT upsertRecords: ${moduleName}.${modelName}, conflictColumns=${conflictColumns}, data=${data}"
+        List<Map> response = callApi { String accessToken ->
+            this.recordsApi.upsertRecordsInstancesInstanceIdModulesModuleNameModelNameUpsertPut(
+                moduleName,
+                modelName,
+                this.settings.id,
+                conflictColumns,
+                body,
+                accessToken
+            )
+        } as List<Map>
+        log.trace "Response from upsertRecords: ${response}"
+        return response ?: []
+    }
+
+    /**
      * Update a record in the Lamin API
      * @param args A map containing the following keys:
      *    - moduleName: The name of the module (required)
