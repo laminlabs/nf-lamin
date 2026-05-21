@@ -136,29 +136,17 @@ input_artifacts {
 }
 ```
 
-**As a static list:**
-
-```groovy
-input_artifacts {
-  include_paths = ["foo.txt", "bar.txt"]
-}
-```
-
 :::{note}
-Always wrap `include_paths` in a closure (`{ ... }`) when referencing `params`. Locally, `include_paths = params.input` may work, but on Seqera Cloud (e.g. with `-with-tower`) Nextflow resolves config expressions at parse time and raises an error such as:
+**Use closures for `params.*` references**
 
-```
-ERROR ~ Unknown config attribute `lamin.input_artifacts.params.input` -- check config file
-```
-
-The same applies to interpolated path lists:
+When the `lamin {}` config scope is first evaluated, not all Nextflow params may be available yet. For example, params set by a profile (`-profile test`) or pulled in via `includeConfig` are resolved later. Using a closure defers the evaluation until params are fully resolved:
 
 ```groovy
-// ❌ Fails on Seqera Cloud
-include_paths = ["${params.outdir}/samplesheet/samplesheet.csv"]
+// safe: evaluated after all params are resolved
+include_paths = { params.input }
 
-// ✅ Safe everywhere
-include_paths = { ["${params.outdir}/samplesheet/samplesheet.csv"] }
+// may fail if the param isn't available yet
+include_paths = params.input
 ```
 
 :::
@@ -255,3 +243,26 @@ When `manage_s3_credentials = false`, the plugin resolves `lamin://` URIs to the
 | `retry_delay`       | Integer | `100`   | `LAMIN_RETRY_DELAY` |
 
 Only needed for custom LaminHub deployments or to tune retry behavior.
+
+---
+
+## Troubleshooting
+
+### `ERROR ~ Unknown config attribute` when using `params` in config
+
+```
+ERROR ~ Unknown config attribute `lamin.input_artifacts.rules.samplesheet.params.input` -- check config file
+```
+
+When the `lamin {}` config scope is evaluated, not all Nextflow params are necessarily available yet. Params set by a profile (`-profile test`), pulled in via `includeConfig`, or resolved only after plugin loading may be absent at that point. A bare `params.input` reference then creates an unresolved placeholder that triggers this error.
+
+**Fix**: wrap `params.*` references in a closure so evaluation is deferred until all params have been fully resolved:
+
+```groovy
+// Safe: evaluated after all params (CLI, profiles, includeConfig) are resolved
+include_paths = { params.input }
+include_paths = { ["${params.outdir}/samplesheet/samplesheet.csv"] }
+
+// May fail if the param is not yet available when this line is evaluated
+include_paths = params.input
+```
