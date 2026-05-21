@@ -31,19 +31,19 @@ nextflow run <your-pipeline>
 
 ## Version compatibility
 
-| nf-lamin  | LaminDB       | Nextflow   | Status         | Key Features                                                      |
-| --------- | ------------- | ---------- | -------------- | ----------------------------------------------------------------- |
+| nf-lamin  | LaminDB       | Nextflow   | Status         | Key Features                                                                    |
+| --------- | ------------- | ---------- | -------------- | ------------------------------------------------------------------------------- |
 | **0.8.0** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Support for Nextflow 26.04, fix key resolution, deprecate uploading local paths |
-| 0.7.0     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Automatic credential federation for `lamin://` URIs (S3)          |
-| 0.6.2     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Fix deferred param evaluation, documentation improvements         |
-| 0.6.1     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Fix for edge case in tracking output artifacts                    |
-| 0.6.0     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Relativize keys, specify artifact paths, support space and branch |
-| 0.5.1     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Track local input files, exclude work and assets directories      |
-| 0.5.0     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Improved config, artifact tracking rules, metadata tagging        |
-| 0.4.0     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Input artifact tracking                                           |
-| 0.3.0     | >= 2.0        | >= 25.04.0 | ❌ Unsupported | Upgrade to LaminDB v2, `lamin://` URI support                     |
-| 0.2.x     | >= 1.0, < 2.0 | >= 25.04.0 | ❌ Unsupported | Reports, `getRunUid()`, `getTransformUid()`, `getInstanceSlug()`  |
-| 0.1.0     | >= 1.0, < 2.0 | >= 24.04.0 | ❌ Unsupported | Transform & Run tracking, output artifact registration            |
+| 0.7.0     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Automatic credential federation for `lamin://` URIs (S3)                        |
+| 0.6.2     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Fix deferred param evaluation, documentation improvements                       |
+| 0.6.1     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Fix for edge case in tracking output artifacts                                  |
+| 0.6.0     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Relativize keys, specify artifact paths, support space and branch               |
+| 0.5.1     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Track local input files, exclude work and assets directories                    |
+| 0.5.0     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Improved config, artifact tracking rules, metadata tagging                      |
+| 0.4.0     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Input artifact tracking                                                         |
+| 0.3.0     | >= 2.0        | >= 25.04.0 | ❌ Unsupported | Upgrade to LaminDB v2, `lamin://` URI support                                   |
+| 0.2.x     | >= 1.0, < 2.0 | >= 25.04.0 | ❌ Unsupported | Reports, `getRunUid()`, `getTransformUid()`, `getInstanceSlug()`                |
+| 0.1.0     | >= 1.0, < 2.0 | >= 24.04.0 | ❌ Unsupported | Transform & Run tracking, output artifact registration                          |
 
 ```{toctree}
 :maxdepth: 1
