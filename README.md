@@ -1,7 +1,5 @@
 # nf-lamin
 
-`nf-lamin` is a [Nextflow](https://www.nextflow.io/) plugin that records data provenance for your workflows in [LaminHub](https://lamin.ai/).
+This Nextflow plugin tracks Nextflow pipelines with their runs, inputs, and outputs in a LaminDB instance.
 
-- [Using LaminDB with Nextflow](https://docs.lamin.ai/nextflow) (guide)
-- [`nf-lamin` reference documentation](https://docs.lamin.ai/nf-lamin)
-- [Contributing](CONTRIBUTING.md)
+Read a [guide](https://docs.lamin.ai/lamin) or the [API reference](https://docs.lamin.ai/nf-lamin).
