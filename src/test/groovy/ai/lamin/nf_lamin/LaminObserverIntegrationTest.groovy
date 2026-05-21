@@ -243,6 +243,7 @@ class LaminObserverIntegrationTest extends Specification {
 
         LaminObserver observer = new LaminObserver()
         LaminRunManager manager = LaminRunManager.instance
+        Instance instanceSpy = null
         when:
         observer.onFlowCreate(session)
 
@@ -251,43 +252,20 @@ class LaminObserverIntegrationTest extends Specification {
         manager.run.uid
         waitForRunStatus(apiClient, manager.run.uid as String, RunStatus.SCHEDULED.code)
 
-        when: 'we spy on the instance to capture artifact creation and start the run'
-        Instance instanceSpy = Spy(manager.laminInstance)
-        Map<String, Object> uploadedArtifact = null
-        instanceSpy.uploadArtifact(_ as Map) >> { Map<String, Object> args ->
-            Map<String, Object> result = callRealMethod()
-            uploadedArtifact = result
-            return result
-        }
+        when: 'we spy on the instance and start the run'
+        instanceSpy = Spy(manager.laminInstance)
         manager.laminInstance = instanceSpy
         observer.onFlowBegin()
         waitForRunStatus(apiClient, manager.run.uid as String, RunStatus.STARTED.code)
 
-        and: 'a local artifact is published'
+        and: 'a local file is published'
         Path localFile = Files.createTempFile("nf-lamin-local-${uniqueSuffix}", '.txt')
         Files.writeString(localFile, "LaminObserverIntegrationTest: integration test artifact ${uniqueSuffix}-${System.nanoTime()}")
         observer.onFilePublish(new FilePublishEvent(localFile, localFile, null))
 
-        then:
-        uploadedArtifact?.uid
-        Map<String, Object> fetchedLocalArtifact = apiClient.getRecord(
-            moduleName: 'core',
-            modelName: 'artifact',
-            idOrUid: uploadedArtifact.uid,
-            includeForeignKeys: true
-        )
-        String artifactSuffix = fetchedLocalArtifact.suffix as String
-        if (artifactSuffix) {
-            assert artifactSuffix.replaceAll(/^\./, '') == 'txt'
-        }
-        Object artifactRun = fetchedLocalArtifact.run ?: fetchedLocalArtifact.run_id
-        if (artifactRun instanceof Map) {
-            assert artifactRun.uid == manager.run.uid || artifactRun.id == manager.run.id
-        } else if (artifactRun != null) {
-            assert artifactRun == manager.run.id || artifactRun == manager.run.uid
-        } else {
-            assert false: 'Artifact should reference the run that created it'
-        }
+        then: 'local files are not uploaded (only remote paths are tracked)'
+        0 * instanceSpy.uploadArtifact(_ as Map)
+        0 * instanceSpy.createArtifact({ Map args -> (args.path as String)?.startsWith('file://') })
 
         when:
         observer.onFlowComplete()

@@ -118,9 +118,6 @@ lamin {
   }
 
   output_artifacts {
-    key {
-      relativize = { params.outdir }
-    }
     exclude_pattern = '.*'
     rules {
       // Enabled by default
@@ -187,9 +184,6 @@ lamin {
   }
 
   output_artifacts {
-    key {
-      relativize = { params.outdir }
-    }
     exclude_pattern = '.*'
     rules {
       // Enabled by default
