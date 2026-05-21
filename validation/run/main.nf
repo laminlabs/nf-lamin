@@ -7,7 +7,7 @@
 
 nextflow.enable.types = true
 
-include { getRunUid; getTransformUid } from 'plugin/nf-lamin'
+include { getRunUid; getTransformUid; getInstanceSlug; annotateArtifact } from 'plugin/nf-lamin'
 
 /*
   Typed parameters (Nextflow 26.04+).
@@ -54,12 +54,13 @@ process summarizeData {
     id: id,
     runUid: runUid,
     transformUid: transformUid,
-    inputFileSize: artifact.size()
+    inputFileSize: artifact.size(),
+    datetime: new Date().toString()
   ]
   """
-  cat > output.json << EOF
-  ${groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata))}
-  EOF
+cat > output.json << EOF
+${groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata))}
+EOF
   """
 }
 
@@ -99,9 +100,20 @@ workflow {
     log.error "Failed to read artifact via lamin:// path: ${e.message}"
   }
 
+  log.info "Instance slug: ${getInstanceSlug()}"
+
   // Construct typed record channel and run named workflow
   ch_input = channel.of(record(id: "artifact1", artifact: artPath))
   ch_results = SUMMARIZE_ARTIFACTS(ch_input)
+    | map { r ->
+        annotateArtifact(r.result,
+          kind: 'dataset',
+          description: "Summarized output for sample ${r.id}",
+          ulabel_uids: ['validation'],
+          features: [sample_id: r.id]
+        )
+        r
+      }
 
   publish:
   results = ch_results
