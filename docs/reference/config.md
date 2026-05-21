@@ -68,7 +68,7 @@ The sections below document each setting in detail.
 | `transform_uid` | String  | `null`         | `LAMIN_TRANSFORM_UID`    | Override the auto-generated transform UID |
 | `run_uid`       | String  | `null`         | `LAMIN_RUN_UID`          | Override the auto-generated run UID       |
 
-**Experimental**: UID fields (`project_uids`, `ulabel_uids`, `space_uid`, `branch_uid`) also accept named references: `'?name'` (lookup by name), `'!name'` (lookup, error if missing), `'+name'` (create if missing). This is an experimental feature and may be removed in a future release.
+**Experimental**: UID fields (`project_uids`, `ulabel_uids`, `space_uid`, `branch_uid`) also accept named references: `'?name'` (lookup by name, omit if missing), `'!name'` (lookup, error if missing), `'+name'` (create if missing). This is an experimental feature and may be removed in a future release.
 
 ---
 
@@ -97,17 +97,17 @@ Control which files are tracked and what metadata is attached. Configure trackin
 
 Apply to `artifacts`, `input_artifacts`, or `output_artifacts`:
 
-| Setting              | Type                    | Default | Description                                      |
-| -------------------- | ----------------------- | ------- | ------------------------------------------------ |
-| `enabled`            | Boolean                 | `true`  | Enable/disable tracking                          |
-| `exclude_work_dir`   | Boolean                 | `true`  | Skip Nextflow work dir (input artifacts only)    |
-| `exclude_assets_dir` | Boolean                 | `true`  | Skip `~/.nextflow/assets` (input artifacts only) |
-| `include_pattern`    | String                  | `null`  | Regex; only matching files are tracked           |
-| `exclude_pattern`    | String                  | `null`  | Regex; matching files are skipped                |
-| `ulabel_uids`        | List                    | `null`  | ULabel UIDs for matched artifacts                |
-| `kind`               | String                  | `null`  | Artifact kind (e.g. `'dataset'`, `'report'`)     |
-| `include_paths`      | String / List / Closure | `null`  | Paths to explicitly track (see below)            |
-| `rules`              | Map                     | `{}`    | Pattern-based rules (see below)                  |
+| Setting              | Type                    | Default | Description                                   |
+| -------------------- | ----------------------- | ------- | --------------------------------------------- |
+| `enabled`            | Boolean                 | `true`  | Enable/disable tracking                       |
+| `exclude_work_dir`   | Boolean                 | `true`  | Ignore paths in the Nextflow work directory   |
+| `exclude_assets_dir` | Boolean                 | `true`  | Ignore paths in the Nextflow assets directory |
+| `include_pattern`    | String                  | `null`  | Regex; only matching files are tracked        |
+| `exclude_pattern`    | String                  | `null`  | Regex; matching files are skipped             |
+| `ulabel_uids`        | List                    | `null`  | ULabel UIDs for matched artifacts             |
+| `kind`               | String                  | `null`  | Artifact kind (e.g. `'dataset'`, `'report'`)  |
+| `include_paths`      | String / List / Closure | `null`  | Paths to explicitly track (see below)         |
+| `rules`              | Map                     | `{}`    | Pattern-based rules (see below)               |
 
 ### Explicit paths (`include_paths`)
 
@@ -179,7 +179,6 @@ Rules apply different settings based on file patterns or explicit paths. Each ru
 | `order`         | Integer                 | `100`       | Priority (lower = evaluated first) |
 | `ulabel_uids`   | List                    | `null`      | ULabel UIDs for matched artifacts  |
 | `kind`          | String                  | `null`      | Override artifact kind             |
-| `key`           | String / Closure / Map  | `null`      | Override key derivation            |
 
 **Evaluation order:**
 
@@ -203,9 +202,6 @@ lamin {
   }
 
   output_artifacts {
-    key {
-      relativize = { params.outdir }
-    }
     exclude_pattern = '.*\\.(log|tmp)$'
     rules {
       exclude_intermediate { type = 'exclude'; pattern = '.*intermediate.*'; order = 1 }
