@@ -1499,6 +1499,12 @@ final class LaminRunManager {
             if (kind != null) {
                 apiParams.put('kind', kind)
             }
+            if (resolvedSpaceId != null) {
+                apiParams.put('space_id', resolvedSpaceId)
+            }
+            if (resolvedBranchId != null) {
+                apiParams.put('branch_id', resolvedBranchId)
+            }
 
             apiParams.put('path', pathStr)
             artifact = laminInstance.createArtifact(apiParams)
