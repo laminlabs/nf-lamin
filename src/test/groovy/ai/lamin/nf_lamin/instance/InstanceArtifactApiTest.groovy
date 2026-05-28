@@ -204,21 +204,30 @@ class InstanceArtifactApiTest extends Specification {
     // Helper: delete artifact at path if it already exists
     // -------------------------------------------------------------------
     private void deleteArtifactIfExists(String path) {
-        try {
-            Map<String, Object> existing = instance.getArtifactByPath(path)
-            if (existing != null && existing.uid) {
+        // Loop until no artifacts remain at this path. Multiple artifacts can exist
+        // on different branches from previous test runs.
+        for (int attempt = 0; attempt < 10; attempt++) {
+            Map<String, Object> existing = null
+            try {
+                existing = instance.getArtifactByPath(path)
+            } catch (Exception e) {
+                println "WARNING: getArtifactByPath for ${path} failed: ${e.message}"
+                break
+            }
+            if (existing == null || !existing.uid) break
                 String uid = existing.uid as String
-                println "Deleting pre-existing artifact at ${path}: uid=${uid}"
+            println "Deleting pre-existing artifact at ${path}: uid=${uid} (attempt ${attempt + 1})"
+            try {
                 instance.deleteRecord(
                     moduleName: 'core',
                     modelName: 'artifact',
                     uid: uid
                 )
                 println "Successfully deleted artifact ${uid}"
-            }
         } catch (Exception e) {
-            // Non-fatal: log and continue
             println "WARNING: Could not delete pre-existing artifact at ${path}: ${e.message}"
+                break
+            }
         }
     }
 
