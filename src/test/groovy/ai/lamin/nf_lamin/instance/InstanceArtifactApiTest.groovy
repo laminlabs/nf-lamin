@@ -20,6 +20,7 @@ import ai.lamin.nf_lamin.LaminConfig
 import ai.lamin.nf_lamin.hub.LaminHub
 import ai.lamin.nf_lamin.hub.LaminHubSettings
 import ai.lamin.nf_lamin.model.RunStatus
+import ai.lamin.nf_lamin.S3TestHelper
 import spock.lang.IgnoreIf
 import spock.lang.Specification
 import spock.lang.Shared
@@ -215,7 +216,7 @@ class InstanceArtifactApiTest extends Specification {
                 break
             }
             if (existing == null || !existing.uid) break
-                String uid = existing.uid as String
+            String uid = existing.uid as String
             println "Deleting pre-existing artifact at ${path}: uid=${uid} (attempt ${attempt + 1})"
             try {
                 instance.deleteRecord(
@@ -224,8 +225,8 @@ class InstanceArtifactApiTest extends Specification {
                     uid: uid
                 )
                 println "Successfully deleted artifact ${uid}"
-        } catch (Exception e) {
-            println "WARNING: Could not delete pre-existing artifact at ${path}: ${e.message}"
+            } catch (Exception e) {
+                println "WARNING: Could not delete pre-existing artifact at ${path}: ${e.message}"
                 break
             }
         }
@@ -868,5 +869,115 @@ class InstanceArtifactApiTest extends Specification {
 
         cleanup:
         Files.deleteIfExists(tempFile)
+    }
+
+    // ===================================================================
+    //  createArtifact with real S3 upload (requires LAMIN_TEST_BUCKET + AWS creds)
+    // ===================================================================
+
+    /**
+     * When LAMIN_TEST_BUCKET and AWS credentials are available, uploads a small file
+     * to the test bucket via the AWS SDK and then registers it via createArtifact.
+     * This tests the full round-trip for S3 paths that we own, with no pre-existing
+     * artifact concerns.
+     *
+     * Locally:  set LAMIN_TEST_BUCKET, LAMIN_TEST_AWS_ACCESS_KEY_ID,
+     *           and LAMIN_TEST_AWS_SECRET_ACCESS_KEY.
+     * In CI:    AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are exported automatically;
+     *           only LAMIN_TEST_BUCKET needs to be added as a secret.
+     */
+    @IgnoreIf({ !env.LAMIN_API_KEY || !S3TestHelper.available() })
+    def "createArtifact with freshly-uploaded S3 file registers on correct branch"() {
+        given:
+        S3TestHelper s3 = new S3TestHelper()
+        String relativeKey = "nf-lamin-test/branch-test-${uniqueSuffix}.txt"
+        byte[] content = "S3 createArtifact test — ${uniqueSuffix} — ${System.nanoTime()}".getBytes('UTF-8')
+        String s3Path = s3.uploadToTestBucket(relativeKey, content)
+        println "Uploaded test file to ${s3Path}"
+
+        when:
+        Map<String, Object> inputArgs = [path: s3Path, run_id: testRunId, branch_id: testBranchId]
+        Map<String, Object> artifact = null
+        try {
+            artifact = instance.createArtifact(inputArgs)
+        } catch (Exception e) {
+            assert false : "createArtifact for freshly-uploaded S3 path failed: ${exceptionDetail(e)}"
+        }
+
+        then:
+        artifact != null
+        artifact.uid != null
+
+        // Verify branch placement
+        String uid = artifact.uid as String
+        Map<String, Object> record = instance.getRecord(
+            moduleName: 'core',
+            modelName: 'artifact',
+            idOrUid: uid,
+            includeForeignKeys: true
+        )
+        assert record : "getRecord returned null for uid=${uid}"
+        def branchId = record.get('branch_id')
+        assert branchId != null : "Artifact has no branch_id. Record keys: ${record.keySet()}"
+        assert (branchId as Number).intValue() == testBranchId :
+            "Expected branch_id=${testBranchId} but got ${branchId}"
+
+        cleanup:
+        createdArtifactUids << uid
+        s3.deleteFromTestBucket(relativeKey)
+        s3.close()
+    }
+
+    // ===================================================================
+    //  Branch placement test
+    // ===================================================================
+
+    /**
+     * Verifies that an artifact uploaded with an explicit branch_id is placed on
+     * the correct branch. Uses uploadArtifact (which always creates a fresh artifact
+     * at a new LaminDB-managed path) to avoid interference from pre-existing artifacts
+     * at shared paths that may be owned by other users and cannot be deleted.
+     *
+     * This is a regression test for the bug where branch_id was not forwarded to
+     * createArtifact in LaminRunManager.
+     */
+    @IgnoreIf({ !env.LAMIN_API_KEY })
+    def "artifact receives correct branch_id when branch_id is specified"() {
+        given:
+        Path tempFile = Files.createTempFile("nf-lamin-branch-test-${uniqueSuffix}", '.txt')
+        Files.writeString(tempFile, "Branch placement regression test — ${uniqueSuffix} — ${System.nanoTime()}")
+
+        when:
+        Map<String, Object> inputArgs = [file: tempFile.toFile(), branch_id: testBranchId, run_id: testRunId]
+        Map<String, Object> artifact = null
+        try {
+            artifact = instance.uploadArtifact(inputArgs)
+        } catch (Exception e) {
+            assert false : "uploadArtifact (branch_id regression test) failed: ${exceptionDetail(e)}"
+        }
+
+        then:
+        artifact != null
+        artifact.uid != null
+
+        // Fetch the full record and verify branch_id
+        String uid = artifact.uid as String
+        Map<String, Object> record = instance.getRecord(
+            moduleName: 'core',
+            modelName: 'artifact',
+            idOrUid: uid,
+            includeForeignKeys: true
+        )
+        assert record : "getRecord returned null for uid=${uid}"
+
+        // The API returns branch_id as an integer field
+        def branchId = record.get('branch_id')
+        assert branchId != null : "Artifact record has no 'branch_id' field. Record keys: ${record.keySet()}. Full record: ${record}"
+        assert (branchId as Number).intValue() == testBranchId :
+            "Expected branch_id=${testBranchId} but got ${branchId}. Full record: ${record}"
+
+        cleanup:
+        Files.deleteIfExists(tempFile)
+        createdArtifactUids << uid
     }
 }
