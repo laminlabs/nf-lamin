@@ -354,7 +354,7 @@ class InstanceArtifactApiTest extends Specification {
         deleteArtifactIfExists(s3Path)
 
         when:
-        Map<String, Object> inputArgs = [path: s3Path]
+        Map<String, Object> inputArgs = [path: s3Path, branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.createArtifact(inputArgs)
@@ -379,7 +379,7 @@ class InstanceArtifactApiTest extends Specification {
         deleteArtifactIfExists(s3Path)
 
         when:
-        Map<String, Object> inputArgs = [path: s3Path, run_id: testRunId]
+        Map<String, Object> inputArgs = [path: s3Path, run_id: testRunId, branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.createArtifact(inputArgs)
@@ -404,7 +404,7 @@ class InstanceArtifactApiTest extends Specification {
         deleteArtifactIfExists(gsPath)
 
         when:
-        Map<String, Object> inputArgs = [path: gsPath]
+        Map<String, Object> inputArgs = [path: gsPath, branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.createArtifact(inputArgs)
@@ -429,7 +429,7 @@ class InstanceArtifactApiTest extends Specification {
         deleteArtifactIfExists(gsPath)
 
         when:
-        Map<String, Object> inputArgs = [path: gsPath, run_id: testRunId]
+        Map<String, Object> inputArgs = [path: gsPath, run_id: testRunId, branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.createArtifact(inputArgs)
@@ -454,7 +454,7 @@ class InstanceArtifactApiTest extends Specification {
         deleteArtifactIfExists(httpsPath)
 
         when:
-        Map<String, Object> inputArgs = [path: httpsPath]
+        Map<String, Object> inputArgs = [path: httpsPath, branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.createArtifact(inputArgs)
@@ -479,7 +479,7 @@ class InstanceArtifactApiTest extends Specification {
         deleteArtifactIfExists(httpsPath)
 
         when:
-        Map<String, Object> inputArgs = [path: httpsPath, run_id: testRunId]
+        Map<String, Object> inputArgs = [path: httpsPath, run_id: testRunId, branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.createArtifact(inputArgs)
@@ -508,7 +508,7 @@ class InstanceArtifactApiTest extends Specification {
         Files.writeString(tempFile, "Upload test without run_id — ${uniqueSuffix} — ${System.nanoTime()}")
 
         when:
-        Map<String, Object> inputArgs = [file: tempFile.toFile(), description: "InstanceArtifactApiTest: upload no run_id ${uniqueSuffix}"]
+        Map<String, Object> inputArgs = [file: tempFile.toFile(), description: "InstanceArtifactApiTest: upload no run_id ${uniqueSuffix}", branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.uploadArtifact(inputArgs)
@@ -537,7 +537,7 @@ class InstanceArtifactApiTest extends Specification {
         Files.writeString(tempFile, "Upload test with run_id — ${uniqueSuffix} — ${System.nanoTime()}")
 
         when:
-        Map<String, Object> inputArgs = [file: tempFile.toFile(), run_id: testRunId]
+        Map<String, Object> inputArgs = [file: tempFile.toFile(), run_id: testRunId, branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.uploadArtifact(inputArgs)
@@ -567,7 +567,7 @@ class InstanceArtifactApiTest extends Specification {
         Files.write(tempFile, randomBytes)
 
         when:
-        Map<String, Object> inputArgs = [file: tempFile.toFile(), description: "InstanceArtifactApiTest: binary upload ${uniqueSuffix}"]
+        Map<String, Object> inputArgs = [file: tempFile.toFile(), description: "InstanceArtifactApiTest: binary upload ${uniqueSuffix}", branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.uploadArtifact(inputArgs)
@@ -595,7 +595,7 @@ class InstanceArtifactApiTest extends Specification {
         Files.writeString(tempFile, "Upload test with description — ${uniqueSuffix}")
 
         when:
-        Map<String, Object> inputArgs = [file: tempFile.toFile(), description: "InstanceArtifactApiTest: upload with description ${uniqueSuffix}"]
+        Map<String, Object> inputArgs = [file: tempFile.toFile(), description: "InstanceArtifactApiTest: upload with description ${uniqueSuffix}", branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.uploadArtifact(inputArgs)
@@ -635,7 +635,7 @@ class InstanceArtifactApiTest extends Specification {
         deleteArtifactIfExists(s3Path)
 
         when:
-        Map<String, Object> inputArgs = [path: s3Path, description: "InstanceArtifactApiTest: S3 artifact with description ${uniqueSuffix}"]
+        Map<String, Object> inputArgs = [path: s3Path, description: "InstanceArtifactApiTest: S3 artifact with description ${uniqueSuffix}", branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.createArtifact(inputArgs)
@@ -666,7 +666,7 @@ class InstanceArtifactApiTest extends Specification {
         when:
         Map<String, Object> artifact1 = null
         Map<String, Object> artifact2 = null
-        Map<String, Object> inputArgs = [path: s3Path]
+        Map<String, Object> inputArgs = [path: s3Path, branch_id: testBranchId]
         try {
             artifact1 = instance.createArtifact(inputArgs)
         } catch (Exception e) {
@@ -704,7 +704,7 @@ class InstanceArtifactApiTest extends Specification {
         String laminManagedPath = LAMIN_MANAGED_S3_PATH
 
         when:
-        Map<String, Object> inputArgs = [path: laminManagedPath]
+        Map<String, Object> inputArgs = [path: laminManagedPath, branch_id: testBranchId]
         Exception caughtException = null
         try {
             instance.createArtifact(inputArgs)
@@ -767,7 +767,7 @@ class InstanceArtifactApiTest extends Specification {
         Map<String, Object> artifact = null
         Exception caughtException = null
         try {
-            artifact = instance.uploadArtifact([file: tempFile.toFile()])
+            artifact = instance.uploadArtifact([file: tempFile.toFile(), branch_id: testBranchId])
         } catch (Exception e) {
             caughtException = e
         }
@@ -798,7 +798,7 @@ class InstanceArtifactApiTest extends Specification {
         deleteArtifactIfExists(s3Path)
 
         when:
-        Map<String, Object> inputArgs = [path: s3Path, run_id: testRunId, description: "InstanceArtifactApiTest: S3 full params ${uniqueSuffix}"]
+        Map<String, Object> inputArgs = [path: s3Path, run_id: testRunId, description: "InstanceArtifactApiTest: S3 full params ${uniqueSuffix}", branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.createArtifact(inputArgs)
@@ -835,7 +835,7 @@ class InstanceArtifactApiTest extends Specification {
         Files.writeString(tempFile, "col1,col2\n1,2\n3,4\n${uniqueSuffix},${System.nanoTime()}\n")
 
         when:
-        Map<String, Object> inputArgs = [file: tempFile.toFile(), run_id: testRunId, description: "InstanceArtifactApiTest: CSV upload ${uniqueSuffix}"]
+        Map<String, Object> inputArgs = [file: tempFile.toFile(), run_id: testRunId, description: "InstanceArtifactApiTest: CSV upload ${uniqueSuffix}", branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.uploadArtifact(inputArgs)
