@@ -33,6 +33,7 @@ nextflow run <your-pipeline>
 
 | nf-lamin  | LaminDB       | Nextflow   | Status         | Key Features                                                                    |
 | --------- | ------------- | ---------- | -------------- | ------------------------------------------------------------------------------- |
+| **0.8.1** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Improved trace logging                                                          |
 | **0.8.0** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Support for Nextflow 26.04, fix key resolution, deprecate uploading local paths |
 | 0.7.0     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Automatic credential federation for `lamin://` URIs (S3)                        |
 | 0.6.2     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Fix deferred param evaluation, documentation improvements                       |
