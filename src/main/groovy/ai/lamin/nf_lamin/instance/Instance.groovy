@@ -150,16 +150,13 @@ class Instance {
      * @throws ApiException if an error occurs while fetching the statistics
      */
     Object getInstanceStatistics() throws ApiException {
-        log.trace "GET getInstanceStatistics"
-
-        Object response = callApi { String accessToken ->
+        Object response = callApi("GET getInstanceStatistics") { String accessToken ->
             this.statisticsApi.getInstanceStatisticsInstancesInstanceIdStatisticsGet(
                 this.settings.id,
                 [],
                 accessToken
             )
         }
-        log.trace "Response from getInstanceStatistics: ${response}"
         return response
     }
 
@@ -169,16 +166,12 @@ class Instance {
      * @throws ApiException if an error occurs while fetching the non-empty tables
      */
     Map getNonEmptyTables() throws ApiException {
-        log.trace "GET getNonEmptyTables"
-
-        Map response = callApi { String accessToken ->
+        Map response = callApi("GET getNonEmptyTables") { String accessToken ->
             this.statisticsApi.getNonEmptyTablesInstancesInstanceIdNonEmptyTablesGet(
                 this.settings.id,
                 accessToken
             )
         } as Map
-
-        log.trace "Response from getNonEmptyTables: ${response}"
 
         return response
     }
@@ -191,16 +184,12 @@ class Instance {
      * @throws ApiException if an error occurs while fetching the schema
      */
     Map getSchema() throws ApiException {
-        log.trace "GET getSchema"
-
-        Map response = callApi { String accessToken ->
+        Map response = callApi("GET getSchema") { String accessToken ->
             this.schemaApi.getSchemaInstancesInstanceIdSchemaGet(
                 this.settings.id,
                 accessToken
             )
         } as Map
-
-        log.trace "Response from getSchema: ${response}"
         return response
     }
 
@@ -238,8 +227,7 @@ class Instance {
         )
 
         // Do call
-        log.trace "POST getRecord: ${moduleName}.${modelName}, idOrUid=${idOrUid}"
-        Map response = callApi { String accessToken ->
+        Map response = callApi("POST getRecord", "${moduleName}.${modelName}, idOrUid=${idOrUid}") { String accessToken ->
             this.recordsApi.getRecordInstancesInstanceIdModulesModuleNameModelNameIdOrUidPost(
                 moduleName,
                 modelName,
@@ -251,7 +239,6 @@ class Instance {
                 body
             ) as Map
         }
-        log.trace "Response from getRecord: ${response}"
         return response
     }
 
@@ -300,8 +287,7 @@ class Instance {
         )
 
         // Do call
-        log.trace "POST getRecords: ${moduleName}.${modelName}, filter=${filter}, limit=${limit}, offset=${offset}"
-        List<Map> response = callApi { String accessToken ->
+        List<Map> response = callApi("POST getRecords", "${moduleName}.${modelName}, filter=${filter}, limit=${limit}, offset=${offset}") { String accessToken ->
             this.recordsApi.getRecordsInstancesInstanceIdModulesModuleNameModelNamePost(
                 moduleName,
                 modelName,
@@ -314,7 +300,6 @@ class Instance {
                 body
             ) as List<Map>
         }
-        log.trace "Response from getRecords: ${response}"
         return response
     }
 
@@ -340,8 +325,7 @@ class Instance {
         Map data = args.get('data', null) as Map
 
         // Do call
-        log.trace "PUT createRecord: ${moduleName}.${modelName}, data=${data}"
-        List<Map> response = callApi { String accessToken ->
+        List<Map> response = callApi("PUT createRecord", "${moduleName}.${modelName}, data=${data}") { String accessToken ->
             this.recordsApi.createRecordsInstancesInstanceIdModulesModuleNameModelNamePut(
                 moduleName,
                 modelName,
@@ -350,7 +334,6 @@ class Instance {
                 accessToken
             )
         } as List<Map>
-        log.trace "Response from createRecord: ${response}"
         if (response == null || response.isEmpty()) {
             throw new IllegalStateException("Failed to create record. Response is empty.")
         }
@@ -385,8 +368,7 @@ class Instance {
         Map data = args.get('data', null) as Map
 
         // Do call
-        log.trace "PATCH updateRecord: ${moduleName}.${modelName}, uid=${uid}, data=${data}"
-        Map response = callApi { String accessToken ->
+        Map response = callApi("PATCH updateRecord", "${moduleName}.${modelName}, uid=${uid}, data=${data}") { String accessToken ->
             this.recordsApi.updateRecordInstancesInstanceIdModulesModuleNameModelNameUidPatch(
                 moduleName,
                 modelName,
@@ -396,7 +378,6 @@ class Instance {
                 accessToken
             ) as Map
         }
-        log.trace "Response from updateRecord: ${response}"
         return response
     }
 
@@ -421,8 +402,7 @@ class Instance {
         if (!uid) { throw new IllegalStateException('uid is null. Please check the uid.') }
 
         // Do call
-        log.trace "DELETE deleteRecord: ${moduleName}.${modelName}, uid=${uid}"
-        callApi { String accessToken ->
+        callApi("DELETE deleteRecord", "${moduleName}.${modelName}, uid=${uid}") { String accessToken ->
             this.recordsApi.deleteRecordInstancesInstanceIdModulesModuleNameModelNameUidDelete(
                 moduleName,
                 modelName,
@@ -431,7 +411,6 @@ class Instance {
                 accessToken
             )
         }
-        log.trace "Successfully deleted record: ${moduleName}.${modelName}.${uid}"
         return true
     }
 
@@ -644,14 +623,11 @@ class Instance {
      * @throws ApiException if an error occurs while fetching the account information
      */
     Map getAccount() {
-        log.trace "GET /account"
-
-        Map response = callApi { String accessToken ->
+        Map response = callApi("GET getAccount") { String accessToken ->
             this.accountsApi.getCallerAccountAccountGet(
                 accessToken
             ) as Map
         }
-        log.trace "Response from getAccount: ${response}"
         return response
     }
 
@@ -694,15 +670,13 @@ class Instance {
         }
 
         // Do call
-        log.trace "POST /instances/{instance_id}/transforms: ${body.toJson()}"
-        Map response = callApi { String accessToken ->
+        Map response = callApi("POST createTransform", "${body.toJson()}") { String accessToken ->
             this.transformsApi.createTransformInstancesInstanceIdTransformsPost(
                 this.settings.id,
                 body,
                 accessToken
             ) as Map
         }
-        log.trace "Response from createTransform: ${response}"
 
         Map responseBody = response?.body as Map
 
@@ -741,17 +715,13 @@ class Instance {
         }
 
         // Do call
-        log.trace "POST /instances/{instance_id}/artifacts/create: ${body.toJson()}"
-
-        Map<String, Object> response = callApi { String accessToken ->
+        Map<String, Object> response = callApi("POST createArtifact", "${body.toJson()}") { String accessToken ->
             this.artifactsApi.createArtifactInstancesInstanceIdArtifactsCreatePost(
                 this.settings.id,
                 body,
                 accessToken
             ) as Map<String, Object>
         }
-
-        log.trace "Response from createArtifact: ${response}"
 
         Map<String, Object> responseBody = response?.body as Map<String, Object>
         if (!responseBody?.artifact) {
@@ -771,9 +741,7 @@ class Instance {
     Map getArtifactByPath(String path) {
         if (!path) { throw new IllegalStateException('Path is null or empty. Please check the path.') }
 
-        log.trace "GET /instances/{instance_id}/artifacts/by-path?path=${path}"
-
-        Map<String, Object> response = callApi { String accessToken ->
+        Map<String, Object> response = callApi("GET getArtifactByPath", "path=${path}") { String accessToken ->
             try {
                 // Inner try-catch is a workaround for older API versions returning 500 instead of 404
                 // when artifact doesn't exist. Newer API versions return 404 directly (handled by callApi).
@@ -798,8 +766,6 @@ class Instance {
         if (response == null) {
             return null
         }
-
-        log.trace "Response from getArtifactByPath: ${response}"
 
         // Successful response - extract artifact from body
         Map<String, Object> body = response?.body as Map<String, Object>
@@ -839,8 +805,7 @@ class Instance {
         String kwargsString = kwargs ? groovy.json.JsonOutput.toJson(kwargs) : '{}'
 
         // Do call
-        log.trace "POST /instances/{instance_id}/artifacts/upload: file=${file}, kwargs=${kwargsString}"
-        Map<String, Object> response = callApi { String accessToken ->
+        Map<String, Object> response = callApi("POST uploadArtifact", "file=${file}, kwargs=${kwargsString}") { String accessToken ->
             this.artifactsApi.uploadArtifactInstancesInstanceIdArtifactsUploadPost(
                 this.settings.id,
                 file,
@@ -848,7 +813,6 @@ class Instance {
                 kwargsString
             ) as Map<String, Object>
         }
-        log.trace "Response from uploadArtifact: ${response}"
 
         Map<String, Object> responseBody = response?.body as Map<String, Object>
         if (!responseBody?.artifact) {
@@ -955,6 +919,7 @@ class Instance {
     /**
      * Call the Lamin API with the provided closure.
      * This method handles token expiration and refreshes the token if necessary.
+     * Traces the operation before and after the call, and warns on retries.
      *
      * Error handling follows the LaminDB API error mapping:
      * - 401: Token expired - refresh and retry once
@@ -964,53 +929,68 @@ class Instance {
      * - 409: Conflict (MultipleResultsFound, UpdateContext, IntegrityError) - throw immediately
      * - 5xx: Server errors - retry up to maxRetries
      *
+     * @param opName  The name of the API operation, e.g. "POST createArtifact"
+     * @param opArgs  Optional string describing the key arguments, e.g. "path=s3://bucket/key"
      * @param closure The closure to call with the access token
      * @return the result of the closure call
      * @throws ApiException if an error occurs while calling the API
      */
-    protected <T> T callApi(Closure<T> closure, Integer retries = 0) throws ApiException {
-        String accessToken = getBearerToken()
-        try {
-            return closure.call(accessToken)
-        } catch (ApiException e) {
-            if (e.code == 401) {
-                // Token expired, refresh it and try again
-                this.hub.refreshAccessToken()
-                accessToken = getBearerToken()
-                return closure.call(accessToken)
-            } else if (e.code == 404) {
-                // Not found (DoesNotExist, UnknownStorageLocation, BlobHashNotFound)
-                // Do not retry - resource does not exist
-                log.debug "API call failed with status 404 (Not Found). Not retrying."
-                return null
-            } else if (e.code == 400) {
-                // Bad request (ValidationError, InvalidArgument, NotebookNotSaved, MissingContextUID, FieldValidationError)
-                // Do not retry - the request itself is invalid
-                log.debug "API call failed with status 400 (Bad Request). Not retrying."
-                throw e
-            } else if (e.code == 403) {
-                // Forbidden (NoWriteAccess)
-                // Do not retry - permission issue won't resolve with retry
-                log.debug "API call failed with status 403 (Forbidden). Not retrying."
-                throw e
-            } else if (e.code == 409) {
-                // Conflict (MultipleResultsFound, UpdateContext, IntegrityError)
-                // Do not retry - data conflict won't resolve with retry
-                log.debug "API call failed with status 409 (Conflict). Not retrying."
-                throw e
-            } else if (e.code >= 500 && isPermanentServerError(e)) {
-                // Permanent server error (e.g. FileNotFoundError, UnknownStorageLocation)
-                // Do not retry - the error indicates a permanent condition, not a transient failure
-                log.debug "API call failed with permanent server error. Not retrying."
-                throw e
-            } else if (retries < this.maxRetries) {
-                // Retry for 5xx server errors and other unexpected errors
-                log.warn "API call failed with status ${e.code}. Retrying (${retries + 1}/${this.maxRetries})..."
-                Thread.sleep(this.retryDelay)
-                return callApi(closure, retries + 1)
+    protected <T> T callApi(String opName, String opArgs = null, Closure<T> closure) throws ApiException {
+        String callId = UUID.randomUUID().toString().substring(0, 8)
+        String fullDesc = opArgs ? "[${callId}] ${opName}: ${opArgs}" : "[${callId}] ${opName}"
+        Integer retries = 0
+        boolean tokenRefreshed = false
+        while (true) {
+            String accessToken = getBearerToken()
+            log.trace fullDesc
+            try {
+                T result = closure.call(accessToken)
+                log.trace "[${callId}] response: ${result}"
+                return result
+            } catch (ApiException e) {
+                if (e.code == 401 && !tokenRefreshed) {
+                    // Token expired, refresh it and retry once via the loop
+                    log.debug "${fullDesc} - status 401 (Token expired). Refreshing token and retrying..."
+                    this.hub.refreshAccessToken()
+                    tokenRefreshed = true
+                } else if (e.code == 401) {
+                    // Already refreshed once; give up
+                    log.debug "${fullDesc} - status 401 (Token expired) after token refresh. Not retrying."
+                    throw e
+                } else if (e.code == 404) {
+                    // Not found (DoesNotExist, UnknownStorageLocation, BlobHashNotFound)
+                    // Do not retry; resource does not exist
+                    log.debug "${fullDesc} - status 404 (Not Found). Not retrying."
+                    return null
+                } else if (e.code == 400) {
+                    // Bad request (ValidationError, InvalidArgument, NotebookNotSaved, MissingContextUID, FieldValidationError)
+                    // Do not retry; the request itself is invalid
+                    log.debug "${fullDesc} - status 400 (Bad Request). Not retrying."
+                    throw e
+                } else if (e.code == 403) {
+                    // Forbidden (NoWriteAccess)
+                    // Do not retry; permission issue won't resolve with retry
+                    log.debug "${fullDesc} - status 403 (Forbidden). Not retrying."
+                    throw e
+                } else if (e.code == 409) {
+                    // Conflict (MultipleResultsFound, UpdateContext, IntegrityError)
+                    // Do not retry; data conflict won't resolve with retry
+                    log.debug "${fullDesc} - status 409 (Conflict). Not retrying."
+                    throw e
+                } else if (e.code >= 500 && isPermanentServerError(e)) {
+                    // Permanent server error (e.g. FileNotFoundError, UnknownStorageLocation)
+                    // Do not retry; the error indicates a permanent condition, not a transient failure
+                    log.debug "${fullDesc} - permanent server error. Not retrying."
+                    throw e
+                } else if (retries < this.maxRetries) {
+                    // Retry for 5xx server errors and other unexpected errors
+                    log.warn "${fullDesc} - status ${e.code}. Retrying (${retries + 1}/${this.maxRetries})..."
+                    Thread.sleep(this.retryDelay)
+                    retries++
+                } else {
+                    throw e
+                }
             }
-
-            throw e
         }
     }
 
