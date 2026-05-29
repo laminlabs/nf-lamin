@@ -112,8 +112,8 @@ jobs:
           LAMIN_API_KEY: ${{ matrix.lamin_env == 'prod' && secrets.LAMIN_API_KEY_TESTUSER1 || '' }}
           LAMIN_STAGING_API_KEY: ${{ matrix.lamin_env == 'staging' && secrets.LAMIN_API_KEY_TESTUSER1_STAGING || '' }}
           LAMIN_TEST_BUCKET: ${{ secrets.LAMIN_TEST_BUCKET }}
-          LAMIN_TEST_AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          LAMIN_TEST_AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          # LAMIN_TEST_AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          # LAMIN_TEST_AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - uses: actions/upload-artifact@v7
         if: always()
