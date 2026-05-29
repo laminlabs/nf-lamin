@@ -1,11 +1,22 @@
 package ai.lamin.nf_lamin
 
+import ai.lamin.nf_lamin.instance.Instance
 import spock.lang.Specification
+
+import java.lang.reflect.Field
+import java.net.URI
+import java.nio.file.Path
 
 class LaminRunManagerTest extends Specification {
 
     def setup() {
         LaminRunManager.instance.reset()
+    }
+
+    private static void injectField(Object target, String fieldName, Object value) {
+        Field field = target.class.getDeclaredField(fieldName)
+        field.accessible = true
+        field.set(target, value)
     }
 
     def 'stores and exposes transform and run metadata'() {
@@ -37,5 +48,61 @@ class LaminRunManagerTest extends Specification {
         then:
         LaminRunManager.instance.run == null
         new LaminExtension().getRunUid() == null
+    }
+
+    def 'fetchOrCreateArtifact passes branch_id and space_id when resolved'() {
+        given:
+        def manager = LaminRunManager.instance
+        def mockInstance = Mock(Instance)
+        def config = new LaminConfig([instance: 'testorg/testinst', api_key: 'test-key'])
+        manager.setCurrentInstance(mockInstance)
+        injectField(manager, 'config', config)
+        injectField(manager, 'resolvedBranchId', 7)
+        injectField(manager, 'resolvedSpaceId', 3)
+
+        def mockPath = Mock(Path)
+        mockPath.toUri() >> new URI('s3://test-bucket/test-file.txt')
+
+        mockInstance.getArtifactByPath('s3://test-bucket/test-file.txt') >> null
+        mockInstance.getOwner() >> 'testorg'
+        mockInstance.getName() >> 'testinst'
+
+        when:
+        Map<String, Object> result = manager.fetchOrCreateArtifact([path: mockPath])
+
+        then:
+        1 * mockInstance.createArtifact({ Map args ->
+            args.get('branch_id') == 7 &&
+            args.get('space_id') == 3 &&
+            args.get('path') == 's3://test-bucket/test-file.txt'
+        }) >> [uid: 'testuid1234567890ab', branch: 7.0]
+        result != null
+    }
+
+    def 'fetchOrCreateArtifact omits branch_id and space_id when not resolved'() {
+        given:
+        def manager = LaminRunManager.instance
+        def mockInstance = Mock(Instance)
+        def config = new LaminConfig([instance: 'testorg/testinst', api_key: 'test-key'])
+        manager.setCurrentInstance(mockInstance)
+        injectField(manager, 'config', config)
+        // resolvedBranchId and resolvedSpaceId remain null from reset() in setup()
+
+        def mockPath = Mock(Path)
+        mockPath.toUri() >> new URI('s3://test-bucket/test-file.txt')
+
+        mockInstance.getArtifactByPath('s3://test-bucket/test-file.txt') >> null
+        mockInstance.getOwner() >> 'testorg'
+        mockInstance.getName() >> 'testinst'
+
+        when:
+        Map<String, Object> result = manager.fetchOrCreateArtifact([path: mockPath])
+
+        then:
+        1 * mockInstance.createArtifact({ Map args ->
+            !args.containsKey('branch_id') &&
+            !args.containsKey('space_id')
+        }) >> [uid: 'testuid1234567890ab']
+        result != null
     }
 }

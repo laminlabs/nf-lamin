@@ -1499,6 +1499,12 @@ final class LaminRunManager {
             if (kind != null) {
                 apiParams.put('kind', kind)
             }
+            if (resolvedSpaceId != null) {
+                apiParams.put('space_id', resolvedSpaceId)
+            }
+            if (resolvedBranchId != null) {
+                apiParams.put('branch_id', resolvedBranchId)
+            }
 
             apiParams.put('path', pathStr)
             artifact = laminInstance.createArtifact(apiParams)
@@ -1517,11 +1523,8 @@ final class LaminRunManager {
         String owner = laminInstance.getOwner()
         String name = laminInstance.getName()
         String artifactUid = artifact.get('uid') as String
-        if (webUrl) {
-            log.debug "${verb} artifact ${artifactUid} (${webUrl}/${owner}/${name}/artifact/${artifactUid})"
-        } else {
-            log.debug "${verb} artifact ${artifactUid}"
-        }
+        String webUrlStr = webUrl ? " (${webUrl}/${owner}/${name}/artifact/${artifactUid})" : ""
+        log.debug "${verb} artifact ${artifactUid}${webUrlStr}"
         return artifact
     }
 

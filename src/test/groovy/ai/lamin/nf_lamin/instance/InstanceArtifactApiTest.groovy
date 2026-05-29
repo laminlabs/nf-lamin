@@ -20,6 +20,7 @@ import ai.lamin.nf_lamin.LaminConfig
 import ai.lamin.nf_lamin.hub.LaminHub
 import ai.lamin.nf_lamin.hub.LaminHubSettings
 import ai.lamin.nf_lamin.model.RunStatus
+import ai.lamin.nf_lamin.S3TestHelper
 import spock.lang.IgnoreIf
 import spock.lang.Specification
 import spock.lang.Shared
@@ -204,21 +205,30 @@ class InstanceArtifactApiTest extends Specification {
     // Helper: delete artifact at path if it already exists
     // -------------------------------------------------------------------
     private void deleteArtifactIfExists(String path) {
-        try {
-            Map<String, Object> existing = instance.getArtifactByPath(path)
-            if (existing != null && existing.uid) {
-                String uid = existing.uid as String
-                println "Deleting pre-existing artifact at ${path}: uid=${uid}"
+        // Loop until no artifacts remain at this path. Multiple artifacts can exist
+        // on different branches from previous test runs.
+        for (int attempt = 0; attempt < 10; attempt++) {
+            Map<String, Object> existing = null
+            try {
+                existing = instance.getArtifactByPath(path)
+            } catch (Exception e) {
+                println "WARNING: getArtifactByPath for ${path} failed: ${e.message}"
+                break
+            }
+            if (existing == null || !existing.uid) break
+            String uid = existing.uid as String
+            println "Deleting pre-existing artifact at ${path}: uid=${uid} (attempt ${attempt + 1})"
+            try {
                 instance.deleteRecord(
                     moduleName: 'core',
                     modelName: 'artifact',
                     uid: uid
                 )
                 println "Successfully deleted artifact ${uid}"
+            } catch (Exception e) {
+                println "WARNING: Could not delete pre-existing artifact at ${path}: ${e.message}"
+                break
             }
-        } catch (Exception e) {
-            // Non-fatal: log and continue
-            println "WARNING: Could not delete pre-existing artifact at ${path}: ${e.message}"
         }
     }
 
@@ -345,7 +355,7 @@ class InstanceArtifactApiTest extends Specification {
         deleteArtifactIfExists(s3Path)
 
         when:
-        Map<String, Object> inputArgs = [path: s3Path]
+        Map<String, Object> inputArgs = [path: s3Path, branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.createArtifact(inputArgs)
@@ -370,7 +380,7 @@ class InstanceArtifactApiTest extends Specification {
         deleteArtifactIfExists(s3Path)
 
         when:
-        Map<String, Object> inputArgs = [path: s3Path, run_id: testRunId]
+        Map<String, Object> inputArgs = [path: s3Path, run_id: testRunId, branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.createArtifact(inputArgs)
@@ -395,7 +405,7 @@ class InstanceArtifactApiTest extends Specification {
         deleteArtifactIfExists(gsPath)
 
         when:
-        Map<String, Object> inputArgs = [path: gsPath]
+        Map<String, Object> inputArgs = [path: gsPath, branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.createArtifact(inputArgs)
@@ -420,7 +430,7 @@ class InstanceArtifactApiTest extends Specification {
         deleteArtifactIfExists(gsPath)
 
         when:
-        Map<String, Object> inputArgs = [path: gsPath, run_id: testRunId]
+        Map<String, Object> inputArgs = [path: gsPath, run_id: testRunId, branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.createArtifact(inputArgs)
@@ -445,7 +455,7 @@ class InstanceArtifactApiTest extends Specification {
         deleteArtifactIfExists(httpsPath)
 
         when:
-        Map<String, Object> inputArgs = [path: httpsPath]
+        Map<String, Object> inputArgs = [path: httpsPath, branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.createArtifact(inputArgs)
@@ -470,7 +480,7 @@ class InstanceArtifactApiTest extends Specification {
         deleteArtifactIfExists(httpsPath)
 
         when:
-        Map<String, Object> inputArgs = [path: httpsPath, run_id: testRunId]
+        Map<String, Object> inputArgs = [path: httpsPath, run_id: testRunId, branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.createArtifact(inputArgs)
@@ -499,7 +509,7 @@ class InstanceArtifactApiTest extends Specification {
         Files.writeString(tempFile, "Upload test without run_id — ${uniqueSuffix} — ${System.nanoTime()}")
 
         when:
-        Map<String, Object> inputArgs = [file: tempFile.toFile(), description: "InstanceArtifactApiTest: upload no run_id ${uniqueSuffix}"]
+        Map<String, Object> inputArgs = [file: tempFile.toFile(), description: "InstanceArtifactApiTest: upload no run_id ${uniqueSuffix}", branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.uploadArtifact(inputArgs)
@@ -528,7 +538,7 @@ class InstanceArtifactApiTest extends Specification {
         Files.writeString(tempFile, "Upload test with run_id — ${uniqueSuffix} — ${System.nanoTime()}")
 
         when:
-        Map<String, Object> inputArgs = [file: tempFile.toFile(), run_id: testRunId]
+        Map<String, Object> inputArgs = [file: tempFile.toFile(), run_id: testRunId, branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.uploadArtifact(inputArgs)
@@ -558,7 +568,7 @@ class InstanceArtifactApiTest extends Specification {
         Files.write(tempFile, randomBytes)
 
         when:
-        Map<String, Object> inputArgs = [file: tempFile.toFile(), description: "InstanceArtifactApiTest: binary upload ${uniqueSuffix}"]
+        Map<String, Object> inputArgs = [file: tempFile.toFile(), description: "InstanceArtifactApiTest: binary upload ${uniqueSuffix}", branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.uploadArtifact(inputArgs)
@@ -586,7 +596,7 @@ class InstanceArtifactApiTest extends Specification {
         Files.writeString(tempFile, "Upload test with description — ${uniqueSuffix}")
 
         when:
-        Map<String, Object> inputArgs = [file: tempFile.toFile(), description: "InstanceArtifactApiTest: upload with description ${uniqueSuffix}"]
+        Map<String, Object> inputArgs = [file: tempFile.toFile(), description: "InstanceArtifactApiTest: upload with description ${uniqueSuffix}", branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.uploadArtifact(inputArgs)
@@ -626,7 +636,7 @@ class InstanceArtifactApiTest extends Specification {
         deleteArtifactIfExists(s3Path)
 
         when:
-        Map<String, Object> inputArgs = [path: s3Path, description: "InstanceArtifactApiTest: S3 artifact with description ${uniqueSuffix}"]
+        Map<String, Object> inputArgs = [path: s3Path, description: "InstanceArtifactApiTest: S3 artifact with description ${uniqueSuffix}", branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.createArtifact(inputArgs)
@@ -657,7 +667,7 @@ class InstanceArtifactApiTest extends Specification {
         when:
         Map<String, Object> artifact1 = null
         Map<String, Object> artifact2 = null
-        Map<String, Object> inputArgs = [path: s3Path]
+        Map<String, Object> inputArgs = [path: s3Path, branch_id: testBranchId]
         try {
             artifact1 = instance.createArtifact(inputArgs)
         } catch (Exception e) {
@@ -695,7 +705,7 @@ class InstanceArtifactApiTest extends Specification {
         String laminManagedPath = LAMIN_MANAGED_S3_PATH
 
         when:
-        Map<String, Object> inputArgs = [path: laminManagedPath]
+        Map<String, Object> inputArgs = [path: laminManagedPath, branch_id: testBranchId]
         Exception caughtException = null
         try {
             instance.createArtifact(inputArgs)
@@ -758,7 +768,7 @@ class InstanceArtifactApiTest extends Specification {
         Map<String, Object> artifact = null
         Exception caughtException = null
         try {
-            artifact = instance.uploadArtifact([file: tempFile.toFile()])
+            artifact = instance.uploadArtifact([file: tempFile.toFile(), branch_id: testBranchId])
         } catch (Exception e) {
             caughtException = e
         }
@@ -789,7 +799,7 @@ class InstanceArtifactApiTest extends Specification {
         deleteArtifactIfExists(s3Path)
 
         when:
-        Map<String, Object> inputArgs = [path: s3Path, run_id: testRunId, description: "InstanceArtifactApiTest: S3 full params ${uniqueSuffix}"]
+        Map<String, Object> inputArgs = [path: s3Path, run_id: testRunId, description: "InstanceArtifactApiTest: S3 full params ${uniqueSuffix}", branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.createArtifact(inputArgs)
@@ -826,7 +836,7 @@ class InstanceArtifactApiTest extends Specification {
         Files.writeString(tempFile, "col1,col2\n1,2\n3,4\n${uniqueSuffix},${System.nanoTime()}\n")
 
         when:
-        Map<String, Object> inputArgs = [file: tempFile.toFile(), run_id: testRunId, description: "InstanceArtifactApiTest: CSV upload ${uniqueSuffix}"]
+        Map<String, Object> inputArgs = [file: tempFile.toFile(), run_id: testRunId, description: "InstanceArtifactApiTest: CSV upload ${uniqueSuffix}", branch_id: testBranchId]
         Map<String, Object> artifact = null
         try {
             artifact = instance.uploadArtifact(inputArgs)
@@ -859,5 +869,115 @@ class InstanceArtifactApiTest extends Specification {
 
         cleanup:
         Files.deleteIfExists(tempFile)
+    }
+
+    // ===================================================================
+    //  createArtifact with real S3 upload (requires LAMIN_TEST_BUCKET + AWS creds)
+    // ===================================================================
+
+    /**
+     * When LAMIN_TEST_BUCKET and AWS credentials are available, uploads a small file
+     * to the test bucket via the AWS SDK and then registers it via createArtifact.
+     * This tests the full round-trip for S3 paths that we own, with no pre-existing
+     * artifact concerns.
+     *
+     * Locally:  set LAMIN_TEST_BUCKET, LAMIN_TEST_AWS_ACCESS_KEY_ID,
+     *           and LAMIN_TEST_AWS_SECRET_ACCESS_KEY.
+     * In CI:    AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY are exported automatically;
+     *           only LAMIN_TEST_BUCKET needs to be added as a secret.
+     */
+    @IgnoreIf({ !env.LAMIN_API_KEY || !S3TestHelper.available() })
+    def "createArtifact with freshly-uploaded S3 file registers on correct branch"() {
+        given:
+        S3TestHelper s3 = new S3TestHelper()
+        String relativeKey = "nf-lamin-test/branch-test-${uniqueSuffix}.txt"
+        byte[] content = "S3 createArtifact test — ${uniqueSuffix} — ${System.nanoTime()}".getBytes('UTF-8')
+        String s3Path = s3.uploadToTestBucket(relativeKey, content)
+        println "Uploaded test file to ${s3Path}"
+
+        when:
+        Map<String, Object> inputArgs = [path: s3Path, run_id: testRunId, branch_id: testBranchId]
+        Map<String, Object> artifact = null
+        try {
+            artifact = instance.createArtifact(inputArgs)
+        } catch (Exception e) {
+            assert false : "createArtifact for freshly-uploaded S3 path failed: ${exceptionDetail(e)}"
+        }
+
+        then:
+        artifact != null
+        artifact.uid != null
+
+        // Verify branch placement
+        String uid = artifact.uid as String
+        Map<String, Object> record = instance.getRecord(
+            moduleName: 'core',
+            modelName: 'artifact',
+            idOrUid: uid,
+            includeForeignKeys: true
+        )
+        assert record : "getRecord returned null for uid=${uid}"
+        def branchId = record.get('branch_id')
+        assert branchId != null : "Artifact has no branch_id. Record keys: ${record.keySet()}"
+        assert (branchId as Number).intValue() == testBranchId :
+            "Expected branch_id=${testBranchId} but got ${branchId}"
+
+        cleanup:
+        createdArtifactUids << uid
+        s3.deleteFromTestBucket(relativeKey)
+        s3.close()
+    }
+
+    // ===================================================================
+    //  Branch placement test
+    // ===================================================================
+
+    /**
+     * Verifies that an artifact uploaded with an explicit branch_id is placed on
+     * the correct branch. Uses uploadArtifact (which always creates a fresh artifact
+     * at a new LaminDB-managed path) to avoid interference from pre-existing artifacts
+     * at shared paths that may be owned by other users and cannot be deleted.
+     *
+     * This is a regression test for the bug where branch_id was not forwarded to
+     * createArtifact in LaminRunManager.
+     */
+    @IgnoreIf({ !env.LAMIN_API_KEY })
+    def "artifact receives correct branch_id when branch_id is specified"() {
+        given:
+        Path tempFile = Files.createTempFile("nf-lamin-branch-test-${uniqueSuffix}", '.txt')
+        Files.writeString(tempFile, "Branch placement regression test — ${uniqueSuffix} — ${System.nanoTime()}")
+
+        when:
+        Map<String, Object> inputArgs = [file: tempFile.toFile(), branch_id: testBranchId, run_id: testRunId]
+        Map<String, Object> artifact = null
+        try {
+            artifact = instance.uploadArtifact(inputArgs)
+        } catch (Exception e) {
+            assert false : "uploadArtifact (branch_id regression test) failed: ${exceptionDetail(e)}"
+        }
+
+        then:
+        artifact != null
+        artifact.uid != null
+
+        // Fetch the full record and verify branch_id
+        String uid = artifact.uid as String
+        Map<String, Object> record = instance.getRecord(
+            moduleName: 'core',
+            modelName: 'artifact',
+            idOrUid: uid,
+            includeForeignKeys: true
+        )
+        assert record : "getRecord returned null for uid=${uid}"
+
+        // The API returns branch_id as an integer field
+        def branchId = record.get('branch_id')
+        assert branchId != null : "Artifact record has no 'branch_id' field. Record keys: ${record.keySet()}. Full record: ${record}"
+        assert (branchId as Number).intValue() == testBranchId :
+            "Expected branch_id=${testBranchId} but got ${branchId}. Full record: ${record}"
+
+        cleanup:
+        Files.deleteIfExists(tempFile)
+        createdArtifactUids << uid
     }
 }
