@@ -948,7 +948,7 @@ class Instance {
                 log.trace "[${callId}] response: ${result}"
                 return result
             } catch (ApiException e) {
-                String errorDesc = "${fullDesc} - status ${e.code}. Response: ${e.responseBody}"
+                String errorDesc = "[${callId}] ${opName} - status ${e.code}. Response: ${e.responseBody}"
                 if (e.code == 401 && !tokenRefreshed) {
                     // Token expired, refresh it and retry once via the loop
                     log.debug "${errorDesc} - Refreshing token and retrying..."
