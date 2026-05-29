@@ -948,43 +948,44 @@ class Instance {
                 log.trace "[${callId}] response: ${result}"
                 return result
             } catch (ApiException e) {
+                String errorDesc = "${fullDesc} - status ${e.code}. Response: ${e.responseBody}"
                 if (e.code == 401 && !tokenRefreshed) {
                     // Token expired, refresh it and retry once via the loop
-                    log.debug "${fullDesc} - status 401 (Token expired). Refreshing token and retrying..."
+                    log.debug "${errorDesc} - Refreshing token and retrying..."
                     this.hub.refreshAccessToken()
                     tokenRefreshed = true
                 } else if (e.code == 401) {
                     // Already refreshed once; give up
-                    log.debug "${fullDesc} - status 401 (Token expired) after token refresh. Not retrying."
+                    log.debug "${errorDesc} - Not retrying (token already refreshed)."
                     throw e
                 } else if (e.code == 404) {
                     // Not found (DoesNotExist, UnknownStorageLocation, BlobHashNotFound)
                     // Do not retry; resource does not exist
-                    log.debug "${fullDesc} - status 404 (Not Found). Not retrying."
+                    log.debug "${errorDesc} - Not retrying."
                     return null
                 } else if (e.code == 400) {
                     // Bad request (ValidationError, InvalidArgument, NotebookNotSaved, MissingContextUID, FieldValidationError)
                     // Do not retry; the request itself is invalid
-                    log.debug "${fullDesc} - status 400 (Bad Request). Not retrying."
+                    log.debug "${errorDesc} - Not retrying."
                     throw e
                 } else if (e.code == 403) {
                     // Forbidden (NoWriteAccess)
                     // Do not retry; permission issue won't resolve with retry
-                    log.debug "${fullDesc} - status 403 (Forbidden). Not retrying."
+                    log.debug "${errorDesc} - Not retrying."
                     throw e
                 } else if (e.code == 409) {
                     // Conflict (MultipleResultsFound, UpdateContext, IntegrityError)
                     // Do not retry; data conflict won't resolve with retry
-                    log.debug "${fullDesc} - status 409 (Conflict). Not retrying."
+                    log.debug "${errorDesc} - Not retrying."
                     throw e
                 } else if (e.code >= 500 && isPermanentServerError(e)) {
                     // Permanent server error (e.g. FileNotFoundError, UnknownStorageLocation)
                     // Do not retry; the error indicates a permanent condition, not a transient failure
-                    log.debug "${fullDesc} - permanent server error. Not retrying."
+                    log.debug "${errorDesc} - Not retrying (permanent server error)."
                     throw e
                 } else if (retries < this.maxRetries) {
                     // Retry for 5xx server errors and other unexpected errors
-                    log.warn "${fullDesc} - status ${e.code}. Retrying (${retries + 1}/${this.maxRetries})..."
+                    log.warn "${errorDesc} - Retrying (${retries + 1}/${this.maxRetries})..."
                     Thread.sleep(this.retryDelay)
                     retries++
                 } else {
