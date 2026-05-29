@@ -1079,14 +1079,6 @@ final class LaminRunManager {
         boolean excludeWorkDir   = ac != null ? ac.exclude_work_dir   : true
         boolean excludeAssetsDir = ac != null ? ac.exclude_assets_dir : true
 
-        if (isLocalPath(path)) {
-            if (!localFileWarningShown) {
-                localFileWarningShown = true
-                log.warn "Local file detected at ${path.toUri()}. nf-lamin only tracks remote paths (s3://, gs://, etc.). Local files will be ignored. This warning is only shown once per session."
-            }
-            log.debug "Skipping ${direction} artifact creation for local file at ${path.toUri()}"
-            return true
-        }
 
         if (excludeWorkDir && isInWorkDir(path)) {
             log.debug "Skipping ${direction} artifact creation for workdir file at ${path.toUri()} (exclude_work_dir=true)"
@@ -1095,6 +1087,15 @@ final class LaminRunManager {
 
         if (excludeAssetsDir && isInAssetsDir(path)) {
             log.debug "Skipping ${direction} artifact creation for assets file at ${path.toUri()} (exclude_assets_dir=true)"
+            return true
+        }
+
+        if (isLocalPath(path)) {
+            if (!localFileWarningShown) {
+                localFileWarningShown = true
+                log.warn "Local file detected at ${path.toUri()}. nf-lamin only tracks remote paths (s3://, gs://, etc.). Local files will be ignored. This warning is only shown once per session."
+            }
+            log.debug "Skipping ${direction} artifact creation for local file at ${path.toUri()}"
             return true
         }
 
