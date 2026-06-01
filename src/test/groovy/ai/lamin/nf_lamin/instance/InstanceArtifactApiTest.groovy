@@ -344,6 +344,16 @@ class InstanceArtifactApiTest extends Specification {
         return detail
     }
 
+    private void cleanupArtifacts(String... uids) {
+        uids.findAll { it }.unique().each { uid ->
+            try {
+                instance.deleteRecord(moduleName: 'core', modelName: 'artifact', uid: uid)
+            } catch (Exception e) {
+                println "WARNING: Could not clean up artifact ${uid}: ${e.message}"
+            }
+        }
+    }
+
     // ===================================================================
     //  createArtifact tests — remote paths
     // ===================================================================
@@ -371,10 +381,13 @@ class InstanceArtifactApiTest extends Specification {
         artifact != null
         artifact.uid != null
         verifyArtifactRetrieval(artifact, s3Path, null)
+
+        cleanup:
+        cleanupArtifacts(artifact?.uid as String)
     }
 
     @IgnoreIf({ !env.LAMIN_API_KEY })
-    def "createArtifact with S3 path, with run_id"() {
+    def "createArtifact with S3 path, with run_id" {
         given:
         String s3Path = TEST_S3_PATH
         deleteArtifactIfExists(s3Path)
@@ -396,10 +409,13 @@ class InstanceArtifactApiTest extends Specification {
         artifact != null
         artifact.uid != null
         verifyArtifactRetrieval(artifact, s3Path, testRunId)
+
+        cleanup:
+        cleanupArtifacts(artifact?.uid as String)
     }
 
     @IgnoreIf({ !env.LAMIN_API_KEY })
-    def "createArtifact with GS path, without run_id"() {
+    def "createArtifact with GS path, without run_id" {
         given:
         String gsPath = TEST_GS_PATH
         deleteArtifactIfExists(gsPath)
@@ -421,10 +437,13 @@ class InstanceArtifactApiTest extends Specification {
         artifact != null
         artifact.uid != null
         verifyArtifactRetrieval(artifact, gsPath, null)
+
+        cleanup:
+        cleanupArtifacts(artifact?.uid as String)
     }
 
     @IgnoreIf({ !env.LAMIN_API_KEY })
-    def "createArtifact with GS path, with run_id"() {
+    def "createArtifact with GS path, with run_id" {
         given:
         String gsPath = TEST_GS_PATH
         deleteArtifactIfExists(gsPath)
@@ -446,10 +465,13 @@ class InstanceArtifactApiTest extends Specification {
         artifact != null
         artifact.uid != null
         verifyArtifactRetrieval(artifact, gsPath, testRunId)
+
+        cleanup:
+        cleanupArtifacts(artifact?.uid as String)
     }
 
     @IgnoreIf({ !env.LAMIN_API_KEY })
-    def "createArtifact with HTTPS path, without run_id"() {
+    def "createArtifact with HTTPS path, without run_id" {
         given:
         String httpsPath = "https://raw.githubusercontent.com/laminlabs/nf-lamin/main/README.md"
         deleteArtifactIfExists(httpsPath)
@@ -471,10 +493,13 @@ class InstanceArtifactApiTest extends Specification {
         artifact != null
         artifact.uid != null
         verifyArtifactRetrieval(artifact, httpsPath, null)
+
+        cleanup:
+        cleanupArtifacts(artifact?.uid as String)
     }
 
     @IgnoreIf({ !env.LAMIN_API_KEY })
-    def "createArtifact with HTTPS path, with run_id"() {
+    def "createArtifact with HTTPS path, with run_id" {
         given:
         String httpsPath = "https://raw.githubusercontent.com/laminlabs/nf-lamin/main/LICENSE"
         deleteArtifactIfExists(httpsPath)
@@ -496,6 +521,9 @@ class InstanceArtifactApiTest extends Specification {
         artifact != null
         artifact.uid != null
         verifyArtifactRetrieval(artifact, httpsPath, testRunId)
+
+        cleanup:
+        cleanupArtifacts(artifact?.uid as String)
     }
 
     // ===================================================================
@@ -652,6 +680,9 @@ class InstanceArtifactApiTest extends Specification {
         artifact != null
         artifact.uid != null
         verifyArtifactRetrieval(artifact, s3Path, null)
+
+        cleanup:
+        cleanupArtifacts(artifact?.uid as String)
     }
 
     // ===================================================================
@@ -693,6 +724,9 @@ class InstanceArtifactApiTest extends Specification {
         // Both should succeed — whether they return the same UID or a new version
         artifact1.uid != null
         artifact2.uid != null
+
+        cleanup:
+        cleanupArtifacts(artifact1?.uid as String, artifact2?.uid as String)
     }
 
     // ===================================================================
@@ -823,6 +857,9 @@ class InstanceArtifactApiTest extends Specification {
             idOrUid: artifact.uid as String
         )
         record.description?.toString()?.contains(uniqueSuffix)
+
+        cleanup:
+        cleanupArtifacts(artifact?.uid as String)
     }
 
     // ===================================================================
