@@ -386,7 +386,7 @@ class InstanceArtifactApiTest extends Specification {
     }
 
     @IgnoreIf({ !env.LAMIN_API_KEY })
-    def "createArtifact with S3 path, with run_id" {
+    def "createArtifact with S3 path, with run_id"() {
         given:
         String s3Path = TEST_S3_PATH
         deleteArtifactIfExists(s3Path)
@@ -414,7 +414,7 @@ class InstanceArtifactApiTest extends Specification {
     }
 
     @IgnoreIf({ !env.LAMIN_API_KEY })
-    def "createArtifact with HTTPS path, without run_id" {
+    def "createArtifact with HTTPS path, without run_id"() {
         given:
         String httpsPath = "https://raw.githubusercontent.com/laminlabs/nf-lamin/main/README.md"
         deleteArtifactIfExists(httpsPath)
@@ -442,7 +442,7 @@ class InstanceArtifactApiTest extends Specification {
     }
 
     @IgnoreIf({ !env.LAMIN_API_KEY })
-    def "createArtifact with HTTPS path, with run_id" {
+    def "createArtifact with HTTPS path, with run_id"() {
         given:
         String httpsPath = "https://raw.githubusercontent.com/laminlabs/nf-lamin/main/LICENSE"
         deleteArtifactIfExists(httpsPath)
