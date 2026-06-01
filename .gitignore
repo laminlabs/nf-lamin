@@ -35,6 +35,7 @@ test.ipynb
 __pycache__/
 .ruff_cache
 .mypy_cache
+.venv/
 
 # Ignore nextflow related directories
 .nextflow*
