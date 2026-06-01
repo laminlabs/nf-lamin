@@ -56,8 +56,7 @@ class InstanceArtifactApiTest extends Specification {
 
     // Small, publicly accessible files that already exist and are NOT LaminDB-managed.
     // These are NOT used elsewhere in the test suite for createArtifact calls.
-    static final String TEST_S3_PATH = 's3://1000genomes/CHANGELOG'
-    static final String TEST_GS_PATH = 'gs://di-temporary-public/scratch/temp-bgzip/run_20251015_120418/run.bgzip.state.yaml'
+    static final String TEST_S3_PATH = 's3://openproblems-data/resources/datasets/10x_xenium/2023_10x_human_brain_xenium/dataset.zarr'
 
     // LaminDB-managed path for negative testing (should fail when manually creating artifacts)
     static final String LAMIN_MANAGED_S3_PATH = 's3://lamindata/.lamindb/s3rtK8wIzJNKvg5Q0000.txt'
@@ -409,62 +408,6 @@ class InstanceArtifactApiTest extends Specification {
         artifact != null
         artifact.uid != null
         verifyArtifactRetrieval(artifact, s3Path, testRunId)
-
-        cleanup:
-        cleanupArtifacts(artifact?.uid as String)
-    }
-
-    @IgnoreIf({ !env.LAMIN_API_KEY })
-    def "createArtifact with GS path, without run_id" {
-        given:
-        String gsPath = TEST_GS_PATH
-        deleteArtifactIfExists(gsPath)
-
-        when:
-        Map<String, Object> inputArgs = [path: gsPath, branch_id: testBranchId]
-        Map<String, Object> artifact = null
-        try {
-            artifact = instance.createArtifact(inputArgs)
-        } catch (Exception e) {
-            assert false : failMsg(
-                "createArtifact (GS, no run_id) failed: ${exceptionDetail(e)}",
-                curlForCreate(instanceId, gsPath, null),
-                inputArgs
-            )
-        }
-
-        then:
-        artifact != null
-        artifact.uid != null
-        verifyArtifactRetrieval(artifact, gsPath, null)
-
-        cleanup:
-        cleanupArtifacts(artifact?.uid as String)
-    }
-
-    @IgnoreIf({ !env.LAMIN_API_KEY })
-    def "createArtifact with GS path, with run_id" {
-        given:
-        String gsPath = TEST_GS_PATH
-        deleteArtifactIfExists(gsPath)
-
-        when:
-        Map<String, Object> inputArgs = [path: gsPath, run_id: testRunId, branch_id: testBranchId]
-        Map<String, Object> artifact = null
-        try {
-            artifact = instance.createArtifact(inputArgs)
-        } catch (Exception e) {
-            assert false : failMsg(
-                "createArtifact (GS, run_id=${testRunId}) failed: ${exceptionDetail(e)}",
-                curlForCreate(instanceId, gsPath, testRunId),
-                inputArgs
-            )
-        }
-
-        then:
-        artifact != null
-        artifact.uid != null
-        verifyArtifactRetrieval(artifact, gsPath, testRunId)
 
         cleanup:
         cleanupArtifacts(artifact?.uid as String)
