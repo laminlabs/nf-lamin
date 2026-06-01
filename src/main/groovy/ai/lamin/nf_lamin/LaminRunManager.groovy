@@ -24,7 +24,7 @@ import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Collections
-import java.util.concurrent.locks.Lock
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.locks.ReentrantLock
 
 import groovy.transform.CompileStatic
@@ -58,7 +58,7 @@ final class LaminRunManager {
 
     private static final LaminRunManager INSTANCE = new LaminRunManager()
 
-    private final Lock artifactLock = new ReentrantLock()
+    private final ConcurrentHashMap<String, ReentrantLock> artifactLocks = new ConcurrentHashMap<>()
 
     private volatile Session session
     private volatile LaminConfig config
@@ -1469,12 +1469,13 @@ final class LaminRunManager {
         }
 
         String logContext = runId != null ? "for run ${runId}" : "without run association"
+        // Note: need to clean path because the protocol can get printed as s3:/ or s3:///
+        String pathStr = path.toUri().toString().replaceAll('^(\\w+)://*', '$1://')
         Map<String, Object> artifact = null
-        artifactLock.lock()
+        ReentrantLock pathLock = artifactLocks.computeIfAbsent(pathStr) { new ReentrantLock() }
+        pathLock.lock()
         try {
             // First, check if artifact already exists at this path
-            // Note: need to clean path because the protocol can get printed as s3:/ or s3:///
-            String pathStr = path.toUri().toString().replaceAll('^(\\w+)://*', '$1://')
             artifact = fetchArtifact(pathStr)
             if (artifact != null) {
                 // If artifact exists but needs to be linked to current run, link it
@@ -1514,7 +1515,7 @@ final class LaminRunManager {
             log.debug "Exception: ${e.getMessage()}", e
             return null
         } finally {
-            artifactLock.unlock()
+            pathLock.unlock()
         }
 
         Number artifactRunNumber = ((artifact.get('run') ?: artifact.get('run_id')) as Number)
