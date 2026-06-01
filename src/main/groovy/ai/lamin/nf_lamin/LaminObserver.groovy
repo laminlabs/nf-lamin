@@ -17,6 +17,10 @@
 package ai.lamin.nf_lamin
 
 import java.nio.file.Path
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import nextflow.Session
@@ -41,6 +45,12 @@ class LaminObserver implements TraceObserverV2 {
 
     private final LaminRunManager state = LaminRunManager.instance
     private volatile boolean runFinalized = false
+    private static final AtomicInteger threadCount = new AtomicInteger(0)
+    private final ExecutorService asyncExecutor = Executors.newFixedThreadPool(40) { Runnable r ->
+        Thread t = new Thread(r, 'lamin-worker-' + threadCount.incrementAndGet())
+        t.setDaemon(true)
+        return t
+    }
 
     /**
      * Called once when the Nextflow session is created, before any process runs.
@@ -73,8 +83,14 @@ class LaminObserver implements TraceObserverV2 {
     @Override
     void onFlowBegin() {
         log.debug "LaminObserver.onFlowBegin"
-        state.startRun()
-        state.processConfigPaths('input')
+        asyncExecutor.submit {
+            try {
+                state.startRun()
+                state.processConfigPaths('input')
+            } catch (Exception e) {
+                log.error "LaminObserver.onFlowBegin failed: ${e.message}", e
+            }
+        }
     }
 
     /**
@@ -96,7 +112,15 @@ class LaminObserver implements TraceObserverV2 {
     @Override
     void onFilePublish(FilePublishEvent event) {
         log.debug "LaminObserver.onFilePublish: ${event.source} -> ${event.target}"
-        state.createOutputArtifactOnFilePublish(event.target, event.labels)
+        Path target = event.target
+        List<String> labels = event.labels
+        asyncExecutor.submit {
+            try {
+                state.createOutputArtifactOnFilePublish(target, labels)
+            } catch (Exception e) {
+                log.error "LaminObserver.onFilePublish failed for ${target}: ${e.message}", e
+            }
+        }
     }
 
     /**
@@ -119,17 +143,26 @@ class LaminObserver implements TraceObserverV2 {
     @Override
     void onWorkflowOutput(WorkflowOutputEvent event) {
         log.debug "LaminObserver.onWorkflowOutput: ${event.name} = ${event.value}"
-        if (event.value instanceof Path) {
-            state.createOutputArtifactOnWorkflowOutput((Path) event.value, event.name)
-        } else if (event.value instanceof Collection) {
-            for (Object item : (Collection) event.value) {
-                if (item instanceof Path) {
-                    state.createOutputArtifactOnWorkflowOutput((Path) item, event.name)
+        String name = event.name
+        Object value = event.value
+        Path index = event.index
+        asyncExecutor.submit {
+            try {
+                if (value instanceof Path) {
+                    state.createOutputArtifactOnWorkflowOutput((Path) value, name)
+                } else if (value instanceof Collection) {
+                    for (Object item : (Collection) value) {
+                        if (item instanceof Path) {
+                            state.createOutputArtifactOnWorkflowOutput((Path) item, name)
+                        }
+                    }
                 }
+                if (index != null) {
+                    state.createOutputArtifactOnWorkflowOutput(index, name)
+                }
+            } catch (Exception e) {
+                log.error "LaminObserver.onWorkflowOutput failed for ${name}: ${e.message}", e
             }
-        }
-        if (event.index != null) {
-            state.createOutputArtifactOnWorkflowOutput(event.index, event.name)
         }
     }
 
@@ -148,10 +181,17 @@ class LaminObserver implements TraceObserverV2 {
 
         log.debug "LaminObserver.onTaskComplete: ${task.name} with inputFiles: ${inputFiles}"
 
-        for (FileHolder holder : inputFiles) {
-            Path source = holder.getSourcePath()
-            log.debug "LaminObserver.onTaskComplete ${task.name}: '${source.toUri()}' staged as '${holder.getStageName()}'"
-            state.createInputArtifact(source)
+        String taskName = task.name
+        List<Path> sources = inputFiles.collect { it.getSourcePath() }
+        asyncExecutor.submit {
+            try {
+                for (Path source : sources) {
+                    log.debug "LaminObserver.onTaskComplete ${taskName}: '${source.toUri()}'"
+                    state.createInputArtifact(source)
+                }
+            } catch (Exception e) {
+                log.error "LaminObserver.onTaskComplete failed for ${taskName}: ${e.message}", e
+            }
         }
     }
 
@@ -188,6 +228,10 @@ class LaminObserver implements TraceObserverV2 {
             return
         }
         runFinalized = true
+        asyncExecutor.shutdown()
+        if (!asyncExecutor.awaitTermination(1, TimeUnit.HOURS)) {
+            log.warn "Lamin async observer tasks did not complete within timeout; some artifacts may not have been registered"
+        }
         state.processConfigPaths('output')
         state.finalizeRun()
     }
