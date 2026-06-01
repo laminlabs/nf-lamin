@@ -12,9 +12,6 @@ plugins {
 }
 
 lamin {
-  instance = "your-org/your-instance"
-  api_key = secrets.LAMIN_API_KEY
-
   // Link all artifacts, runs, and transforms to a project
   project_uids = ['projXXXXXXXXXXXXXX']
 
@@ -55,18 +52,18 @@ The sections below document each setting in detail.
 
 ## `lamin` - top-level settings
 
-| Setting         | Type    | Default        | Env variable             | Description                               |
-| --------------- | ------- | -------------- | ------------------------ | ----------------------------------------- |
-| `instance`      | String  | **(required)** | `LAMIN_CURRENT_INSTANCE` | LaminDB instance (`owner/name`)           |
-| `api_key`       | String  | **(required)** | `LAMIN_API_KEY`          | LaminHub API key (use `nextflow secrets`) |
-| `project_uids`  | List    | `null`         | `LAMIN_CURRENT_PROJECT`  | Project UIDs to link to all records       |
-| `ulabel_uids`   | List    | `null`         |                          | ULabel UIDs to link to all records        |
-| `space_uid`     | String  | `null`         |                          | Space UID                                 |
-| `branch_uid`    | String  | `null`         |                          | Branch UID                                |
-| `env`           | String  | `'prod'`       | `LAMIN_ENV`              | Environment (`'prod'` or `'staging'`)     |
-| `dry_run`       | Boolean | `false`        | `LAMIN_DRY_RUN`          | Validate config without creating records  |
-| `transform_uid` | String  | `null`         | `LAMIN_TRANSFORM_UID`    | Override the auto-generated transform UID |
-| `run_uid`       | String  | `null`         | `LAMIN_RUN_UID`          | Override the auto-generated run UID       |
+| Setting         | Type    | Default  | Env variable             | Description                               |
+| --------------- | ------- | -------- | ------------------------ | ----------------------------------------- |
+| `instance`      | String  | env var  | `LAMIN_CURRENT_INSTANCE` | LaminDB instance (`owner/name`)           |
+| `api_key`       | String  | env var  | `LAMIN_API_KEY`          | LaminHub API key                          |
+| `project_uids`  | List    | `null`   | `LAMIN_CURRENT_PROJECT`  | Project UIDs to link to all records       |
+| `ulabel_uids`   | List    | `null`   |                          | ULabel UIDs to link to all records        |
+| `space_uid`     | String  | `null`   |                          | Space UID                                 |
+| `branch_uid`    | String  | `null`   |                          | Branch UID                                |
+| `env`           | String  | `'prod'` | `LAMIN_ENV`              | Environment (`'prod'` or `'staging'`)     |
+| `dry_run`       | Boolean | `false`  | `LAMIN_DRY_RUN`          | Validate config without creating records  |
+| `transform_uid` | String  | `null`   | `LAMIN_TRANSFORM_UID`    | Override the auto-generated transform UID |
+| `run_uid`       | String  | `null`   | `LAMIN_RUN_UID`          | Override the auto-generated run UID       |
 
 **Experimental**: UID fields (`project_uids`, `ulabel_uids`, `space_uid`, `branch_uid`) also accept named references: `'?name'` (lookup by name, omit if missing), `'!name'` (lookup, error if missing), `'+name'` (create if missing). This is an experimental feature and may be removed in a future release.
 

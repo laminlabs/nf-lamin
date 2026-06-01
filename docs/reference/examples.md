@@ -33,13 +33,10 @@ The [`examples/rnaseq/nextflow.config`](https://github.com/laminlabs/nf-lamin/bl
 
 ```groovy
 plugins {
-  id 'nf-lamin@0.8.1'
+  id 'nf-lamin'
 }
 
 lamin {
-  instance = "laminlabs/lamindata"
-  api_key = secrets.LAMIN_API_KEY
-
   input_artifacts {
     rules {
       samplesheet { include_paths = { params.input }; kind = 'dataset'; order = 1 }
@@ -101,13 +98,10 @@ The [`examples/scrnaseq/nextflow.config`](https://github.com/laminlabs/nf-lamin/
 
 ```groovy
 plugins {
-  id 'nf-lamin@0.8.1'
+  id 'nf-lamin'
 }
 
 lamin {
-  instance = "laminlabs/lamindata"
-  api_key = secrets.LAMIN_API_KEY
-
   input_artifacts {
     rules {
       samplesheet { include_paths = { params.input }; kind = 'dataset'; order = 1 }
@@ -169,13 +163,10 @@ The [`examples/quantms/nextflow.config`](https://github.com/laminlabs/nf-lamin/b
 
 ```groovy
 plugins {
-  id 'nf-lamin@0.8.1'
+  id 'nf-lamin'
 }
 
 lamin {
-  instance = "laminlabs/lamindata"
-  api_key = secrets.LAMIN_API_KEY
-
   input_artifacts {
     rules {
       sdrf { pattern = '.*\.sdrf\.tsv$'; kind = 'dataset' }

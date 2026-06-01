@@ -10,13 +10,23 @@ There are several ways to track Nextflow pipeline runs and artifacts in [LaminDB
 
 The [`nf-lamin`](https://github.com/laminlabs/nf-lamin) Nextflow plugin automatically tracks transforms, runs, and artifacts without modifying pipeline code. It requires a [LaminHub](https://lamin.ai/) account.
 
-**1.** Store your [Lamin API key](https://lamin.ai/settings) as a Nextflow secret:
+**Option A: environment variables** (no config file needed):
+
+```bash tags=["skip-execution"]
+export LAMIN_CURRENT_INSTANCE="your-org/your-instance"
+export LAMIN_API_KEY="<your-lamin-api-key>"
+nextflow run -plugins nf-lamin <your-pipeline>
+```
+
+**Option B: Nextflow secrets + config file**:
+
+Store your API key as a Nextflow secret:
 
 ```bash tags=["skip-execution"]
 nextflow secrets set LAMIN_API_KEY <your-lamin-api-key>
 ```
 
-**2.** Add the plugin to your `nextflow.config`:
+Create a `lamin.config`:
 
 ```groovy tags=["skip-execution"]
 plugins {
@@ -29,10 +39,10 @@ lamin {
 }
 ```
 
-**3.** Run your pipeline:
+Then run your pipeline with the config:
 
 ```bash tags=["skip-execution"]
-nextflow run <your-pipeline>
+nextflow run <your-pipeline> -c lamin.config
 ```
 
 After the run, explore the tracked data in LaminHub or via the Python SDK:
