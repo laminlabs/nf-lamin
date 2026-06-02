@@ -119,7 +119,18 @@ class LaminObserver implements TraceObserverV2 {
     @Override
     void onWorkflowOutput(WorkflowOutputEvent event) {
         log.debug "LaminObserver.onWorkflowOutput: ${event.name} = ${event.value}"
-        state.createOutputArtifactsOnWorkflowOutputAsync(event.name, event.value, event.index)
+        if (event.value instanceof Path) {
+            state.createOutputArtifactOnWorkflowOutputAsync((Path) event.value, event.name)
+        } else if (event.value instanceof Collection) {
+            for (Object item : (Collection) event.value) {
+                if (item instanceof Path) {
+                    state.createOutputArtifactOnWorkflowOutputAsync((Path) item, event.name)
+                }
+            }
+        }
+        if (event.index != null) {
+            state.createOutputArtifactOnWorkflowOutputAsync(event.index, event.name)
+        }
     }
 
     /**

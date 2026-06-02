@@ -674,23 +674,12 @@ final class LaminRunManager {
         }
     }
 
-    void createOutputArtifactsOnWorkflowOutputAsync(String name, Object value, Path index) {
+    void createOutputArtifactOnWorkflowOutputAsync(Path path, String name) {
         artifactExecutor.submit {
             try {
-                if (value instanceof Path) {
-                    createOutputArtifactOnWorkflowOutput((Path) value, name)
-                } else if (value instanceof Collection) {
-                    for (Object item : (Collection) value) {
-                        if (item instanceof Path) {
-                            createOutputArtifactOnWorkflowOutput((Path) item, name)
-                        }
-                    }
-                }
-                if (index != null) {
-                    createOutputArtifactOnWorkflowOutput(index, name)
-                }
+                createOutputArtifactOnWorkflowOutput(path, name)
             } catch (Exception e) {
-                log.error "Failed to create output artifacts for ${name}: ${e.message}", e
+                log.error "Failed to create output artifact for ${name}: ${e.message}", e
             }
         }
     }
