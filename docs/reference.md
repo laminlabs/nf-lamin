@@ -4,13 +4,23 @@
 
 ## Quickstart
 
-**1.** Store your [Lamin API key](https://lamin.ai/settings) as a Nextflow secret:
+**Option A: environment variables** (no config file needed):
+
+```bash
+export LAMIN_CURRENT_INSTANCE="your-org/your-instance"
+export LAMIN_API_KEY="<your-lamin-api-key>"
+nextflow run -plugins nf-lamin@0.8.1 <your-pipeline>
+```
+
+**Option B: Nextflow secrets + config file**:
+
+Store your API key as a Nextflow secret:
 
 ```bash
 nextflow secrets set LAMIN_API_KEY <your-lamin-api-key>
 ```
 
-**2.** Add the plugin to your `nextflow.config`:
+Create a `lamin.config` file:
 
 ```groovy
 plugins {
@@ -23,10 +33,10 @@ lamin {
 }
 ```
 
-**3.** Run your pipeline:
+Then run your pipeline with the config:
 
 ```bash
-nextflow run <your-pipeline>
+nextflow run <your-pipeline> -c lamin.config
 ```
 
 ## Version compatibility
