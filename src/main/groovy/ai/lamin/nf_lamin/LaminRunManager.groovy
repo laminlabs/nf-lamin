@@ -613,57 +613,6 @@ final class LaminRunManager {
         updateRun(updatedRun)
     }
 
-    /**
-     * Process explicitly configured artifact paths for a given direction.
-     *
-     * Collects all paths from the artifact configs (both global and
-     * direction-specific) and creates artifacts using the existing
-     * createInputArtifact / createOutputArtifact methods.
-     *
-     * Input paths should be processed at the beginning of the workflow
-     * (onFlowBegin), and output paths at the end (before finalizeRun).
-     *
-     * @param direction 'input' or 'output'
-     */
-    void processConfigPaths(String direction) {
-        if (laminInstance == null || config == null || config.dryRun) {
-            return
-        }
-
-        // Collect paths from all relevant artifact configs
-        List<Map<String, Object>> pathEntries = []
-        Map workflowParams = session.getParams() ?: [:]
-
-        ArtifactConfig ac = resolveArtifactConfig(direction)
-        if (ac != null) {
-            pathEntries.addAll(ac.collectPaths(direction, workflowParams))
-        }
-
-        if (pathEntries.isEmpty()) {
-            log.debug "No explicit ${direction} paths configured"
-            return
-        }
-
-        log.info "Processing ${pathEntries.size()} configured ${direction} artifact path(s)"
-
-        for (Map<String, Object> entry : pathEntries) {
-            String pathStr = entry.path as String
-            ArtifactEvaluation prebuiltEvaluation = entry.evaluation as ArtifactEvaluation
-            try {
-                Path resolvedPath = FileHelper.asPath(pathStr)
-                log.debug "Resolved configured ${direction} path '${pathStr}' to ${resolvedPath.toUri()}"
-
-                if (direction == 'input') {
-                    createInputArtifact(resolvedPath, prebuiltEvaluation)
-                } else {
-                    createOutputArtifactFromConfigPaths(resolvedPath, prebuiltEvaluation)
-                }
-            } catch (Exception e) {
-                log.warn "Failed to process configured ${direction} path '${pathStr}': ${e.message}"
-            }
-        }
-    }
-
     void createOutputArtifactOnFilePublishAsync(Path target, List<String> labels) {
         artifactExecutor.submit {
             try {
@@ -793,7 +742,7 @@ final class LaminRunManager {
             return null
         }
 
-        // Use pre-built evaluation if provided (from processConfigPaths), otherwise evaluate
+        // Use pre-built evaluation if provided, otherwise evaluate
         ArtifactEvaluation evaluation = prebuiltEvaluation ?: evaluateArtifact(path, 'input')
         if (!evaluation.shouldTrack) {
             log.debug "Skipping input artifact creation for ${path.toUri()} (excluded by config)"
@@ -859,8 +808,7 @@ final class LaminRunManager {
     }
 
     /**
-     * Called from {@link ai.lamin.nf_lamin.LaminRunManager#processConfigPaths} for paths
-     * declared explicitly in the {@code lamin.artifacts} config block.
+     * Called for paths declared explicitly in the {@code lamin.artifacts} config block.
      *
      * @param path       The output file path
      * @param evaluation Pre-built evaluation carrying kind, key, ulabels, and description config
@@ -904,7 +852,7 @@ final class LaminRunManager {
             return null
         }
 
-        // Use pre-built evaluation if provided (from processConfigPaths), otherwise evaluate
+        // Use pre-built evaluation if provided, otherwise evaluate
         ArtifactEvaluation evaluation = prebuiltEvaluation ?: evaluateArtifact(path, 'output')
         if (!evaluation.shouldTrack) {
             log.debug "Skipping output artifact creation for ${path.toUri()} (excluded by config)"
