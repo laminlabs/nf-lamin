@@ -25,6 +25,10 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 
 import groovy.transform.CompileStatic
@@ -58,7 +62,10 @@ final class LaminRunManager {
 
     private static final LaminRunManager INSTANCE = new LaminRunManager()
 
+    private static final AtomicInteger artifactThreadCount = new AtomicInteger(0)
+
     private final ConcurrentHashMap<String, ReentrantLock> artifactLocks = new ConcurrentHashMap<>()
+    private volatile ExecutorService artifactExecutor
 
     private volatile Session session
     private volatile LaminConfig config
@@ -105,6 +112,14 @@ final class LaminRunManager {
         instanceCache.clear()
         recordResolutionCache.clear()
         publishedArtifactsByPath.clear()
+        if (artifactExecutor != null && !artifactExecutor.isShutdown()) {
+            artifactExecutor.shutdownNow()
+        }
+        artifactExecutor = Executors.newFixedThreadPool(40) { Runnable r ->
+            Thread t = new Thread(r, 'lamin-worker-' + artifactThreadCount.incrementAndGet())
+            t.setDaemon(true)
+            return t
+        }
     }
 
     /**
@@ -645,6 +660,96 @@ final class LaminRunManager {
                 }
             } catch (Exception e) {
                 log.warn "Failed to process configured ${direction} path '${pathStr}': ${e.message}"
+            }
+        }
+    }
+
+    void createOutputArtifactOnFilePublishAsync(Path target, List<String> labels) {
+        artifactExecutor.submit {
+            try {
+                createOutputArtifactOnFilePublish(target, labels)
+            } catch (Exception e) {
+                log.error "Failed to create output artifact for ${target}: ${e.message}", e
+            }
+        }
+    }
+
+    void createOutputArtifactsOnWorkflowOutputAsync(String name, Object value, Path index) {
+        artifactExecutor.submit {
+            try {
+                if (value instanceof Path) {
+                    createOutputArtifactOnWorkflowOutput((Path) value, name)
+                } else if (value instanceof Collection) {
+                    for (Object item : (Collection) value) {
+                        if (item instanceof Path) {
+                            createOutputArtifactOnWorkflowOutput((Path) item, name)
+                        }
+                    }
+                }
+                if (index != null) {
+                    createOutputArtifactOnWorkflowOutput(index, name)
+                }
+            } catch (Exception e) {
+                log.error "Failed to create output artifacts for ${name}: ${e.message}", e
+            }
+        }
+    }
+
+    void createInputArtifactsAsync(String taskName, List<Path> sources) {
+        artifactExecutor.submit {
+            try {
+                for (Path source : sources) {
+                    log.debug "LaminRunManager.createInputArtifactsAsync ${taskName}: '${source.toUri()}'"
+                    createInputArtifact(source)
+                }
+            } catch (Exception e) {
+                log.error "Failed to create input artifacts for ${taskName}: ${e.message}", e
+            }
+        }
+    }
+
+    void awaitArtifactTasks() {
+        artifactExecutor.shutdown()
+        if (!artifactExecutor.awaitTermination(1, TimeUnit.HOURS)) {
+            log.warn "Lamin artifact tasks did not complete within timeout; some artifacts may not have been registered"
+        }
+    }
+
+    void processConfigPathsAsync(String direction) {
+        if (laminInstance == null || config == null || config.dryRun) {
+            return
+        }
+
+        List<Map<String, Object>> pathEntries = []
+        Map workflowParams = session.getParams() ?: [:]
+
+        ArtifactConfig ac = resolveArtifactConfig(direction)
+        if (ac != null) {
+            pathEntries.addAll(ac.collectPaths(direction, workflowParams))
+        }
+
+        if (pathEntries.isEmpty()) {
+            log.debug "No explicit ${direction} paths configured"
+            return
+        }
+
+        log.info "Processing ${pathEntries.size()} configured ${direction} artifact path(s)"
+
+        for (Map<String, Object> entry : pathEntries) {
+            String pathStr = entry.path as String
+            ArtifactEvaluation prebuiltEvaluation = entry.evaluation as ArtifactEvaluation
+            artifactExecutor.submit {
+                try {
+                    Path resolvedPath = FileHelper.asPath(pathStr)
+                    log.debug "Resolved configured ${direction} path '${pathStr}' to ${resolvedPath.toUri()}"
+                    if (direction == 'input') {
+                        createInputArtifact(resolvedPath, prebuiltEvaluation)
+                    } else {
+                        createOutputArtifactFromConfigPaths(resolvedPath, prebuiltEvaluation)
+                    }
+                } catch (Exception e) {
+                    log.warn "Failed to process configured ${direction} path '${pathStr}': ${e.message}"
+                }
             }
         }
     }
