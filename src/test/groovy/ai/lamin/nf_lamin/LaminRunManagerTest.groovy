@@ -6,6 +6,8 @@ import spock.lang.Specification
 import java.lang.reflect.Field
 import java.net.URI
 import java.nio.file.Path
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 class LaminRunManagerTest extends Specification {
 
@@ -104,5 +106,40 @@ class LaminRunManagerTest extends Specification {
             !args.containsKey('space_id')
         }) >> [uid: 'testuid1234567890ab']
         result != null
+    }
+
+    def 'createInputArtifactsAsync returns before worker finishes (non-blocking)'() {
+        given:
+        def manager = LaminRunManager.instance
+        def mockInstance = Mock(Instance)
+        def config = new LaminConfig([instance: 'org/inst', api_key: 'key'])
+        manager.setCurrentInstance(mockInstance)
+        injectField(manager, 'config', config)
+        injectField(manager, 'run', [uid: 'R1', id: 1])
+
+        def workerStarted = new CountDownLatch(1)
+        def releaseWorker = new CountDownLatch(1)
+        mockInstance.getArtifactByPath(_) >> {
+            workerStarted.countDown()
+            releaseWorker.await(5, TimeUnit.SECONDS)
+            null
+        }
+
+        def mockPath = Mock(Path)
+        mockPath.toUri() >> new URI('s3://bucket/file.txt')
+
+        when:
+        long before = System.currentTimeMillis()
+        manager.createInputArtifactsAsync('test-task', [mockPath])
+        long elapsed = System.currentTimeMillis() - before
+
+        then: 'method returned quickly without waiting for the API call'
+        elapsed < 1000
+
+        and: 'worker actually started in background'
+        workerStarted.await(5, TimeUnit.SECONDS)
+
+        cleanup:
+        releaseWorker.countDown()
     }
 }
