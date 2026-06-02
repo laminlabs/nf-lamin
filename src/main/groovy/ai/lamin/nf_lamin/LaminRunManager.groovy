@@ -613,6 +613,57 @@ final class LaminRunManager {
         updateRun(updatedRun)
     }
 
+    /**
+     * Process explicitly configured artifact paths for a given direction.
+     *
+     * Collects all paths from the artifact configs (both global and
+     * direction-specific) and creates artifacts using the existing
+     * createInputArtifact / createOutputArtifact methods.
+     *
+     * Input paths should be processed at the beginning of the workflow
+     * (onFlowBegin), and output paths at the end (before finalizeRun).
+     *
+     * @param direction 'input' or 'output'
+     */
+    void processConfigPathsAsync(String direction) {
+        if (laminInstance == null || config == null || config.dryRun) {
+            return
+        }
+
+        List<Map<String, Object>> pathEntries = []
+        Map workflowParams = session.getParams() ?: [:]
+
+        ArtifactConfig ac = resolveArtifactConfig(direction)
+        if (ac != null) {
+            pathEntries.addAll(ac.collectPaths(direction, workflowParams))
+        }
+
+        if (pathEntries.isEmpty()) {
+            log.debug "No explicit ${direction} paths configured"
+            return
+        }
+
+        log.info "Processing ${pathEntries.size()} configured ${direction} artifact path(s)"
+
+        for (Map<String, Object> entry : pathEntries) {
+            String pathStr = entry.path as String
+            ArtifactEvaluation prebuiltEvaluation = entry.evaluation as ArtifactEvaluation
+            artifactExecutor.submit {
+                try {
+                    Path resolvedPath = FileHelper.asPath(pathStr)
+                    log.debug "Resolved configured ${direction} path '${pathStr}' to ${resolvedPath.toUri()}"
+                    if (direction == 'input') {
+                        createInputArtifact(resolvedPath, prebuiltEvaluation)
+                    } else {
+                        createOutputArtifactFromConfigPaths(resolvedPath, prebuiltEvaluation)
+                    }
+                } catch (Exception e) {
+                    log.warn "Failed to process configured ${direction} path '${pathStr}': ${e.message}"
+                }
+            }
+        }
+    }
+
     void createOutputArtifactOnFilePublishAsync(Path target, List<String> labels) {
         artifactExecutor.submit {
             try {
@@ -650,45 +701,6 @@ final class LaminRunManager {
         artifactExecutor.shutdown()
         if (!artifactExecutor.awaitTermination(1, TimeUnit.HOURS)) {
             log.warn "Lamin artifact tasks did not complete within timeout; some artifacts may not have been registered"
-        }
-    }
-
-    void processConfigPathsAsync(String direction) {
-        if (laminInstance == null || config == null || config.dryRun) {
-            return
-        }
-
-        List<Map<String, Object>> pathEntries = []
-        Map workflowParams = session.getParams() ?: [:]
-
-        ArtifactConfig ac = resolveArtifactConfig(direction)
-        if (ac != null) {
-            pathEntries.addAll(ac.collectPaths(direction, workflowParams))
-        }
-
-        if (pathEntries.isEmpty()) {
-            log.debug "No explicit ${direction} paths configured"
-            return
-        }
-
-        log.info "Processing ${pathEntries.size()} configured ${direction} artifact path(s)"
-
-        for (Map<String, Object> entry : pathEntries) {
-            String pathStr = entry.path as String
-            ArtifactEvaluation prebuiltEvaluation = entry.evaluation as ArtifactEvaluation
-            artifactExecutor.submit {
-                try {
-                    Path resolvedPath = FileHelper.asPath(pathStr)
-                    log.debug "Resolved configured ${direction} path '${pathStr}' to ${resolvedPath.toUri()}"
-                    if (direction == 'input') {
-                        createInputArtifact(resolvedPath, prebuiltEvaluation)
-                    } else {
-                        createOutputArtifactFromConfigPaths(resolvedPath, prebuiltEvaluation)
-                    }
-                } catch (Exception e) {
-                    log.warn "Failed to process configured ${direction} path '${pathStr}': ${e.message}"
-                }
-            }
         }
     }
 
