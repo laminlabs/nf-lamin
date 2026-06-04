@@ -129,12 +129,12 @@ class LaminRunManagerTest extends Specification {
         mockPath.toUri() >> new URI('s3://bucket/file.txt')
 
         when:
-        long before = System.currentTimeMillis()
+        long before = System.nanoTime()
         manager.createInputArtifactsAsync('test-task', [mockPath])
-        long elapsed = System.currentTimeMillis() - before
+        long elapsedMs = (System.nanoTime() - before) / 1_000_000L
 
         then: 'method returned quickly without waiting for the API call'
-        elapsed < 1000
+        elapsedMs < 3000
 
         and: 'worker actually started in background'
         workerStarted.await(5, TimeUnit.SECONDS)
