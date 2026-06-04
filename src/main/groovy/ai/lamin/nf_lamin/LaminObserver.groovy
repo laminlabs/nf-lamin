@@ -74,7 +74,7 @@ class LaminObserver implements TraceObserverV2 {
     void onFlowBegin() {
         log.debug "LaminObserver.onFlowBegin"
         state.startRun()
-        state.processConfigPaths('input')
+        state.processConfigPathsAsync('input')
     }
 
     /**
@@ -96,7 +96,7 @@ class LaminObserver implements TraceObserverV2 {
     @Override
     void onFilePublish(FilePublishEvent event) {
         log.debug "LaminObserver.onFilePublish: ${event.source} -> ${event.target}"
-        state.createOutputArtifactOnFilePublish(event.target, event.labels)
+        state.createOutputArtifactOnFilePublishAsync(event.target, event.labels)
     }
 
     /**
@@ -120,16 +120,16 @@ class LaminObserver implements TraceObserverV2 {
     void onWorkflowOutput(WorkflowOutputEvent event) {
         log.debug "LaminObserver.onWorkflowOutput: ${event.name} = ${event.value}"
         if (event.value instanceof Path) {
-            state.createOutputArtifactOnWorkflowOutput((Path) event.value, event.name)
+            state.createOutputArtifactOnWorkflowOutputAsync((Path) event.value, event.name)
         } else if (event.value instanceof Collection) {
             for (Object item : (Collection) event.value) {
                 if (item instanceof Path) {
-                    state.createOutputArtifactOnWorkflowOutput((Path) item, event.name)
+                    state.createOutputArtifactOnWorkflowOutputAsync((Path) item, event.name)
                 }
             }
         }
         if (event.index != null) {
-            state.createOutputArtifactOnWorkflowOutput(event.index, event.name)
+            state.createOutputArtifactOnWorkflowOutputAsync(event.index, event.name)
         }
     }
 
@@ -148,11 +148,8 @@ class LaminObserver implements TraceObserverV2 {
 
         log.debug "LaminObserver.onTaskComplete: ${task.name} with inputFiles: ${inputFiles}"
 
-        for (FileHolder holder : inputFiles) {
-            Path source = holder.getSourcePath()
-            log.debug "LaminObserver.onTaskComplete ${task.name}: '${source.toUri()}' staged as '${holder.getStageName()}'"
-            state.createInputArtifact(source)
-        }
+        List<Path> sources = inputFiles.collect { it.getSourcePath() }
+        state.createInputArtifactsAsync(task.name, sources)
     }
 
     /**
@@ -188,7 +185,8 @@ class LaminObserver implements TraceObserverV2 {
             return
         }
         runFinalized = true
-        state.processConfigPaths('output')
+        state.processConfigPathsAsync('output')
+        state.awaitArtifactTasks()
         state.finalizeRun()
     }
 }

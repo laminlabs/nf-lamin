@@ -24,7 +24,11 @@ import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Collections
-import java.util.concurrent.locks.Lock
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 
 import groovy.transform.CompileStatic
@@ -58,7 +62,10 @@ final class LaminRunManager {
 
     private static final LaminRunManager INSTANCE = new LaminRunManager()
 
-    private final Lock artifactLock = new ReentrantLock()
+    private static final AtomicInteger artifactThreadCount = new AtomicInteger(0)
+
+    private final ConcurrentHashMap<String, ReentrantLock> artifactLocks = new ConcurrentHashMap<>()
+    private volatile ExecutorService artifactExecutor
 
     private volatile Session session
     private volatile LaminConfig config
@@ -105,6 +112,14 @@ final class LaminRunManager {
         instanceCache.clear()
         recordResolutionCache.clear()
         publishedArtifactsByPath.clear()
+        if (artifactExecutor != null && !artifactExecutor.isShutdown()) {
+            artifactExecutor.shutdownNow()
+        }
+        artifactExecutor = Executors.newFixedThreadPool(40) { Runnable r ->
+            Thread t = new Thread(r, 'lamin-worker-' + artifactThreadCount.incrementAndGet())
+            t.setDaemon(true)
+            return t
+        }
     }
 
     /**
@@ -610,12 +625,11 @@ final class LaminRunManager {
      *
      * @param direction 'input' or 'output'
      */
-    void processConfigPaths(String direction) {
+    void processConfigPathsAsync(String direction) {
         if (laminInstance == null || config == null || config.dryRun) {
             return
         }
 
-        // Collect paths from all relevant artifact configs
         List<Map<String, Object>> pathEntries = []
         Map workflowParams = session.getParams() ?: [:]
 
@@ -634,18 +648,74 @@ final class LaminRunManager {
         for (Map<String, Object> entry : pathEntries) {
             String pathStr = entry.path as String
             ArtifactEvaluation prebuiltEvaluation = entry.evaluation as ArtifactEvaluation
-            try {
-                Path resolvedPath = FileHelper.asPath(pathStr)
-                log.debug "Resolved configured ${direction} path '${pathStr}' to ${resolvedPath.toUri()}"
+            submitToExecutor("configured ${direction} path '${pathStr}'") {
+                try {
+                    Path resolvedPath = FileHelper.asPath(pathStr)
+                    log.debug "Resolved configured ${direction} path '${pathStr}' to ${resolvedPath.toUri()}"
+                    if (direction == 'input') {
+                        createInputArtifact(resolvedPath, prebuiltEvaluation)
+                    } else {
+                        createOutputArtifactFromConfigPaths(resolvedPath, prebuiltEvaluation)
+                    }
+                } catch (Exception e) {
+                    log.warn "Failed to process configured ${direction} path '${pathStr}': ${e.message}"
+                }
+            }
+        }
+    }
 
-                if (direction == 'input') {
-                    createInputArtifact(resolvedPath, prebuiltEvaluation)
-                } else {
-                    createOutputArtifactFromConfigPaths(resolvedPath, prebuiltEvaluation)
+    void createOutputArtifactOnFilePublishAsync(Path target, List<String> labels) {
+        submitToExecutor("file-publish artifact for ${target}") {
+            try {
+                createOutputArtifactOnFilePublish(target, labels)
+            } catch (Exception e) {
+                log.error "Failed to create output artifact for ${target}: ${e.message}", e
+            }
+        }
+    }
+
+    void createOutputArtifactOnWorkflowOutputAsync(Path path, String name) {
+        submitToExecutor("workflow-output artifact for ${name}") {
+            try {
+                createOutputArtifactOnWorkflowOutput(path, name)
+            } catch (Exception e) {
+                log.error "Failed to create output artifact for ${name}: ${e.message}", e
+            }
+        }
+    }
+
+    void createInputArtifactsAsync(String taskName, List<Path> sources) {
+        submitToExecutor("input artifacts for task '${taskName}'") {
+            try {
+                for (Path source : sources) {
+                    log.debug "LaminRunManager.createInputArtifactsAsync ${taskName}: '${source.toUri()}'"
+                    createInputArtifact(source)
                 }
             } catch (Exception e) {
-                log.warn "Failed to process configured ${direction} path '${pathStr}': ${e.message}"
+                log.error "Failed to create input artifacts for ${taskName}: ${e.message}", e
             }
+        }
+    }
+
+    private void submitToExecutor(String description, Runnable task) {
+        if (artifactExecutor.isShutdown()) {
+            log.warn "Artifact executor is shut down; skipping: ${description}"
+            return
+        }
+        artifactExecutor.submit(task)
+    }
+
+    void awaitArtifactTasks() {
+        artifactExecutor.shutdown()
+        try {
+            if (!artifactExecutor.awaitTermination(1, TimeUnit.HOURS)) {
+                log.warn "Lamin artifact tasks did not complete within timeout; some artifacts may not have been registered"
+            }
+        } catch (InterruptedException e) {
+            log.warn "Interrupted while waiting for artifact tasks to complete"
+            Thread.currentThread().interrupt()
+        } finally {
+            artifactLocks.clear()
         }
     }
 
@@ -699,7 +769,7 @@ final class LaminRunManager {
             return null
         }
 
-        // Use pre-built evaluation if provided (from processConfigPaths), otherwise evaluate
+        // Use pre-built evaluation if provided, otherwise evaluate
         ArtifactEvaluation evaluation = prebuiltEvaluation ?: evaluateArtifact(path, 'input')
         if (!evaluation.shouldTrack) {
             log.debug "Skipping input artifact creation for ${path.toUri()} (excluded by config)"
@@ -765,8 +835,7 @@ final class LaminRunManager {
     }
 
     /**
-     * Called from {@link ai.lamin.nf_lamin.LaminRunManager#processConfigPaths} for paths
-     * declared explicitly in the {@code lamin.artifacts} config block.
+     * Called for paths declared explicitly in the {@code lamin.artifacts} config block.
      *
      * @param path       The output file path
      * @param evaluation Pre-built evaluation carrying kind, key, ulabels, and description config
@@ -810,7 +879,7 @@ final class LaminRunManager {
             return null
         }
 
-        // Use pre-built evaluation if provided (from processConfigPaths), otherwise evaluate
+        // Use pre-built evaluation if provided, otherwise evaluate
         ArtifactEvaluation evaluation = prebuiltEvaluation ?: evaluateArtifact(path, 'output')
         if (!evaluation.shouldTrack) {
             log.debug "Skipping output artifact creation for ${path.toUri()} (excluded by config)"
@@ -1469,12 +1538,13 @@ final class LaminRunManager {
         }
 
         String logContext = runId != null ? "for run ${runId}" : "without run association"
+        // Note: need to clean path because the protocol can get printed as s3:/ or s3:///
+        String pathStr = path.toUri().toString().replaceAll('^(\\w+)://*', '$1://')
         Map<String, Object> artifact = null
-        artifactLock.lock()
+        ReentrantLock pathLock = artifactLocks.computeIfAbsent(pathStr) { new ReentrantLock() }
+        pathLock.lock()
         try {
             // First, check if artifact already exists at this path
-            // Note: need to clean path because the protocol can get printed as s3:/ or s3:///
-            String pathStr = path.toUri().toString().replaceAll('^(\\w+)://*', '$1://')
             artifact = fetchArtifact(pathStr)
             if (artifact != null) {
                 // If artifact exists but needs to be linked to current run, link it
@@ -1514,7 +1584,7 @@ final class LaminRunManager {
             log.debug "Exception: ${e.getMessage()}", e
             return null
         } finally {
-            artifactLock.unlock()
+            pathLock.unlock()
         }
 
         Number artifactRunNumber = ((artifact.get('run') ?: artifact.get('run_id')) as Number)
