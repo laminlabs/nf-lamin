@@ -648,7 +648,7 @@ final class LaminRunManager {
         for (Map<String, Object> entry : pathEntries) {
             String pathStr = entry.path as String
             ArtifactEvaluation prebuiltEvaluation = entry.evaluation as ArtifactEvaluation
-            artifactExecutor.submit {
+            submitToExecutor("configured ${direction} path '${pathStr}'") {
                 try {
                     Path resolvedPath = FileHelper.asPath(pathStr)
                     log.debug "Resolved configured ${direction} path '${pathStr}' to ${resolvedPath.toUri()}"
@@ -665,7 +665,7 @@ final class LaminRunManager {
     }
 
     void createOutputArtifactOnFilePublishAsync(Path target, List<String> labels) {
-        artifactExecutor.submit {
+        submitToExecutor("file-publish artifact for ${target}") {
             try {
                 createOutputArtifactOnFilePublish(target, labels)
             } catch (Exception e) {
@@ -675,7 +675,7 @@ final class LaminRunManager {
     }
 
     void createOutputArtifactOnWorkflowOutputAsync(Path path, String name) {
-        artifactExecutor.submit {
+        submitToExecutor("workflow-output artifact for ${name}") {
             try {
                 createOutputArtifactOnWorkflowOutput(path, name)
             } catch (Exception e) {
@@ -685,7 +685,7 @@ final class LaminRunManager {
     }
 
     void createInputArtifactsAsync(String taskName, List<Path> sources) {
-        artifactExecutor.submit {
+        submitToExecutor("input artifacts for task '${taskName}'") {
             try {
                 for (Path source : sources) {
                     log.debug "LaminRunManager.createInputArtifactsAsync ${taskName}: '${source.toUri()}'"
@@ -697,10 +697,25 @@ final class LaminRunManager {
         }
     }
 
+    private void submitToExecutor(String description, Runnable task) {
+        if (artifactExecutor.isShutdown()) {
+            log.warn "Artifact executor is shut down; skipping: ${description}"
+            return
+        }
+        artifactExecutor.submit(task)
+    }
+
     void awaitArtifactTasks() {
         artifactExecutor.shutdown()
-        if (!artifactExecutor.awaitTermination(1, TimeUnit.HOURS)) {
-            log.warn "Lamin artifact tasks did not complete within timeout; some artifacts may not have been registered"
+        try {
+            if (!artifactExecutor.awaitTermination(1, TimeUnit.HOURS)) {
+                log.warn "Lamin artifact tasks did not complete within timeout; some artifacts may not have been registered"
+            }
+        } catch (InterruptedException e) {
+            log.warn "Interrupted while waiting for artifact tasks to complete"
+            Thread.currentThread().interrupt()
+        } finally {
+            artifactLocks.clear()
         }
     }
 
