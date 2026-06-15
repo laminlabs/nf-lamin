@@ -62,6 +62,8 @@ final class LaminRunManager {
 
     private static final LaminRunManager INSTANCE = new LaminRunManager()
 
+    private static final int DEFAULT_MAX_WORKERS = 40
+
     private static final AtomicInteger artifactThreadCount = new AtomicInteger(0)
 
     private final ConcurrentHashMap<String, ReentrantLock> artifactLocks = new ConcurrentHashMap<>()
@@ -112,10 +114,22 @@ final class LaminRunManager {
         instanceCache.clear()
         recordResolutionCache.clear()
         publishedArtifactsByPath.clear()
+        artifactExecutor = createArtifactExecutor(DEFAULT_MAX_WORKERS)
+    }
+
+    /**
+     * Create the worker thread pool used to create artifacts in parallel.
+     *
+     * Shuts down any previously created executor before replacing it.
+     *
+     * @param maxWorkers The maximum number of worker threads
+     * @return the new executor service
+     */
+    private ExecutorService createArtifactExecutor(int maxWorkers) {
         if (artifactExecutor != null && !artifactExecutor.isShutdown()) {
             artifactExecutor.shutdownNow()
         }
-        artifactExecutor = Executors.newFixedThreadPool(40) { Runnable r ->
+        return Executors.newFixedThreadPool(maxWorkers) { Runnable r ->
             Thread t = new Thread(r, 'lamin-worker-' + artifactThreadCount.incrementAndGet())
             t.setDaemon(true)
             return t
@@ -205,6 +219,11 @@ final class LaminRunManager {
         log.debug 'Parsing Lamin configuration from session'
         this.config = LaminConfig.parseConfig(session)
         log.debug "Parsed config: ${config.toString()}"
+
+        // Resize the worker pool now that the configured value is known
+        int maxWorkers = config.apiConfig.maxWorkers
+        log.debug "Configuring artifact worker pool with ${maxWorkers} thread(s)"
+        this.artifactExecutor = createArtifactExecutor(maxWorkers)
 
         log.debug 'Resolving Lamin configuration with hub settings'
         this.resolvedConfig = LaminHubSettings.resolve(config)
