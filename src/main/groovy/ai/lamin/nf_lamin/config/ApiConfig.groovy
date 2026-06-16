@@ -35,6 +35,7 @@ import nextflow.script.dsl.Description
  *     supabase_anon_key = 'your-anon-key'
  *     max_retries = 5
  *     retry_delay = 200
+ *     max_retry_delay = 60000
  *     max_workers = 8
  *   }
  * }
@@ -42,6 +43,11 @@ import nextflow.script.dsl.Description
  */
 @CompileStatic
 class ApiConfig {
+
+    static final int DEFAULT_MAX_RETRIES     = 3
+    static final int DEFAULT_RETRY_DELAY     = 100
+    static final int DEFAULT_MAX_RETRY_DELAY = 30000
+    static final int DEFAULT_MAX_WORKERS     = 8
 
     @ConfigOption
     @Description('''
@@ -63,9 +69,17 @@ class ApiConfig {
 
     @ConfigOption
     @Description('''
-        Delay between retries for API requests in milliseconds (default: 100).
+        Base delay in milliseconds for the first retry (default: 100). Retries use
+        exponential backoff with full jitter: attempt N waits a random duration in
+        [0, retry_delay * 2^N], capped at max_retry_delay.
     ''')
     final Integer retry_delay
+
+    @ConfigOption
+    @Description('''
+        Maximum backoff delay in milliseconds between retries (default: 30000).
+    ''')
+    final Integer max_retry_delay
 
     @ConfigOption
     @Description('''
@@ -83,79 +97,43 @@ class ApiConfig {
      * Default constructor required for extension point
      */
     ApiConfig() {
-        this.supabase_api_url = null
+        this.supabase_api_url  = null
         this.supabase_anon_key = null
-        this.max_retries = 3
-        this.retry_delay = 100
-        this.web_url = null
-        this.max_workers = 8
+        this.max_retries       = DEFAULT_MAX_RETRIES
+        this.retry_delay       = DEFAULT_RETRY_DELAY
+        this.max_retry_delay   = DEFAULT_MAX_RETRY_DELAY
+        this.web_url           = null
+        this.max_workers       = DEFAULT_MAX_WORKERS
     }
 
     /**
      * Create an ApiConfig from a configuration map.
      *
-     * @param opts Configuration map with keys: supabase_api_url, supabase_anon_key, max_retries, retry_delay
+     * @param opts Configuration map with keys: supabase_api_url, supabase_anon_key,
+     *             max_retries, retry_delay, max_retry_delay, max_workers
      */
     ApiConfig(Map opts) {
-        this.supabase_api_url = opts?.supabase_api_url ?: System.getenv('SUPABASE_API_URL')
+        this.supabase_api_url  = opts?.supabase_api_url ?: System.getenv('SUPABASE_API_URL')
         this.supabase_anon_key = opts?.supabase_anon_key ?: System.getenv('SUPABASE_ANON_KEY')
-        this.max_retries = opts?.containsKey('max_retries') ? (opts.max_retries as Integer) : ((System.getenv('LAMIN_MAX_RETRIES') as Integer) ?: 3)
-        this.retry_delay = opts?.containsKey('retry_delay') ? (opts.retry_delay as Integer) : ((System.getenv('LAMIN_RETRY_DELAY') as Integer) ?: 100)
-        this.web_url = opts?.web_url
-        this.max_workers = opts?.containsKey('max_workers') ? (opts.max_workers as Integer) : 8
+        this.max_retries       = opts?.containsKey('max_retries')     ? (opts.max_retries     as Integer) : DEFAULT_MAX_RETRIES
+        this.retry_delay       = opts?.containsKey('retry_delay')     ? (opts.retry_delay     as Integer) : DEFAULT_RETRY_DELAY
+        this.max_retry_delay   = opts?.containsKey('max_retry_delay') ? (opts.max_retry_delay as Integer) : DEFAULT_MAX_RETRY_DELAY
+        this.web_url           = opts?.web_url
+        this.max_workers       = opts?.containsKey('max_workers')     ? (opts.max_workers     as Integer) : DEFAULT_MAX_WORKERS
     }
 
-    /**
-     * Get the Supabase API URL
-     * @return The Supabase API URL
-     */
-    String getSupabaseApiUrl() {
-        return this.supabase_api_url
-    }
+    String getSupabaseApiUrl()  { this.supabase_api_url }
+    String getSupabaseAnonKey() { this.supabase_anon_key }
+    String getWebUrl()          { this.web_url }
 
-    /**
-     * Get the Supabase Anon Key
-     * @return The Supabase Anon Key
-     */
-    String getSupabaseAnonKey() {
-        return this.supabase_anon_key
-    }
-
-    /**
-     * Get the maximum number of retries
-     * @return The maximum number of retries
-     */
-    Integer getMaxRetries() {
-        return this.max_retries != null ? this.max_retries : 3
-    }
-
-    /**
-     * Get the delay between retries
-     * @return The delay between retries in milliseconds
-     */
-    Integer getRetryDelay() {
-        return this.retry_delay != null ? this.retry_delay : 100
-    }
-
-    /**
-     * Get the web URL
-     * @return The web URL
-     */
-    String getWebUrl() {
-        return this.web_url
-    }
-
-    /**
-     * Get the maximum number of worker threads
-     * @return The maximum number of worker threads
-     */
-    Integer getMaxWorkers() {
-        return this.max_workers != null ? this.max_workers : 8
-    }
+    Integer getMaxRetries()     { this.max_retries     != null ? this.max_retries     : DEFAULT_MAX_RETRIES }
+    Integer getRetryDelay()     { this.retry_delay     != null ? this.retry_delay     : DEFAULT_RETRY_DELAY }
+    Integer getMaxRetryDelay()  { this.max_retry_delay != null ? this.max_retry_delay : DEFAULT_MAX_RETRY_DELAY }
+    Integer getMaxWorkers()     { this.max_workers     != null ? this.max_workers     : DEFAULT_MAX_WORKERS }
 
     @Override
     String toString() {
         def maskedAnonKey = MaskingUtils.maskValue(supabase_anon_key)
-        return "ApiConfig{supabase_api_url='${supabase_api_url}', supabase_anon_key='${maskedAnonKey}', max_retries=${max_retries}, retry_delay=${retry_delay}, web_url='${web_url}', max_workers=${max_workers}}"
+        return "ApiConfig{supabase_api_url='${supabase_api_url}', supabase_anon_key='${maskedAnonKey}', max_retries=${max_retries}, retry_delay=${retry_delay}, max_retry_delay=${max_retry_delay}, web_url='${web_url}', max_workers=${max_workers}}"
     }
 }
