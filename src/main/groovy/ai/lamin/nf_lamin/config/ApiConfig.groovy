@@ -150,7 +150,7 @@ class ApiConfig {
      * @return The maximum number of worker threads
      */
     Integer getMaxWorkers() {
-        return this.max_workers != null ? this.max_workers : 40
+        return this.max_workers != null ? this.max_workers : 8
     }
 
     @Override
