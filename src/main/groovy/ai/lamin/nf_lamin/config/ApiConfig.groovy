@@ -35,6 +35,7 @@ import nextflow.script.dsl.Description
  *     supabase_anon_key = 'your-anon-key'
  *     max_retries = 5
  *     retry_delay = 200
+ *     max_workers = 8
  *   }
  * }
  * </pre>
@@ -72,6 +73,12 @@ class ApiConfig {
     ''')
     final String web_url
 
+    @ConfigOption
+    @Description('''
+        Maximum number of worker threads used to create artifacts in parallel (default: 8).
+    ''')
+    final Integer max_workers
+
     /**
      * Default constructor required for extension point
      */
@@ -81,6 +88,7 @@ class ApiConfig {
         this.max_retries = 3
         this.retry_delay = 100
         this.web_url = null
+        this.max_workers = 8
     }
 
     /**
@@ -94,6 +102,7 @@ class ApiConfig {
         this.max_retries = opts?.containsKey('max_retries') ? (opts.max_retries as Integer) : ((System.getenv('LAMIN_MAX_RETRIES') as Integer) ?: 3)
         this.retry_delay = opts?.containsKey('retry_delay') ? (opts.retry_delay as Integer) : ((System.getenv('LAMIN_RETRY_DELAY') as Integer) ?: 100)
         this.web_url = opts?.web_url
+        this.max_workers = opts?.containsKey('max_workers') ? (opts.max_workers as Integer) : 8
     }
 
     /**
@@ -136,9 +145,17 @@ class ApiConfig {
         return this.web_url
     }
 
+    /**
+     * Get the maximum number of worker threads
+     * @return The maximum number of worker threads
+     */
+    Integer getMaxWorkers() {
+        return this.max_workers != null ? this.max_workers : 8
+    }
+
     @Override
     String toString() {
         def maskedAnonKey = MaskingUtils.maskValue(supabase_anon_key)
-        return "ApiConfig{supabase_api_url='${supabase_api_url}', supabase_anon_key='${maskedAnonKey}', max_retries=${max_retries}, retry_delay=${retry_delay}, web_url='${web_url}'}"
+        return "ApiConfig{supabase_api_url='${supabase_api_url}', supabase_anon_key='${maskedAnonKey}', max_retries=${max_retries}, retry_delay=${retry_delay}, web_url='${web_url}', max_workers=${max_workers}}"
     }
 }
