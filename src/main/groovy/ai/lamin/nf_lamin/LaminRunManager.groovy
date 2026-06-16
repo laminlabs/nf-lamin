@@ -62,7 +62,7 @@ final class LaminRunManager {
 
     private static final LaminRunManager INSTANCE = new LaminRunManager()
 
-    private static final int DEFAULT_MAX_WORKERS = 40
+    private static final int DEFAULT_MAX_WORKERS = 8
 
     private static final AtomicInteger artifactThreadCount = new AtomicInteger(0)
 

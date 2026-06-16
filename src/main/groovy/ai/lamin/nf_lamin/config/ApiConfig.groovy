@@ -35,7 +35,7 @@ import nextflow.script.dsl.Description
  *     supabase_anon_key = 'your-anon-key'
  *     max_retries = 5
  *     retry_delay = 200
- *     max_workers = 40
+ *     max_workers = 8
  *   }
  * }
  * </pre>
@@ -75,7 +75,7 @@ class ApiConfig {
 
     @ConfigOption
     @Description('''
-        Maximum number of worker threads used to create artifacts in parallel (default: 40).
+        Maximum number of worker threads used to create artifacts in parallel (default: 8).
     ''')
     final Integer max_workers
 
@@ -88,7 +88,7 @@ class ApiConfig {
         this.max_retries = 3
         this.retry_delay = 100
         this.web_url = null
-        this.max_workers = 40
+        this.max_workers = 8
     }
 
     /**
@@ -102,7 +102,7 @@ class ApiConfig {
         this.max_retries = opts?.containsKey('max_retries') ? (opts.max_retries as Integer) : ((System.getenv('LAMIN_MAX_RETRIES') as Integer) ?: 3)
         this.retry_delay = opts?.containsKey('retry_delay') ? (opts.retry_delay as Integer) : ((System.getenv('LAMIN_RETRY_DELAY') as Integer) ?: 100)
         this.web_url = opts?.web_url
-        this.max_workers = opts?.containsKey('max_workers') ? (opts.max_workers as Integer) : 40
+        this.max_workers = opts?.containsKey('max_workers') ? (opts.max_workers as Integer) : 8
     }
 
     /**
