@@ -45,7 +45,7 @@ class InstanceStagingTest extends Specification {
                 config.instanceOwner,
                 config.instanceName
             )
-            instance = new Instance(hub, settings, 3, 1000)
+            instance = new Instance(hub, settings, 3, 1000, 30000)
         }
     }
 
@@ -167,7 +167,7 @@ class InstanceStagingTest extends Specification {
         )
 
         when:
-        def newInstance = new Instance(hub, settings, 5, 2000)
+        def newInstance = new Instance(hub, settings, 5, 2000, 30000)
 
         then:
         newInstance.getHub() == hub
@@ -196,13 +196,13 @@ class InstanceStagingTest extends Specification {
         )
 
         when:
-        new Instance(null, settings, 3, 1000)
+        new Instance(null, settings, 3, 1000, 30000)
 
         then:
         thrown(IllegalStateException)
 
         when:
-        new Instance(hub, null, 3, 1000)
+        new Instance(hub, null, 3, 1000, 30000)
 
         then:
         thrown(IllegalStateException)
