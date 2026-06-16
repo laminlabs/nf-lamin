@@ -32,15 +32,15 @@ class ApiConfigTest extends Specification {
         config.supabaseAnonKey == null
         config.maxRetries == 3
         config.retryDelay == 100
-        config.maxWorkers == 40
+        config.maxWorkers == 8
     }
 
     def "should create config with custom max_workers"() {
         when:
-        def config = new ApiConfig([max_workers: 8])
+        def config = new ApiConfig([max_workers: 64])
 
         then:
-        config.maxWorkers == 8
+        config.maxWorkers == 64
         config.maxRetries == 3
         config.retryDelay == 100
     }
@@ -50,7 +50,7 @@ class ApiConfigTest extends Specification {
         def config = new ApiConfig([max_workers: null])
 
         then:
-        config.maxWorkers == 40
+        config.maxWorkers == 8
     }
 
     def "should create config with empty map"() {
