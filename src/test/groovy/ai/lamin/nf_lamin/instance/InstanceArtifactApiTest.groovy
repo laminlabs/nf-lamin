@@ -83,7 +83,7 @@ class InstanceArtifactApiTest extends Specification {
                 config.instanceOwner,
                 config.instanceName
             )
-            instance = new Instance(hub, settings, 3, 100)
+            instance = new Instance(hub, settings, 3, 100, 30000)
             instanceId = settings.id
 
             // --- Resolve test branch ---
