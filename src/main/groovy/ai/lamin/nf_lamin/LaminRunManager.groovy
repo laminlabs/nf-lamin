@@ -1563,20 +1563,6 @@ final class LaminRunManager {
         ReentrantLock pathLock = artifactLocks.computeIfAbsent(pathStr) { new ReentrantLock() }
         pathLock.lock()
         try {
-            // First, check if artifact already exists at this path
-            artifact = fetchArtifact(pathStr)
-            if (artifact != null) {
-                // If artifact exists but needs to be linked to current run, link it
-                if (runId != null) {
-                    Integer artifactRunId = (artifact.get('run_id') as Number)?.intValue()
-                    if (artifactRunId != runId) {
-                        log.debug "Artifact ${artifact.get('uid')} was created by a different run (${artifactRunId}), but will not be re-linked"
-                    }
-                }
-                return artifact
-            }
-
-            // Artifact doesn't exist, create it
             log.debug "Creating artifact ${logContext} at ${path.toUri()}"
 
             Map<String, Object> apiParams = [:]
