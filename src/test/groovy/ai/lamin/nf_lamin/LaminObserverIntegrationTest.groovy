@@ -51,7 +51,7 @@ class LaminObserverIntegrationTest extends Specification {
             config.apiKey
         )
         InstanceSettings settings = hub.getInstanceSettings(config.instanceOwner, config.instanceName)
-        return new Instance(hub, settings, config.apiConfig.maxRetries, config.apiConfig.retryDelay)
+        return new Instance(hub, settings, config.apiConfig.maxRetries, config.apiConfig.retryDelay, config.apiConfig.maxRetryDelay)
     }
 
     private WorkflowMetadata buildMetadata(Map<String, Object> overrides = [:]) {

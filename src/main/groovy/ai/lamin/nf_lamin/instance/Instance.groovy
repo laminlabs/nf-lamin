@@ -19,6 +19,7 @@ import ai.lamin.nf_lamin.hub.InstanceSettings
 import nextflow.file.FileHelper
 
 import java.nio.file.Path
+import java.util.concurrent.ThreadLocalRandom
 
 /**
  * Represents a Lamin instance.
@@ -44,6 +45,7 @@ class Instance {
     final protected InstanceTransformsApi transformsApi
     final protected Integer maxRetries
     final protected Integer retryDelay
+    final protected Integer maxRetryDelay
 
     /**
      * Constructor for the Instance class.
@@ -56,7 +58,8 @@ class Instance {
         LaminHub hub,
         InstanceSettings settings,
         Integer maxRetries,
-        Integer retryDelay
+        Integer retryDelay,
+        Integer maxRetryDelay
     ) {
         if (!hub) { throw new IllegalStateException('LaminHub is null. Please check the LaminHub instance.') }
         if (!settings) { throw new IllegalStateException('InstanceSettings is null. Please check the InstanceSettings instance.') }
@@ -83,9 +86,10 @@ class Instance {
         this.statisticsApi = new InstanceStatisticsApi(this.apiClient)
         this.transformsApi = new InstanceTransformsApi(this.apiClient)
 
-        // set maxRetries and retryDelay
-        this.maxRetries = maxRetries
-        this.retryDelay = retryDelay
+        // set maxRetries, retryDelay and maxRetryDelay
+        this.maxRetries     = maxRetries
+        this.retryDelay     = retryDelay
+        this.maxRetryDelay  = maxRetryDelay
     }
 
     /**
@@ -927,7 +931,7 @@ class Instance {
      * - 400: Bad request (ValidationError, InvalidArgument, etc.) - throw immediately
      * - 403: Forbidden (NoWriteAccess) - throw immediately
      * - 409: Conflict (MultipleResultsFound, UpdateContext, IntegrityError) - throw immediately
-     * - 5xx: Server errors - retry up to maxRetries
+     * - 5xx: Server errors - retry up to maxRetries with exponential backoff and jitter
      *
      * @param opName  The name of the API operation, e.g. "POST createArtifact"
      * @param opArgs  Optional string describing the key arguments, e.g. "path=s3://bucket/key"
@@ -984,15 +988,39 @@ class Instance {
                     log.debug "${errorDesc} - Not retrying (permanent server error). Response: ${e.responseBody}"
                     throw e
                 } else if (retries < this.maxRetries) {
-                    // Retry for 5xx server errors and other unexpected errors
-                    log.warn "${errorDesc} - Retrying (${retries + 1}/${this.maxRetries})... Response: ${e.responseBody}"
-                    Thread.sleep(this.retryDelay)
+                    // Retry for 5xx server errors and other unexpected errors.
+                    // Use exponential backoff with full jitter so that a burst of
+                    // concurrent workers hitting the same 502 don't all retry in
+                    // lockstep and re-saturate the backend.
+                    long backoff = computeBackoffMillis(retries)
+                    log.warn "${errorDesc} - Retrying (${retries + 1}/${this.maxRetries}) in ${backoff}ms... Response: ${e.responseBody}"
+                    Thread.sleep(backoff)
                     retries++
                 } else {
                     throw e
                 }
             }
         }
+    }
+
+    /**
+     * Compute the backoff sleep before the next retry, using exponential backoff
+     * with full jitter: a random duration in [0, min(retryDelay * 2^retries, cap)].
+     *
+     * Exponential growth spreads successive retries further apart; the jitter
+     * decorrelates concurrent workers so they don't retry in lockstep and
+     * re-saturate the backend. The exponent is clamped to avoid overflow when
+     * retryDelay/maxRetries are configured to large values.
+     *
+     * @param retries the number of retries already attempted (0 for the first retry)
+     * @return the backoff duration in milliseconds
+     */
+    protected long computeBackoffMillis(int retries) {
+        int shift = Math.min(retries, 30)
+        long exponential = (long) this.retryDelay << shift
+        long capped = Math.min(exponential, (long) this.maxRetryDelay)
+        // full jitter: random in [0, capped]
+        return ThreadLocalRandom.current().nextLong(capped + 1L)
     }
 
     /**

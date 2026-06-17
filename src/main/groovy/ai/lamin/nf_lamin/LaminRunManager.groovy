@@ -49,6 +49,7 @@ import ai.lamin.nf_lamin.util.TransformInfoHelper
 import ai.lamin.nf_lamin.config.ArtifactConfig
 import ai.lamin.nf_lamin.config.ArtifactEvaluation
 import ai.lamin.nf_lamin.config.ConfigUtils
+import ai.lamin.nf_lamin.config.ApiConfig
 
 /**
  * Holds shared state about the currently active Lamin transform and run.
@@ -61,8 +62,6 @@ import ai.lamin.nf_lamin.config.ConfigUtils
 final class LaminRunManager {
 
     private static final LaminRunManager INSTANCE = new LaminRunManager()
-
-    private static final int DEFAULT_MAX_WORKERS = 8
 
     private static final AtomicInteger artifactThreadCount = new AtomicInteger(0)
 
@@ -114,7 +113,7 @@ final class LaminRunManager {
         instanceCache.clear()
         recordResolutionCache.clear()
         publishedArtifactsByPath.clear()
-        artifactExecutor = createArtifactExecutor(DEFAULT_MAX_WORKERS)
+        artifactExecutor = createArtifactExecutor(ApiConfig.DEFAULT_MAX_WORKERS)
     }
 
     /**
@@ -153,7 +152,8 @@ final class LaminRunManager {
                 hub,
                 settings,
                 config.apiConfig.maxRetries,
-                config.apiConfig.retryDelay
+                config.apiConfig.retryDelay,
+                config.apiConfig.maxRetryDelay
             )
         }
     }

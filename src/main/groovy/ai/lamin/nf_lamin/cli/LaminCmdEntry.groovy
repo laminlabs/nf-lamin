@@ -95,7 +95,7 @@ class LaminCmdEntry implements PluginAbstractExec {
         LaminHubSettings hubSettings = LaminHubSettings.resolve(config)
         LaminHub hub = new LaminHub(hubSettings.supabaseApiUrl, hubSettings.supabaseAnonKey, config.apiKey)
         InstanceSettings instanceSettings = hub.getInstanceSettings(config.instanceOwner, config.instanceName)
-        Instance instance = new Instance(hub, instanceSettings, config.apiConfig.maxRetries, config.apiConfig.retryDelay)
+        Instance instance = new Instance(hub, instanceSettings, config.apiConfig.maxRetries, config.apiConfig.retryDelay, config.apiConfig.maxRetryDelay)
         Map<String, String> params = parseArgs(subArgs)
 
         switch (subCmd) {
