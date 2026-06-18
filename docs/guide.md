@@ -4,7 +4,7 @@ execute_via: python
 
 # Nextflow
 
-There are several ways to track Nextflow pipeline runs and artifacts in [LaminDB](https://lamin.ai/).
+There are two ways of tracking Nextflow pipeline runs with their input and outputs in LaminDB.
 
 ## Using `nf-lamin` (recommended)
 
