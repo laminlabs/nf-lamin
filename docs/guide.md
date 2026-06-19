@@ -8,7 +8,7 @@ There are two ways of tracking Nextflow pipeline runs with their input and outpu
 
 ## Using `nf-lamin` (recommended)
 
-The [`nf-lamin`](https://github.com/laminlabs/nf-lamin) Nextflow plugin automatically tracks transforms, runs, and artifacts without modifying pipeline code. It requires a [LaminHub](https://lamin.ai/) account.
+The [`nf-lamin`](https://github.com/laminlabs/nf-lamin) Nextflow plugin automatically tracks transforms, runs, and artifacts without modifying pipeline code via LaminHub's REST API.
 
 **Option A: environment variables** (no config file needed):
 
@@ -61,7 +61,7 @@ ln.Run.get("your-run-uid")
 
 ## Using a post-run script
 
-You can register runs manually without using the `nf-lamin` plugin using a Python post-run script. First run the pipeline:
+You can register runs manually without using the `nf-lamin` plugin using LaminDB in a Python post-run script. First run the pipeline:
 
 ```python
 # the test profile uses all downloaded input files as an input
