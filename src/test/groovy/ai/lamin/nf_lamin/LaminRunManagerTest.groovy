@@ -119,10 +119,10 @@ class LaminRunManagerTest extends Specification {
 
         def workerStarted = new CountDownLatch(1)
         def releaseWorker = new CountDownLatch(1)
-        mockInstance.getArtifactByPath(_) >> {
+        mockInstance.createArtifact(_) >> {
             workerStarted.countDown()
             releaseWorker.await(5, TimeUnit.SECONDS)
-            null
+            [uid: 'A1', run: 1]
         }
 
         def mockPath = Mock(Path)
