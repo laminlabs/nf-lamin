@@ -4,11 +4,11 @@ execute_via: python
 
 # Nextflow
 
-There are several ways to track Nextflow pipeline runs and artifacts in [LaminDB](https://lamin.ai/).
+There are two ways of tracking Nextflow pipeline runs with their inputs and outputs in LaminDB.
 
-## Using `nf-lamin` (recommended)
+## `nf-lamin`
 
-The [`nf-lamin`](https://github.com/laminlabs/nf-lamin) Nextflow plugin automatically tracks transforms, runs, and artifacts without modifying pipeline code. It requires a [LaminHub](https://lamin.ai/) account.
+The [`nf-lamin`](https://github.com/laminlabs/nf-lamin) Nextflow plugin works without modifying pipeline code via LaminHub's REST API.
 
 **Option A: environment variables** (no config file needed):
 
@@ -59,9 +59,9 @@ ln.Run.get("your-run-uid")
 
 → See {doc}`/reference/examples` for ready-to-run examples for existing pipelines.
 
-## Using a post-run script
+## Post-run scripts
 
-You can register runs manually without using the `nf-lamin` plugin using a Python post-run script. First run the pipeline:
+You can register runs manually without using the `nf-lamin` plugin using LaminDB in a Python post-run script. First run the pipeline:
 
 ```python
 # the test profile uses all downloaded input files as an input
