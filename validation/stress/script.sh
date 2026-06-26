@@ -15,15 +15,14 @@ MAX_FORKS=${MAX_FORKS:-16}          # max concurrent generator tasks
 CONFIG=configs/env-prod.config
 OUTDIR="$LAMIN_TEST_BUCKET/stress/run_$(date +%Y%m%d_%H%M%S)"
 
-# uncomment this for staging
-CONFIG=configs/env-staging.config
-OUTDIR="${LAMIN_TEST_BUCKET}-staging/stress/run_$(date +%Y%m%d_%H%M%S)"
+# # uncomment this for staging
+# CONFIG=configs/env-staging.config
+# OUTDIR="${LAMIN_TEST_BUCKET}-staging/stress/run_$(date +%Y%m%d_%H%M%S)"
 
 nextflow \
   -trace ai.lamin \
   run laminlabs/nf-lamin \
   -main-script validation/stress/main.nf \
-  -r add-stress-wf \
   -c validation/stress/nextflow.config \
   -c $CONFIG \
   --n_files $N_FILES \
