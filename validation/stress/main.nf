@@ -38,6 +38,7 @@ params.max_forks      = 16
 process generateArtifacts {
   tag "batch_${batch_id}"
   maxForks params.max_forks
+  container 'ubuntu:24.04'
 
   input:
   tuple val(batch_id), val(count), val(delay), val(run_uid)
