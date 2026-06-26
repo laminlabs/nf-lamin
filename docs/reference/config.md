@@ -238,8 +238,10 @@ When `manage_s3_credentials = false`, the plugin resolves `lamin://` URIs to the
 | `supabase_anon_key` | String  | `null`  | `SUPABASE_ANON_KEY` |
 | `max_retries`       | Integer | `3`     | `LAMIN_MAX_RETRIES` |
 | `retry_delay`       | Integer | `100`   | `LAMIN_RETRY_DELAY` |
+| `max_workers`       | Integer | `8`     | `LAMIN_MAX_WORKERS` |
 
-Only needed for custom LaminHub deployments or to tune retry behavior.
+Only needed for custom LaminHub deployments or to tune retry and parallelism behavior.
+`max_workers` controls the size of the thread pool used to create artifacts in parallel.
 
 ---
 
