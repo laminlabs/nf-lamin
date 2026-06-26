@@ -21,8 +21,9 @@ OUTDIR="${LAMIN_TEST_BUCKET}-staging/stress/run_$(date +%Y%m%d_%H%M%S)"
 
 nextflow \
   -trace ai.lamin \
-  run validation/stress/main.nf \
-  -b add-stress-wf \
+  run laminlabs/nf-lamin \
+  -main-script validation/stress/main.nf \
+  -r add-stress-wf \
   -c validation/stress/nextflow.config \
   -c $CONFIG \
   --n_files $N_FILES \
