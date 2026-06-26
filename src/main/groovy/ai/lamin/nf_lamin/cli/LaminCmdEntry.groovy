@@ -44,6 +44,9 @@ import ai.lamin.nf_lamin.instance.Instance
  * nextflow plugin nf-lamin:call-api create-record --module core --model run --data '{"field":"value"}'
  * nextflow plugin nf-lamin:call-api update-record --module core --model transform --uid <uid> --data '{"field":"value"}'
  * nextflow plugin nf-lamin:call-api delete-record --module core --model transform --uid <uid>
+ * nextflow plugin nf-lamin:call-api upsert-record --module core --model artifactproject --conflict-columns artifact_id,project_id --data '{"artifact_id":1,"project_id":2}'
+ * nextflow plugin nf-lamin:call-api batch-update  --module core --model artifact --index-columns id --records '[{"id":1,"description":"x"}]'
+ * nextflow plugin nf-lamin:call-api batch-delete  --module core --model artifactproject --records '[{"artifact_id":1,"project_id":2}]'
  *
  * nextflow plugin nf-lamin:call-api create-transform --key <key> --kind pipeline --source-code "# src"
  * nextflow plugin nf-lamin:call-api create-artifact  --path s3://bucket/key [--kwarg value ...]
@@ -57,12 +60,13 @@ import ai.lamin.nf_lamin.instance.Instance
 class LaminCmdEntry implements PluginAbstractExec {
 
     // Set to false before releasing to disable the call-api command
-    private static final boolean CALL_API_ENABLED = false
+    private static final boolean CALL_API_ENABLED = true
 
     private static final List<String> CALL_API_SUBCOMMANDS = [
         'get-account', 'get-schema',
         'get-record', 'get-records',
         'create-record', 'update-record', 'delete-record',
+        'upsert-record', 'batch-update', 'batch-delete',
         'create-transform',
         'create-artifact', 'upload-artifact',
     ]
@@ -106,6 +110,9 @@ class LaminCmdEntry implements PluginAbstractExec {
             case 'create-record':    return cmdCreateRecord(instance, params)
             case 'update-record':    return cmdUpdateRecord(instance, params)
             case 'delete-record':    return cmdDeleteRecord(instance, params)
+            case 'upsert-record':    return cmdUpsertRecord(instance, params)
+            case 'batch-update':     return cmdBatchUpdate(instance, params)
+            case 'batch-delete':     return cmdBatchDelete(instance, params)
             case 'create-transform': return cmdCreateTransform(instance, params)
             case 'create-artifact':  return cmdCreateArtifact(instance, params)
             case 'upload-artifact':  return cmdUploadArtifact(instance, params)
@@ -204,6 +211,38 @@ class LaminCmdEntry implements PluginAbstractExec {
             uid: p.uid,
         ] as Map<String, Object>
         return run('delete-record', null) { instance.deleteRecord(args) }
+    }
+
+    private int cmdUpsertRecord(Instance instance, Map<String, String> p) {
+        if (!requireParams(p, 'call-api upsert-record', '--module core --model artifactproject --conflict-columns artifact_id,project_id --data \'{"artifact_id":1,"project_id":2}\'', 'module', 'model', 'conflict-columns', 'data')) return 1
+        Map<String, Object> args = [
+            moduleName: p.module,
+            modelName: p.model,
+            conflictColumns: p['conflict-columns'].split(',').toList(),
+            data: new JsonSlurper().parseText(p.data),
+        ] as Map<String, Object>
+        return run('upsert-record', null) { instance.upsertRecord(args) }
+    }
+
+    private int cmdBatchUpdate(Instance instance, Map<String, String> p) {
+        if (!requireParams(p, 'call-api batch-update', '--module core --model artifact --index-columns id --records \'[{"id":1,"field":"value"}]\'', 'module', 'model', 'index-columns', 'records')) return 1
+        Map<String, Object> args = [
+            moduleName: p.module,
+            modelName: p.model,
+            indexColumns: p['index-columns'].split(',').toList(),
+            records: new JsonSlurper().parseText(p.records) as List,
+        ] as Map<String, Object>
+        return run('batch-update', null) { instance.batchUpdateRecords(args) }
+    }
+
+    private int cmdBatchDelete(Instance instance, Map<String, String> p) {
+        if (!requireParams(p, 'call-api batch-delete', '--module core --model artifactproject --records \'[{"artifact_id":1,"project_id":2}]\'', 'module', 'model', 'records')) return 1
+        Map<String, Object> args = [
+            moduleName: p.module,
+            modelName: p.model,
+            records: new JsonSlurper().parseText(p.records) as List,
+        ] as Map<String, Object>
+        return run('batch-delete', null) { instance.batchDeleteRecords(args) }
     }
 
     // -- artifact commands -----------------------------------------------------

@@ -419,6 +419,145 @@ class Instance {
     }
 
     /**
+     * Upsert one or more records in the Lamin API.
+     *
+     * <p>Inserts new records or updates existing ones based on a conflict key. The
+     * conflict columns must correspond to a unique constraint (or unique index) in the
+     * database; otherwise the API returns a 422. This is the idempotent alternative to
+     * {@link #createRecord} for link tables (e.g. {@code core.artifactproject}), avoiding
+     * the need for a separate {@code getRecords} existence check.
+     *
+     * @param args A map containing the following keys:
+     *    - moduleName: The name of the module (required)
+     *    - modelName: The name of the model (required)
+     *    - data: A single record (Map) or list of records (List&lt;Map&gt;) to upsert (required)
+     *    - conflictColumns: List of column names forming the unique key (required)
+     * @return a list of the full, upserted records as they exist in the database
+     * @throws IllegalStateException if any of the required arguments are null
+     * @throws ApiException if an error occurs while upserting the record(s)
+     */
+    List<Map> upsertRecord(Map args) {
+        // required args
+        String moduleName = args.moduleName as String
+        String modelName = args.modelName as String
+        Object data = args.get('data', null)
+        List<String> conflictColumns = args.get('conflictColumns', null) as List<String>
+
+        if (!moduleName) { throw new IllegalStateException('Module name is null. Please check the module name.') }
+        if (!modelName) { throw new IllegalStateException('Model name is null. Please check the model name.') }
+        if (data == null) { throw new IllegalStateException('Data is null. Please provide record data to upsert.') }
+        if (!conflictColumns) { throw new IllegalStateException('conflictColumns is null or empty. Please provide the unique key column(s).') }
+
+        // The generated Body serializer mishandles a bare Map (treats it as a JSON
+        // primitive), so always send a list of records — the endpoint accepts both.
+        List<Map> records = (data instanceof List) ? (data as List<Map>) : [data as Map]
+        Body body = new Body(records)
+
+        Object response = callApi("PUT upsertRecord", "${moduleName}.${modelName}, conflictColumns=${conflictColumns}, data=${data}") { String accessToken ->
+            this.recordsApi.upsertRecordsInstancesInstanceIdModulesModuleNameModelNameUpsertPut(
+                moduleName,
+                modelName,
+                this.settings.id,
+                conflictColumns,
+                body,
+                accessToken
+            )
+        }
+        // The endpoint returns a list of full records; normalise to List<Map>.
+        if (response instanceof List) {
+            return response as List<Map>
+        }
+        if (response instanceof Map) {
+            return [response as Map]
+        }
+        return response == null ? [] : ([response] as List<Map>)
+    }
+
+    /**
+     * Batch-update existing records in the Lamin API.
+     *
+     * <p>Updates rows matched by the {@code indexColumns} unique key. Unlike
+     * {@link #upsertRecord}, this does NOT insert new rows — records that do not already
+     * exist are not created.
+     *
+     * @param args A map containing the following keys:
+     *    - moduleName: The name of the module (required)
+     *    - modelName: The name of the model (required)
+     *    - records: List of record Maps to update (required)
+     *    - indexColumns: List of column names identifying each record (required)
+     * @return a list of the updated records
+     * @throws IllegalStateException if any of the required arguments are null
+     * @throws ApiException if an error occurs while updating the records
+     */
+    List<Map> batchUpdateRecords(Map args) {
+        // required args
+        String moduleName = args.moduleName as String
+        String modelName = args.modelName as String
+        List<Map<String, Object>> records = args.get('records', null) as List<Map<String, Object>>
+        List<String> indexColumns = args.get('indexColumns', null) as List<String>
+
+        if (!moduleName) { throw new IllegalStateException('Module name is null. Please check the module name.') }
+        if (!modelName) { throw new IllegalStateException('Model name is null. Please check the model name.') }
+        if (!records) { throw new IllegalStateException('records is null or empty. Please provide records to update.') }
+        if (!indexColumns) { throw new IllegalStateException('indexColumns is null or empty. Please provide the index column(s).') }
+
+        BatchUpdateBody body = new BatchUpdateBody()
+        body.setRecords(records)
+        body.setIndexColumns(indexColumns)
+
+        List<Map> response = callApi("PATCH batchUpdateRecords", "${moduleName}.${modelName}, indexColumns=${indexColumns}, n=${records.size()}") { String accessToken ->
+            this.recordsApi.batchUpdateRecordsInstancesInstanceIdModulesModuleNameModelNameBatchUpdatePatch(
+                moduleName,
+                modelName,
+                this.settings.id,
+                body,
+                accessToken
+            ) as List<Map>
+        }
+        return response == null ? [] : response
+    }
+
+    /**
+     * Batch-delete existing records in the Lamin API.
+     *
+     * <p>Deletes rows matched by the key(s) in each record. Each record is a Map
+     * containing the column(s) identifying a row to delete (e.g. {@code [{"id":1}, {"id":2}]}
+     * or a composite key like {@code [{"artifact_id":1,"project_id":2}]}).
+     *
+     * @param args A map containing the following keys:
+     *    - moduleName: The name of the module (required)
+     *    - modelName: The name of the model (required)
+     *    - records: List of record Maps identifying rows to delete (required)
+     * @return the number of records deleted
+     * @throws IllegalStateException if any of the required arguments are null
+     * @throws ApiException if an error occurs while deleting the records
+     */
+    Integer batchDeleteRecords(Map args) {
+        // required args
+        String moduleName = args.moduleName as String
+        String modelName = args.modelName as String
+        List<Map<String, Object>> records = args.get('records', null) as List<Map<String, Object>>
+
+        if (!moduleName) { throw new IllegalStateException('Module name is null. Please check the module name.') }
+        if (!modelName) { throw new IllegalStateException('Model name is null. Please check the model name.') }
+        if (!records) { throw new IllegalStateException('records is null or empty. Please provide records to delete.') }
+
+        BatchDeleteBody body = new BatchDeleteBody()
+        body.setRecords(records)
+
+        BatchDeleteResponse response = callApi("POST batchDeleteRecords", "${moduleName}.${modelName}, n=${records.size()}") { String accessToken ->
+            this.recordsApi.batchDeleteRecordsInstancesInstanceIdModulesModuleNameModelNameBatchDeletePost(
+                moduleName,
+                modelName,
+                this.settings.id,
+                body,
+                accessToken
+            ) as BatchDeleteResponse
+        }
+        return response == null ? 0 : response.getDeletedCount()
+    }
+
+    /**
      * Fetch a transform by its UID from the Lamin API.
      * @param uid The UID of the transform (required)
      * @return a map containing the transform data, or null if not found
