@@ -158,6 +158,7 @@ class Instance {
             this.statisticsApi.getInstanceStatisticsInstancesInstanceIdStatisticsGet(
                 this.settings.id,
                 [],
+                null,
                 accessToken
             )
         }
@@ -173,6 +174,7 @@ class Instance {
         Map response = callApi("GET getNonEmptyTables") { String accessToken ->
             this.statisticsApi.getNonEmptyTablesInstancesInstanceIdNonEmptyTablesGet(
                 this.settings.id,
+                null,
                 accessToken
             )
         } as Map
@@ -191,6 +193,7 @@ class Instance {
         Map response = callApi("GET getSchema") { String accessToken ->
             this.schemaApi.getSchemaInstancesInstanceIdSchemaGet(
                 this.settings.id,
+                null,
                 accessToken
             )
         } as Map
@@ -239,6 +242,7 @@ class Instance {
                 this.settings.id,
                 limitToMany,
                 includeForeignKeys,
+                null,
                 accessToken,
                 body
             ) as Map
@@ -300,6 +304,7 @@ class Instance {
                 offset,
                 limitToMany,
                 includeForeignKeys,
+                null,
                 accessToken,
                 body
             ) as List<Map>
@@ -335,6 +340,7 @@ class Instance {
                 modelName,
                 this.settings.id,
                 data,
+                null,
                 accessToken
             )
         } as List<Map>
@@ -379,6 +385,7 @@ class Instance {
                 uid,
                 this.settings.id,
                 data,
+                null,
                 accessToken
             ) as Map
         }
@@ -412,6 +419,7 @@ class Instance {
                 modelName,
                 uid,
                 this.settings.id,
+                null,
                 accessToken
             )
         }
@@ -460,6 +468,7 @@ class Instance {
                 this.settings.id,
                 conflictColumns,
                 body,
+                null,
                 accessToken
             )
         }
@@ -511,6 +520,7 @@ class Instance {
                 modelName,
                 this.settings.id,
                 body,
+                null,
                 accessToken
             ) as List<Map>
         }
@@ -551,6 +561,7 @@ class Instance {
                 modelName,
                 this.settings.id,
                 body,
+                null,
                 accessToken
             ) as BatchDeleteResponse
         }
@@ -817,6 +828,7 @@ class Instance {
             this.transformsApi.createTransformInstancesInstanceIdTransformsPost(
                 this.settings.id,
                 body,
+                null,
                 accessToken
             ) as Map
         }
@@ -862,6 +874,7 @@ class Instance {
             this.artifactsApi.createArtifactInstancesInstanceIdArtifactsCreatePost(
                 this.settings.id,
                 body,
+                null,
                 accessToken
             ) as Map<String, Object>
         }
@@ -893,6 +906,7 @@ class Instance {
                 this.artifactsApi.getArtifactByPathInstancesInstanceIdArtifactsByPathGet(
                     this.settings.id,
                     path,
+                    null,
                     accessToken
                 ) as Map<String, Object>
             } catch (ApiException innerEx) {
@@ -952,6 +966,7 @@ class Instance {
             this.artifactsApi.uploadArtifactInstancesInstanceIdArtifactsUploadPost(
                 this.settings.id,
                 file,
+                null,
                 accessToken,
                 kwargsString
             ) as Map<String, Object>

@@ -9,7 +9,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'ai.lamin:lamin-api-client:0.0.5'
+    implementation 'ai.lamin:lamin-api-client:0.0.7'
     // AWS SDK v2 for LaminS3FileSystemProvider (session credentials + S3 operations).
     // Bundled in the plugin JAR: nf-amazon uses an isolated PF4J classloader, so its
     // AWS SDK classes are not accessible from nf-lamin at runtime.
