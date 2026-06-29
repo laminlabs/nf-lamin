@@ -42,7 +42,7 @@ import ai.lamin.lamin_api_client.ApiException
 import ai.lamin.nf_lamin.hub.LaminHub
 import ai.lamin.nf_lamin.hub.LaminHubSettings
 import ai.lamin.nf_lamin.instance.Instance
-import ai.lamin.nf_lamin.instance.StorageAccessException
+import ai.lamin.nf_lamin.instance.PermissionDeniedException
 import ai.lamin.nf_lamin.hub.InstanceSettings
 import ai.lamin.nf_lamin.model.RunStatus
 import ai.lamin.nf_lamin.nio.LaminPath
@@ -723,23 +723,23 @@ final class LaminRunManager {
     }
 
     /**
-     * Log a failure from an async artifact-creation task. A storage-access error
-     * (the bucket is not reachable via Lamin Hub) is rendered with the connected
-     * account handle so the message is actionable; anything else is logged as-is.
+     * Log a failure from an async artifact-creation task. A permission-denied error
+     * (a 403 from the API) is rendered with the connected account handle so the
+     * message is actionable; anything else is logged as-is.
      */
     private void logArtifactFailure(String context, Exception e) {
-        StorageAccessException sae = findStorageAccessException(e)
-        if (sae != null) {
-            log.error "${context}: ${sae.describe(accountHandle)}"
+        PermissionDeniedException pde = findPermissionDeniedException(e)
+        if (pde != null) {
+            log.error "${context}: ${pde.describe(accountHandle)}"
         } else {
             log.error "${context}: ${e.message}", e
         }
     }
 
-    private static StorageAccessException findStorageAccessException(Throwable t) {
+    private static PermissionDeniedException findPermissionDeniedException(Throwable t) {
         for (Throwable cur = t; cur != null; cur = cur.getCause()) {
-            if (cur instanceof StorageAccessException) {
-                return (StorageAccessException) cur
+            if (cur instanceof PermissionDeniedException) {
+                return (PermissionDeniedException) cur
             }
         }
         return null
