@@ -42,6 +42,7 @@ import ai.lamin.lamin_api_client.ApiException
 import ai.lamin.nf_lamin.hub.LaminHub
 import ai.lamin.nf_lamin.hub.LaminHubSettings
 import ai.lamin.nf_lamin.instance.Instance
+import ai.lamin.nf_lamin.instance.PermissionDeniedException
 import ai.lamin.nf_lamin.hub.InstanceSettings
 import ai.lamin.nf_lamin.model.RunStatus
 import ai.lamin.nf_lamin.nio.LaminPath
@@ -76,6 +77,9 @@ final class LaminRunManager {
     private volatile Map<String, Object> transform
     private volatile Map<String, Object> run
 
+    // Handle of the connected account, captured in testConnection()
+    private volatile String accountHandle
+
     // Cache for Instance objects keyed by "owner/name"
     private final Map<String, Instance> instanceCache = Collections.synchronizedMap(new LinkedHashMap<String, Instance>())
 
@@ -108,6 +112,7 @@ final class LaminRunManager {
         laminInstance = null
         transform = null
         run = null
+        accountHandle = null
         resolvedSpaceId = null
         resolvedBranchId = null
         instanceCache.clear()
@@ -290,6 +295,7 @@ final class LaminRunManager {
         String instanceString = "${laminInstance.getOwner()}/${laminInstance.getName()}"
         try {
             Map account = laminInstance.getAccount()
+            this.accountHandle = account.handle as String
             log.info "→ connected lamindb: '${instanceString}' as '${account.handle}'"
         } catch (ApiException e) {
             log.error "✗ Could not connect lamindb: '${instanceString}'!"
@@ -688,7 +694,7 @@ final class LaminRunManager {
             try {
                 createOutputArtifactOnFilePublish(target, labels)
             } catch (Exception e) {
-                log.error "Failed to create output artifact for ${target}: ${e.message}", e
+                logArtifactFailure("Failed to create output artifact for ${target}", e)
             }
         }
     }
@@ -698,7 +704,7 @@ final class LaminRunManager {
             try {
                 createOutputArtifactOnWorkflowOutput(path, name)
             } catch (Exception e) {
-                log.error "Failed to create output artifact for ${name}: ${e.message}", e
+                logArtifactFailure("Failed to create output artifact for ${name}", e)
             }
         }
     }
@@ -711,9 +717,32 @@ final class LaminRunManager {
                     createInputArtifact(source)
                 }
             } catch (Exception e) {
-                log.error "Failed to create input artifacts for ${taskName}: ${e.message}", e
+                logArtifactFailure("Failed to create input artifacts for ${taskName}", e)
             }
         }
+    }
+
+    /**
+     * Log a failure from an async artifact-creation task. A permission-denied error
+     * (a 403 from the API) is rendered with the connected account handle so the
+     * message is actionable; anything else is logged as-is.
+     */
+    private void logArtifactFailure(String context, Exception e) {
+        PermissionDeniedException pde = findPermissionDeniedException(e)
+        if (pde != null) {
+            log.error "${context}: ${pde.describe(accountHandle)}"
+        } else {
+            log.error "${context}: ${e.message}", e
+        }
+    }
+
+    private static PermissionDeniedException findPermissionDeniedException(Throwable t) {
+        for (Throwable cur = t; cur != null; cur = cur.getCause()) {
+            if (cur instanceof PermissionDeniedException) {
+                return (PermissionDeniedException) cur
+            }
+        }
+        return null
     }
 
     private void submitToExecutor(String description, Runnable task) {

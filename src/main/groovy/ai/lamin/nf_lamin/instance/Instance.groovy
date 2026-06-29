@@ -1127,20 +1127,30 @@ class Instance {
                     log.debug "${errorDesc} - Not retrying. Response: ${e.responseBody}"
                     throw e
                 } else if (e.code == 403) {
-                    // Forbidden (NoWriteAccess)
-                    // Do not retry; permission issue won't resolve with retry
-                    log.debug "${errorDesc} - Not retrying. Response: ${e.responseBody}"
-                    throw e
+                    // Forbidden: the user lacks permission for whatever was attempted
+                    // (NoWriteAccess, or a storage location not accessible via Lamin Hub,
+                    // etc.). Don't retry; surface an actionable message naming the user,
+                    // the operation and its data (the handle is filled in by the caller).
+                    log.debug "${errorDesc} - Not retrying (permission denied). Response: ${e.responseBody}"
+                    throw new PermissionDeniedException(opName, opArgs, e)
                 } else if (e.code == 409) {
                     // Conflict (MultipleResultsFound, UpdateContext, IntegrityError)
                     // Do not retry; data conflict won't resolve with retry
                     log.debug "${errorDesc} - Not retrying. Response: ${e.responseBody}"
                     throw e
                 } else if (e.code >= 500 && isPermanentServerError(e)) {
-                    // Permanent server error (e.g. FileNotFoundError, UnknownStorageLocation)
+                    // Permanent server error (e.g. UnknownStorageLocation, BlobHashNotFound)
                     // Do not retry; the error indicates a permanent condition, not a transient failure
                     log.debug "${errorDesc} - Not retrying (permanent server error). Response: ${e.responseBody}"
                     throw e
+                } else if (e.code >= 500 && isLegacyPermissionError(e)) {
+                    // Transitional: before laminhub#5363 maps permission failures to a 403,
+                    // they surface as a 5xx whose body names the underlying error (e.g.
+                    // "PermissionError: Forbidden" or "FileNotFoundError: s3://..."). Treat
+                    // those the same as a 403 so the user still gets an actionable message.
+                    // Remove once the API reliably returns 403 for this case.
+                    log.debug "${errorDesc} - Not retrying (permission denied). Response: ${e.responseBody}"
+                    throw new PermissionDeniedException(opName, opArgs, e)
                 } else if (retries < this.maxRetries) {
                     // Retry for 5xx server errors and other unexpected errors.
                     // Use exponential backoff with full jitter so that a burst of
@@ -1183,9 +1193,24 @@ class Instance {
      */
     protected static boolean isPermanentServerError(ApiException e) {
         String body = e.responseBody ?: ''
-        return body.contains('FileNotFoundError') ||
-               body.contains('UnknownStorageLocation') ||
+        return body.contains('UnknownStorageLocation') ||
                body.contains('BlobHashNotFound')
+    }
+
+    /**
+     * Transitional: before laminhub#5363 maps permission failures to a 403, they
+     * surface as a 5xx whose body names the underlying error. Detect those by body so
+     * they can be treated like a 403. Observed current bodies include
+     * "... -- PermissionError: Forbidden" and "... -- FileNotFoundError: s3://...".
+     * Remove once the API reliably returns 403 for this case.
+     */
+    protected static boolean isLegacyPermissionError(ApiException e) {
+        String body = e.responseBody ?: ''
+        return body.contains('PermissionError') ||
+               body.contains('AccessDenied') ||
+               body.contains('Forbidden') ||
+               body.contains('FileNotFoundError') ||
+               body.toLowerCase().contains('permission denied')
     }
 
     protected Map getStorage(Integer id) throws ApiException {
