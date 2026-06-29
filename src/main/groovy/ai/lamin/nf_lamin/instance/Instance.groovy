@@ -1136,8 +1136,15 @@ class Instance {
                     // Do not retry; data conflict won't resolve with retry
                     log.debug "${errorDesc} - Not retrying. Response: ${e.responseBody}"
                     throw e
+                } else if (e.code >= 500 && isFileNotFoundError(e)) {
+                    // The API backend could not read the artifact's file in its storage
+                    // location. This almost always means the storage bucket is not
+                    // accessible via Lamin Hub for this user, rather than a transient
+                    // server fault, so surface an actionable message instead of retrying.
+                    log.debug "${errorDesc} - Not retrying (storage not accessible). Response: ${e.responseBody}"
+                    throw StorageAccessException.fromResponseBody(e.responseBody, e)
                 } else if (e.code >= 500 && isPermanentServerError(e)) {
-                    // Permanent server error (e.g. FileNotFoundError, UnknownStorageLocation)
+                    // Permanent server error (e.g. UnknownStorageLocation, BlobHashNotFound)
                     // Do not retry; the error indicates a permanent condition, not a transient failure
                     log.debug "${errorDesc} - Not retrying (permanent server error). Response: ${e.responseBody}"
                     throw e
@@ -1186,6 +1193,15 @@ class Instance {
         return body.contains('FileNotFoundError') ||
                body.contains('UnknownStorageLocation') ||
                body.contains('BlobHashNotFound')
+    }
+
+    /**
+     * Returns true if a 5xx ApiException is a backend FileNotFoundError, which on
+     * artifact creation indicates the file's storage bucket is not accessible via
+     * Lamin Hub for this user (rather than the file truly being absent).
+     */
+    protected static boolean isFileNotFoundError(ApiException e) {
+        return (e.responseBody ?: '').contains('FileNotFoundError')
     }
 
     protected Map getStorage(Integer id) throws ApiException {
