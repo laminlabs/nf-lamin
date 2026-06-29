@@ -43,6 +43,7 @@ nextflow run <your-pipeline> -c lamin.config
 
 | nf-lamin  | LaminDB       | Nextflow   | Status         | Key Features                                                                    |
 | --------- | ------------- | ---------- | -------------- | ------------------------------------------------------------------------------- |
+| **0.8.3** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Make API interactions configurable and more robust, clearer permission errors   |
 | **0.8.2** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Parallellized artifact creation                                                 |
 | **0.8.1** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Improved trace logging                                                          |
 | **0.8.0** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Support for Nextflow 26.04, fix key resolution, deprecate uploading local paths |
