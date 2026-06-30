@@ -870,8 +870,8 @@ class Instance {
         }
 
         // Do call
-        Map<String, Object> response = callApi("POST createArtifact", "${body.toJson()}") { String accessToken ->
-            this.artifactsApi.createArtifactInstancesInstanceIdArtifactsCreatePost(
+        Map<String, Object> response = callApi("POST createArtifactSqlAsync", "${body.toJson()}") { String accessToken ->
+            this.artifactsApi.createArtifactSqlAsyncInstancesInstanceIdArtifactsCreateSqlAsyncPost(
                 this.settings.id,
                 body,
                 null,
