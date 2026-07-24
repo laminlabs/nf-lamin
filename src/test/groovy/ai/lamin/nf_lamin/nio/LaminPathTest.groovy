@@ -573,12 +573,42 @@ class LaminPathTest extends Specification {
 
     // ==================== toRealPath Tests ====================
 
-    def "toRealPath should return self"() {
+    def "toRealPath should resolve to the underlying storage path"() {
+        given:
+        def path = createPath('lamin://laminlabs/lamindata/artifact/uid123')
+        def storagePath = java.nio.file.Paths.get('/storage/.lamindb/uid123.csv')
+
+        when:
+        def result = path.toRealPath()
+
+        then:
+        1 * provider.resolveToUnderlyingPath(path) >> storagePath
+        result.is(storagePath)
+    }
+
+    def "toRealPath with NOFOLLOW_LINKS should return self"() {
         given:
         def path = createPath('lamin://laminlabs/lamindata/artifact/uid123')
 
-        expect:
-        path.toRealPath().is(path)
+        when:
+        def result = path.toRealPath(java.nio.file.LinkOption.NOFOLLOW_LINKS)
+
+        then:
+        0 * provider.resolveToUnderlyingPath(_)
+        result.is(path)
+    }
+
+    def "toRealPath should wrap resolution failures in IOException"() {
+        given:
+        def path = createPath('lamin://laminlabs/lamindata/artifact/uid123')
+        provider.resolveToUnderlyingPath(path) >> { throw new IllegalStateException('LaminRunManager not initialized') }
+
+        when:
+        path.toRealPath()
+
+        then:
+        def e = thrown(IOException)
+        e.cause instanceof IllegalStateException
     }
 
     // ==================== toFile Tests ====================

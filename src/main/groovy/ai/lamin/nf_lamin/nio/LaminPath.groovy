@@ -361,10 +361,27 @@ final class LaminPath implements Path {
         return this
     }
 
+    /**
+     * Resolve this lamin:// path to its underlying storage path, like a symlink
+     * resolving to its target (see {@link #resolveToStorage()}). With
+     * {@link LinkOption#NOFOLLOW_LINKS} the path is returned as-is.
+     *
+     * @throws IOException if the artifact cannot be resolved
+     */
     @Override
     Path toRealPath(LinkOption... options) throws IOException {
-        // Return self - the "real" path is resolved at file operation time
-        return this
+        if (options.contains(LinkOption.NOFOLLOW_LINKS)) {
+            return this
+        }
+        try {
+            return resolveToStorage()
+        }
+        catch (IOException e) {
+            throw e
+        }
+        catch (Exception e) {
+            throw new IOException("Cannot resolve ${toUriString()} to its underlying storage path", e)
+        }
     }
 
     @Override
