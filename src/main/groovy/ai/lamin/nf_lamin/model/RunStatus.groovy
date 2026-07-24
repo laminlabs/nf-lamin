@@ -11,8 +11,10 @@ import groovy.transform.CompileStatic
  * RESTARTED: For workflow restarts (future use)
  * STARTED: When workflow begins execution (onFlowBegin)
  * COMPLETED: When workflow completes successfully (after onFlowComplete, and session.isSuccess())
- * ERRORED: When workflow encounters an error (after onFlowError, and !session.isSuccess() && !session.isCancelled())
- * ABORTED: When workflow is aborted/cancelled (after onFlowError, and !session.isSuccess() && session.isCancelled())
+ * ERRORED: When workflow encounters an error (after onFlowError, and not successful nor cancelled)
+ * ABORTED: When workflow is cancelled by the user, either via session.isCancelled() or a
+ *          termination signal (SIGTERM/SIGINT) that aborts the session with an AbortSignalException,
+ *          e.g. cancelling a run from Seqera Platform or pressing Ctrl+C locally
  */
 @CompileStatic
 enum RunStatus {

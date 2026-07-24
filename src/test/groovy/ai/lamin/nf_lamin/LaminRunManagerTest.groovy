@@ -1,6 +1,9 @@
 package ai.lamin.nf_lamin
 
 import ai.lamin.nf_lamin.instance.Instance
+import ai.lamin.nf_lamin.model.RunStatus
+import nextflow.Session
+import nextflow.exception.AbortSignalException
 import spock.lang.Specification
 
 import java.lang.reflect.Field
@@ -8,6 +11,7 @@ import java.net.URI
 import java.nio.file.Path
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import sun.misc.Signal
 
 class LaminRunManagerTest extends Specification {
 
@@ -141,5 +145,28 @@ class LaminRunManagerTest extends Specification {
 
         cleanup:
         releaseWorker.countDown()
+    }
+
+    def 'determineRunStatus maps session state to run status'() {
+        given:
+        def manager = LaminRunManager.instance
+        def session = Stub(Session) {
+            isSuccess() >> success
+            isCancelled() >> cancelled
+            getError() >> error
+        }
+        injectField(manager, 'session', session)
+
+        expect:
+        manager.determineRunStatus() == expected
+
+        where:
+        scenario                       | success | cancelled | error                                          || expected
+        'successful run'               | true    | false     | null                                           || RunStatus.COMPLETED
+        'graceful cancel flag'         | false   | true      | null                                           || RunStatus.ABORTED
+        'SIGTERM from Seqera cancel'   | false   | false     | new AbortSignalException(new Signal('TERM'))   || RunStatus.ABORTED
+        'SIGINT from local Ctrl+C'     | false   | false     | new AbortSignalException(new Signal('INT'))    || RunStatus.ABORTED
+        'task failure'                 | false   | false     | new RuntimeException('task failed')            || RunStatus.ERRORED
+        'error without cause'          | false   | false     | null                                           || RunStatus.ERRORED
     }
 }

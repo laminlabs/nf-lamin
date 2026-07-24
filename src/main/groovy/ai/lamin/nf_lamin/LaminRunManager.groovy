@@ -35,6 +35,7 @@ import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import nextflow.Const
 import nextflow.Session
+import nextflow.exception.AbortSignalException
 import nextflow.file.FileHelper
 import nextflow.script.WorkflowMetadata
 
@@ -599,6 +600,11 @@ final class LaminRunManager {
         if (session.isSuccess()) {
             return RunStatus.COMPLETED
         } else if (session.isCancelled()) {
+            return RunStatus.ABORTED
+        } else if (session.getError() instanceof AbortSignalException) {
+            // Sometimes a Ctrl+C or a cancellation from Seqera Platform might reach
+            // Nextflow as an AbortSignalException rather than setting the cancelled flag.
+            log.info "Run was cancelled by a termination signal (${session.getError().message}); marking run as aborted"
             return RunStatus.ABORTED
         } else {
             return RunStatus.ERRORED
