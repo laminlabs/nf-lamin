@@ -192,6 +192,19 @@ class LaminConfig implements ConfigScope {
      * @param opts the configuration options map
      */
     LaminConfig(Map opts) {
+        this(opts, true)
+    }
+
+    /**
+     * Configuration for Lamin API integration.
+     *
+     * @param opts     the configuration options map
+     * @param validate when false, skip validation of {@code instance}/{@code api_key}.
+     *                 Used for lamin:// URI resolution, where the instance comes from the
+     *                 URI and credentials may be absent (anonymous access to public
+     *                 instances).
+     */
+    LaminConfig(Map opts, boolean validate) {
         // Extract values from map or environment variables
         // Use containsKey to distinguish between "not provided" vs "explicitly null/empty"
         this.instance = opts.containsKey('instance') ? opts.instance : System.getenv('LAMIN_CURRENT_INSTANCE')
@@ -226,7 +239,9 @@ class LaminConfig implements ConfigScope {
         // Parse feature flags
         this.features = opts.containsKey('features') ? new FeaturesConfig(opts.features as Map) : new FeaturesConfig()
 
-        validateConfiguration()
+        if (validate) {
+            validateConfiguration()
+        }
     }
 
     /**
@@ -444,6 +459,35 @@ class LaminConfig implements ConfigScope {
      */
     static LaminConfig parseConfig(Map configMap) {
         return new LaminConfig(configMap)
+    }
+
+    /**
+     * Whether run tracking is configured for this session.
+     *
+     * Tracking requires a target instance, either from the {@code lamin.instance} config
+     * option or the {@code LAMIN_CURRENT_INSTANCE} environment variable. When absent, the
+     * plugin still resolves lamin:// URIs but does not create Transform/Run records.
+     *
+     * @param session the Nextflow session
+     * @return true if an instance is configured
+     */
+    static boolean isTrackingConfigured(Session session) {
+        Map configMap = session?.config?.lamin as Map ?: [:]
+        return (configMap.instance ?: System.getenv('LAMIN_CURRENT_INSTANCE')) as boolean
+    }
+
+    /**
+     * Parse configuration for lamin:// URI resolution, without requiring a configured
+     * instance or API key. Reads any {@code lamin { }} config block from the session
+     * (falling back to environment variables and defaults) so that credentials are
+     * picked up when available, while allowing anonymous access when they are not.
+     *
+     * @param session the Nextflow session, or {@code null} if unavailable
+     * @return a LaminConfig that has not been validated
+     */
+    static LaminConfig parseConfigForResolution(Session session) {
+        Map configMap = session?.config?.lamin as Map ?: [:]
+        return new LaminConfig(configMap, false)
     }
 
     /**

@@ -41,7 +41,7 @@ import nextflow.file.FileSystemTransferAware
 import nextflow.file.CopyOptions
 
 import ai.lamin.nf_lamin.LaminConfig
-import ai.lamin.nf_lamin.LaminRunManager
+import ai.lamin.nf_lamin.LaminConnection
 import ai.lamin.nf_lamin.hub.CloudAccessResponse
 import ai.lamin.nf_lamin.hub.LaminHub
 import ai.lamin.nf_lamin.instance.Instance
@@ -53,8 +53,10 @@ import ai.lamin.nf_lamin.instance.Instance
  * storage paths (S3, GCS, local) and delegating file operations to the
  * appropriate underlying provider.
  *
- * This provider reuses the LaminHub and Instance clients from LaminRunManager
- * to avoid creating duplicate connections and to share configuration.
+ * This provider obtains LaminHub and Instance clients from {@link LaminConnection},
+ * which shares the authenticated connection with run tracking when a run is active and
+ * otherwise builds an anonymous-capable connection so that lamin:// URIs can be resolved
+ * with nothing more than {@code -plugins nf-lamin}.
  */
 @Slf4j
 @CompileStatic
@@ -71,25 +73,15 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
 
     /**
      * Get an Instance client for a specific LaminDB instance.
-     * Delegates to LaminRunManager which manages the hub and instance cache.
+     * Delegates to {@link LaminConnection}, which shares the hub and instance cache with
+     * run tracking when active and otherwise builds an anonymous-capable connection.
      *
      * @param owner The instance owner
      * @param name The instance name
      * @return The Instance client
-     * @throws IllegalStateException if LaminRunManager is not initialized
      */
     Instance getInstance(String owner, String name) {
-        LaminRunManager manager = LaminRunManager.getInstance()
-
-        // Check if the manager has been initialized with a hub
-        if (manager.getHub() == null) {
-            throw new IllegalStateException(
-                "LaminRunManager not initialized. Ensure the lamin plugin is configured with an API key " +
-                "and the workflow has started before using lamin:// URIs."
-            )
-        }
-
-        return manager.getInstance(owner, name)
+        return LaminConnection.getInstance().getInstance(owner, name)
     }
 
     /**
@@ -203,7 +195,7 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
 
         // Attempt credential federation for Lamin-managed S3 storage
         if (storageRoot?.startsWith('s3://')) {
-            LaminConfig config = LaminRunManager.getInstance().getConfig()
+            LaminConfig config = LaminConnection.getInstance().getConfig()
             boolean manageCredentials = config?.features?.manage_s3_credentials != false
             if (manageCredentials) {
                 Path managed = tryResolveWithManagedS3Credentials(laminPath, storageRoot, artifactKey)
@@ -262,7 +254,7 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
      */
     private Path tryResolveWithManagedS3Credentials(LaminPath laminPath, String storageRoot, String artifactKey) {
         try {
-            LaminHub hub = LaminRunManager.getInstance().getHub()
+            LaminHub hub = LaminConnection.getInstance().getHub()
             if (hub == null) {
                 return null
             }

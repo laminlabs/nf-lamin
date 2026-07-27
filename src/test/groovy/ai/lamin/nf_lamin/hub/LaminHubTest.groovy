@@ -59,9 +59,25 @@ class LaminHubTest extends Specification {
         'anonKey'   | "https://api.test.com"  | null           | "api-key"      | "Anonymous Key cannot be null or empty"
         'anonKey'   | "https://api.test.com"  | ""             | "api-key"      | "Anonymous Key cannot be null or empty"
         'anonKey'   | "https://api.test.com"  | "  "           | "api-key"      | "Anonymous Key cannot be null or empty"
-        'apiKey'    | "https://api.test.com"  | "anon-key"     | null           | "API Key cannot be null or empty"
-        'apiKey'    | "https://api.test.com"  | "anon-key"     | ""             | "API Key cannot be null or empty"
-        'apiKey'    | "https://api.test.com"  | "anon-key"     | "  "           | "API Key cannot be null or empty"
+    }
+
+    @Unroll
+    def "should operate anonymously when apiKey is '#apiKey'"() {
+        when:
+        def hub = new LaminHub("https://api.test.com", "anon-key", apiKey)
+
+        then:
+        hub.anonymous
+        // In anonymous mode the anon key doubles as the bearer token.
+        hub.getAccessToken() == "anon-key"
+
+        where:
+        apiKey << [null, "", "  "]
+    }
+
+    def "should not be anonymous when an apiKey is supplied"() {
+        expect:
+        !new LaminHub("https://api.test.com", "anon-key", "api-key").anonymous
     }
 
     def "should handle proper initialization"() {

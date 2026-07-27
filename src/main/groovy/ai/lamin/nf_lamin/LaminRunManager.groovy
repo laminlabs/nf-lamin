@@ -81,9 +81,6 @@ final class LaminRunManager {
     // Handle of the connected account, captured in testConnection()
     private volatile String accountHandle
 
-    // Cache for Instance objects keyed by "owner/name"
-    private final Map<String, Instance> instanceCache = Collections.synchronizedMap(new LinkedHashMap<String, Instance>())
-
     // Cached resolved space and branch IDs (resolved once at initialization)
     private volatile Integer resolvedSpaceId
     private volatile Integer resolvedBranchId
@@ -116,7 +113,7 @@ final class LaminRunManager {
         accountHandle = null
         resolvedSpaceId = null
         resolvedBranchId = null
-        instanceCache.clear()
+        LaminConnection.getInstance().reset()
         recordResolutionCache.clear()
         publishedArtifactsByPath.clear()
         artifactExecutor = createArtifactExecutor(ApiConfig.DEFAULT_MAX_WORKERS)
@@ -149,19 +146,7 @@ final class LaminRunManager {
      * @return An Instance object, either from cache or newly created
      */
     Instance getInstance(String instanceOwner, String instanceName) {
-        String cacheKey = "${instanceOwner}/${instanceName}"
-
-        return instanceCache.computeIfAbsent(cacheKey) { key ->
-            log.debug("Creating new Instance for ${key}")
-            InstanceSettings settings = hub.getInstanceSettings(instanceOwner, instanceName)
-            return new Instance(
-                hub,
-                settings,
-                config.apiConfig.maxRetries,
-                config.apiConfig.retryDelay,
-                config.apiConfig.maxRetryDelay
-            )
-        }
+        return LaminConnection.getInstance().getInstance(instanceOwner, instanceName)
     }
 
     /**
@@ -240,6 +225,10 @@ final class LaminRunManager {
             resolvedConfig.supabaseAnonKey,
             config.apiKey
         )
+
+        // Share the authenticated hub with the lamin:// file-system provider so that
+        // artifact resolution reuses this connection and its instance cache.
+        LaminConnection.getInstance().register(config, hub)
 
         log.debug 'Creating Lamin Instance client'
         this.laminInstance = getInstance(config.instanceOwner, config.instanceName)
