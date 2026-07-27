@@ -478,4 +478,44 @@ class LaminConfigTest extends Specification {
         str.contains("space_uid='!my-space'")
         str.contains("branch_uid='+my-branch'")
     }
+
+    def "lenient constructor skips instance and api_key validation"() {
+        when:
+        // Explicit null values so the result does not depend on ambient env vars.
+        def config = new LaminConfig([instance: null, api_key: null], false)
+
+        then:
+        noExceptionThrown()
+        config.instance == null
+        config.apiKey == null
+    }
+
+    def "validating constructor still rejects a missing instance"() {
+        when:
+        new LaminConfig([instance: null, api_key: 'k'], true)
+
+        then:
+        thrown(IllegalArgumentException)
+    }
+
+    def "isTrackingConfigured is false without an instance"() {
+        given:
+        def session = Stub(nextflow.Session) {
+            getConfig() >> [:]
+        }
+
+        expect:
+        !LaminConfig.isTrackingConfigured(session)
+        !LaminConfig.isTrackingConfigured(null)
+    }
+
+    def "isTrackingConfigured is true when an instance is configured"() {
+        given:
+        def session = Stub(nextflow.Session) {
+            getConfig() >> [lamin: [instance: 'owner/repo']]
+        }
+
+        expect:
+        LaminConfig.isTrackingConfigured(session)
+    }
 }

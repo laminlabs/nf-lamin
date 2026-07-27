@@ -41,6 +41,7 @@ class LaminObserver implements TraceObserverV2 {
 
     private final LaminRunManager state = LaminRunManager.instance
     private volatile boolean runFinalized = false
+    private volatile boolean trackingEnabled = false
 
     /**
      * Called once when the Nextflow session is created, before any process runs.
@@ -53,9 +54,20 @@ class LaminObserver implements TraceObserverV2 {
     @Override
     void onFlowCreate(Session session) {
         log.debug "LaminObserver.onFlowCreate"
+
+        // Run tracking is optional. When no instance is configured, the plugin is present
+        // only to resolve lamin:// URIs, so skip run tracking instead of failing the run.
+        if (!LaminConfig.isTrackingConfigured(session)) {
+            log.debug "nf-lamin: no instance configured; run tracking disabled (lamin:// URIs can still be resolved)"
+            trackingEnabled = false
+            runFinalized = true
+            return
+        }
+
         try {
             state.initializeRunManager(session)
             state.initializeRun()
+            trackingEnabled = true
             runFinalized = false
         } catch (Exception e) {
             log.error "Could not initialize Lamin run: ${e.message}"
@@ -73,6 +85,7 @@ class LaminObserver implements TraceObserverV2 {
     @Override
     void onFlowBegin() {
         log.debug "LaminObserver.onFlowBegin"
+        if (!trackingEnabled) return
         state.startRun()
         state.processConfigPathsAsync('input')
     }
@@ -96,6 +109,7 @@ class LaminObserver implements TraceObserverV2 {
     @Override
     void onFilePublish(FilePublishEvent event) {
         log.debug "LaminObserver.onFilePublish: ${event.source} -> ${event.target}"
+        if (!trackingEnabled) return
         state.createOutputArtifactOnFilePublishAsync(event.target, event.labels)
     }
 
@@ -119,6 +133,7 @@ class LaminObserver implements TraceObserverV2 {
     @Override
     void onWorkflowOutput(WorkflowOutputEvent event) {
         log.debug "LaminObserver.onWorkflowOutput: ${event.name} = ${event.value}"
+        if (!trackingEnabled) return
         if (event.value instanceof Path) {
             state.createOutputArtifactOnWorkflowOutputAsync((Path) event.value, event.name)
         } else if (event.value instanceof Collection) {
@@ -143,6 +158,7 @@ class LaminObserver implements TraceObserverV2 {
      */
     @Override
     void onTaskComplete(TaskEvent event) {
+        if (!trackingEnabled) return
         TaskRun task = event.handler.task
         List<FileHolder> inputFiles = task.getInputFiles()
 
