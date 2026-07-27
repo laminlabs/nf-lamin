@@ -40,7 +40,7 @@ class LaminHubConfigResolverTest extends Specification {
         then:
         resolved.env == env
         resolved.supabaseApiUrl == expectedApiUrl
-        resolved.supabaseAnonKey.startsWith('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9')
+        resolved.supabaseAnonKey.startsWith('sb_publishable_')
         resolved.webUrl == expectedWebUrl
 
         where:
@@ -63,7 +63,7 @@ class LaminHubConfigResolverTest extends Specification {
 
         then:
         resolved.supabaseApiUrl == 'https://hub.lamin.ai'
-        resolved.supabaseAnonKey == 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhZXNhdW1tZHlkbGxwcGdmY2h1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2NTY4NDA1NTEsImV4cCI6MTk3MjQxNjU1MX0.WUeCRiun0ExUxKIv5-CtjF6878H8u26t0JmCWx3_2-c'
+        resolved.supabaseAnonKey == 'sb_publishable_YVa4h8hQ-yBhXpfa2cP39w_PhoLW6Nu'
         resolved.webUrl == 'https://lamin.ai'
     }
 

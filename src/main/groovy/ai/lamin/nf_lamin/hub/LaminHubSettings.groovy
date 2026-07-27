@@ -26,26 +26,28 @@ import ai.lamin.nf_lamin.LaminConfig
 @CompileStatic
 class LaminHubSettings {
 
+    // Publishable anon keys for anonymous access to public instances. These mirror the
+    // `sb_publishable_*` keys used by lamindb-setup (core/_hub_client.py).
     private static final Map<String, Map<String, String>> HUB_LOOKUP = [
         prod: [
             webUrl: 'https://lamin.ai',
             apiUrl: 'https://hub.lamin.ai',
-            anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxhZXNhdW1tZHlkbGxwcGdmY2h1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2NTY4NDA1NTEsImV4cCI6MTk3MjQxNjU1MX0.WUeCRiun0ExUxKIv5-CtjF6878H8u26t0JmCWx3_2-c'
+            anonKey: 'sb_publishable_YVa4h8hQ-yBhXpfa2cP39w_PhoLW6Nu'
         ],
         staging: [
             webUrl: 'https://staging.laminhub.com',
             apiUrl: 'https://amvrvdwndlqdzgedrqdv.supabase.co',
-            anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFtdnJ2ZHduZGxxZHpnZWRycWR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2NzcxNTcxMzMsImV4cCI6MTk5MjczMzEzM30.Gelt3dQEi8tT4j-JA36RbaZuUvxRnczvRr3iyRtzjY0'
+            anonKey: 'sb_publishable_amVjtilv_Yj4VmGLmxtq6A_sYlLoQx5'
         ],
         'staging-test': [
             webUrl: 'https://staging-test.laminhub.com',
             apiUrl: 'https://iugyyajllqftbpidapak.supabase.co',
-            anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1Z3l5YWpsbHFmdGJwaWRhcGFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTQyMjYyODMsImV4cCI6MjAwOTgwMjI4M30.s7B0gMogFhUatMSwlfuPJ95kWhdCZMn1ROhZ3t6Og90'
+            anonKey: 'sb_publishable_XmXroXqTLQw-eeT5kysCww_k8vJv-4L'
         ],
         'prod-test': [
             webUrl: 'https://prod-test.laminhub.com',
             apiUrl: 'https://xtdacpwiqwpbxsatoyrv.supabase.co',
-            anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0ZGFjcHdpcXdwYnhzYXRveXJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE2OTQyMjYxNDIsImV4cCI6MjAwOTgwMjE0Mn0.Dbi27qujTt8Ei9gfp9KnEWTYptE5KUbZzEK6boL46k4'
+            anonKey: 'sb_publishable_G-pyO5aW6VFErTzJyVvM5w_NAv1_Mf7'
         ]
     ]
 

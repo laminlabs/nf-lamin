@@ -34,7 +34,7 @@ class LaminHubLookupTest extends Specification {
         settings.webUrl == expectedWebUrl
         settings.supabaseApiUrl == expectedApiUrl
         settings.supabaseAnonKey != null
-        settings.supabaseAnonKey.startsWith('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9')
+        settings.supabaseAnonKey.startsWith('sb_publishable_')
 
         where:
         env            | expectedWebUrl                      | expectedApiUrl
@@ -85,14 +85,14 @@ class LaminHubLookupTest extends Specification {
         ''             | false
     }
 
-    def "should have consistent JWT token format for all environments"() {
+    def "should have consistent publishable anon key format for all environments"() {
         when:
         def allEnvs = LaminHubSettings.getAvailableEnvironments()
 
         then:
         allEnvs.every { env ->
             def settings = LaminHubSettings.resolve(new ai.lamin.nf_lamin.LaminConfig([instance: 'o/r', api_key: 'k', env: env]))
-            settings.supabaseAnonKey.startsWith('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9')
+            settings.supabaseAnonKey.startsWith('sb_publishable_')
         }
     }
 }
