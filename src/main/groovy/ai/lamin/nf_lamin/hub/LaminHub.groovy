@@ -27,14 +27,21 @@ class LaminHub {
     private final String apiUrl
     // The Supabase Anon Key for the LaminHub API
     private final String anonKey
-    // The API key for the user
+    // The API key for the user (null/empty for anonymous access)
     private final String apiKey
+    // Whether this hub operates without user credentials (public/anonymous access)
+    private final boolean anonymous
     // The JWT access token fetched from the API
     private String accessToken
 
     /**
      * Constructor.
-     * @param apiKey The user's LaminHub API Key.
+     *
+     * @param apiUrl  The LaminHub API URL.
+     * @param anonKey The Supabase publishable/anon key for the environment.
+     * @param apiKey  The user's LaminHub API Key. When null or empty the hub operates
+     *                anonymously, using the anon key as the bearer token -- sufficient to
+     *                read public instances (e.g. {@code laminlabs/lamindata}).
      */
     LaminHub(String apiUrl, String anonKey, String apiKey) {
         if (!apiUrl?.trim()) {
@@ -43,13 +50,19 @@ class LaminHub {
         if (!anonKey?.trim()) {
             throw new IllegalArgumentException('Anonymous Key cannot be null or empty.')
         }
-        if (!apiKey?.trim()) {
-            throw new IllegalArgumentException('API Key cannot be null or empty.')
-        }
         this.apiUrl = apiUrl
         this.anonKey = anonKey
         this.apiKey = apiKey
+        this.anonymous = !apiKey?.trim()
         this.accessToken = null
+    }
+
+    /**
+     * Whether this hub operates anonymously (no user API key).
+     * @return true if no API key was supplied
+     */
+    boolean isAnonymous() {
+        return this.anonymous
     }
 
     /**
@@ -80,6 +93,10 @@ class LaminHub {
      * @throws RuntimeException If the API call fails or the token cannot be fetched.
      */
     String getAccessToken() {
+        if (this.anonymous) {
+            // Anonymous access: the anon key doubles as the bearer token.
+            return this.anonKey
+        }
         if (this.accessToken == null) {
             log.debug('Fetching access token')
             updateAccessToken()
@@ -94,6 +111,10 @@ class LaminHub {
      * @throws RuntimeException If the API call fails or the token cannot be refreshed.
      */
     void refreshAccessToken() {
+        if (this.anonymous) {
+            // Nothing to refresh in anonymous mode; the anon key is used directly.
+            return
+        }
         log.debug('Refreshing access token')
         updateAccessToken()
     }

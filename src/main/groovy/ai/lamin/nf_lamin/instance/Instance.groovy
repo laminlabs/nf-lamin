@@ -1067,10 +1067,15 @@ class Instance {
 
     // ------------------- PRIVATE METHODS -------------------
     /**
-     * Get the bearer token for authentication.
-     * @return the bearer token
+     * Get the bearer token for authenticating instance API requests, or {@code null} for
+     * anonymous access. The instance API treats a missing Authorization header as
+     * anonymous (public reads), whereas the publishable anon key is rejected here; the
+     * generated client omits the header when this is null.
      */
     protected String getBearerToken() {
+        if (this.hub.isAnonymous()) {
+            return null
+        }
         return 'Bearer ' + this.hub.getAccessToken()
     }
 
