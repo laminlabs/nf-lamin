@@ -78,6 +78,14 @@ class Instance {
         this.apiClient.setConnectTimeout(30000)
         this.apiClient.setWriteTimeout(30000)
 
+        // Authenticate via the LaminAccessToken bearer scheme. The supplier is invoked
+        // per request, so hub-side token refreshes are picked up automatically. A null
+        // token omits the Authorization header, which the instance API treats as
+        // anonymous access (public reads); the publishable anon key is rejected here.
+        this.apiClient.setBearerToken({
+            this.hub.isAnonymous() ? null : this.hub.getAccessToken()
+        } as java.util.function.Supplier<String>)
+
         // Initialize the specialized API instances
         this.accountsApi = new AccountsApi(this.apiClient)
         this.artifactsApi = new InstanceArtifactsApi(this.apiClient)
@@ -153,33 +161,30 @@ class Instance {
      * @return the instance statistics
      * @throws ApiException if an error occurs while fetching the statistics
      */
-    Object getInstanceStatistics() throws ApiException {
-        Object response = callApi("GET getInstanceStatistics") { String accessToken ->
+    StatisticsResponse getInstanceStatistics() throws ApiException {
+        return callApi("GET getInstanceStatistics") {
             this.statisticsApi.getInstanceStatisticsInstancesInstanceIdStatisticsGet(
                 this.settings.id,
                 [],
-                null,
-                accessToken
+                null
             )
         }
-        return response
     }
 
     /**
      * Get the non-empty tables from the Lamin API.
-     * @return a Map containing the non-empty tables
+     * @return a Map of module name to the list of non-empty table names
      * @throws ApiException if an error occurs while fetching the non-empty tables
      */
-    Map getNonEmptyTables() throws ApiException {
-        Map response = callApi("GET getNonEmptyTables") { String accessToken ->
+    Map<String, List<String>> getNonEmptyTables() throws ApiException {
+        NonEmptyTablesResponse response = callApi("GET getNonEmptyTables") {
             this.statisticsApi.getNonEmptyTablesInstancesInstanceIdNonEmptyTablesGet(
                 this.settings.id,
-                null,
-                accessToken
+                null
             )
-        } as Map
+        }
 
-        return response
+        return response?.getNonEmptyTables()
     }
 
     /**
@@ -190,11 +195,10 @@ class Instance {
      * @throws ApiException if an error occurs while fetching the schema
      */
     Map getSchema() throws ApiException {
-        Map response = callApi("GET getSchema") { String accessToken ->
+        Map response = callApi("GET getSchema") {
             this.schemaApi.getSchemaInstancesInstanceIdSchemaGet(
                 this.settings.id,
-                null,
-                accessToken
+                null
             )
         } as Map
         return response
@@ -234,7 +238,7 @@ class Instance {
         )
 
         // Do call
-        Map response = callApi("POST getRecord", "${moduleName}.${modelName}, idOrUid=${idOrUid}") { String accessToken ->
+        Map response = callApi("POST getRecord", "${moduleName}.${modelName}, idOrUid=${idOrUid}") {
             this.recordsApi.getRecordInstancesInstanceIdModulesModuleNameModelNameIdOrUidPost(
                 moduleName,
                 modelName,
@@ -243,7 +247,6 @@ class Instance {
                 limitToMany,
                 includeForeignKeys,
                 null,
-                accessToken,
                 body
             ) as Map
         }
@@ -295,7 +298,7 @@ class Instance {
         )
 
         // Do call
-        List<Map> response = callApi("POST getRecords", "${moduleName}.${modelName}, filter=${filter}, limit=${limit}, offset=${offset}") { String accessToken ->
+        List<Map> response = callApi("POST getRecords", "${moduleName}.${modelName}, filter=${filter}, limit=${limit}, offset=${offset}") {
             this.recordsApi.getRecordsInstancesInstanceIdModulesModuleNameModelNamePost(
                 moduleName,
                 modelName,
@@ -305,7 +308,6 @@ class Instance {
                 limitToMany,
                 includeForeignKeys,
                 null,
-                accessToken,
                 body
             ) as List<Map>
         }
@@ -334,14 +336,14 @@ class Instance {
         Map data = args.get('data', null) as Map
 
         // Do call
-        List<Map> response = callApi("PUT createRecord", "${moduleName}.${modelName}, data=${data}") { String accessToken ->
+        List<Map> response = callApi("PUT createRecord", "${moduleName}.${modelName}, data=${data}") {
             this.recordsApi.createRecordsInstancesInstanceIdModulesModuleNameModelNamePut(
                 moduleName,
                 modelName,
                 this.settings.id,
                 data,
                 null,
-                accessToken
+                null
             )
         } as List<Map>
         if (response == null || response.isEmpty()) {
@@ -378,15 +380,14 @@ class Instance {
         Map data = args.get('data', null) as Map
 
         // Do call
-        Map response = callApi("PATCH updateRecord", "${moduleName}.${modelName}, uid=${uid}, data=${data}") { String accessToken ->
+        Map response = callApi("PATCH updateRecord", "${moduleName}.${modelName}, uid=${uid}, data=${data}") {
             this.recordsApi.updateRecordInstancesInstanceIdModulesModuleNameModelNameUidPatch(
                 moduleName,
                 modelName,
                 uid,
                 this.settings.id,
                 data,
-                null,
-                accessToken
+                null
             ) as Map
         }
         return response
@@ -413,14 +414,13 @@ class Instance {
         if (!uid) { throw new IllegalStateException('uid is null. Please check the uid.') }
 
         // Do call
-        callApi("DELETE deleteRecord", "${moduleName}.${modelName}, uid=${uid}") { String accessToken ->
+        callApi("DELETE deleteRecord", "${moduleName}.${modelName}, uid=${uid}") {
             this.recordsApi.deleteRecordInstancesInstanceIdModulesModuleNameModelNameUidDelete(
                 moduleName,
                 modelName,
                 uid,
                 this.settings.id,
-                null,
-                accessToken
+                null
             )
         }
         return true
@@ -461,15 +461,14 @@ class Instance {
         List<Map> records = (data instanceof List) ? (data as List<Map>) : [data as Map]
         Body body = new Body(records)
 
-        Object response = callApi("PUT upsertRecord", "${moduleName}.${modelName}, conflictColumns=${conflictColumns}, data=${data}") { String accessToken ->
+        Object response = callApi("PUT upsertRecord", "${moduleName}.${modelName}, conflictColumns=${conflictColumns}, data=${data}") {
             this.recordsApi.upsertRecordsInstancesInstanceIdModulesModuleNameModelNameUpsertPut(
                 moduleName,
                 modelName,
                 this.settings.id,
                 conflictColumns,
                 body,
-                null,
-                accessToken
+                null
             )
         }
         // The endpoint returns a list of full records; normalise to List<Map>.
@@ -514,14 +513,13 @@ class Instance {
         body.setRecords(records)
         body.setIndexColumns(indexColumns)
 
-        List<Map> response = callApi("PATCH batchUpdateRecords", "${moduleName}.${modelName}, indexColumns=${indexColumns}, n=${records.size()}") { String accessToken ->
+        List<Map> response = callApi("PATCH batchUpdateRecords", "${moduleName}.${modelName}, indexColumns=${indexColumns}, n=${records.size()}") {
             this.recordsApi.batchUpdateRecordsInstancesInstanceIdModulesModuleNameModelNameBatchUpdatePatch(
                 moduleName,
                 modelName,
                 this.settings.id,
                 body,
-                null,
-                accessToken
+                null
             ) as List<Map>
         }
         return response == null ? [] : response
@@ -555,15 +553,14 @@ class Instance {
         BatchDeleteBody body = new BatchDeleteBody()
         body.setRecords(records)
 
-        BatchDeleteResponse response = callApi("POST batchDeleteRecords", "${moduleName}.${modelName}, n=${records.size()}") { String accessToken ->
+        BatchDeleteResponse response = callApi("POST batchDeleteRecords", "${moduleName}.${modelName}, n=${records.size()}") {
             this.recordsApi.batchDeleteRecordsInstancesInstanceIdModulesModuleNameModelNameBatchDeletePost(
                 moduleName,
                 modelName,
                 this.settings.id,
                 body,
-                null,
-                accessToken
-            ) as BatchDeleteResponse
+                null
+            )
         }
         return response == null ? 0 : response.getDeletedCount()
     }
@@ -773,16 +770,13 @@ class Instance {
 
     /**
      * Get the account information from the Lamin API.
-     * @return a map containing the account information
+     * @return the caller's account
      * @throws ApiException if an error occurs while fetching the account information
      */
-    Map getAccount() {
-        Map response = callApi("GET getAccount") { String accessToken ->
-            this.accountsApi.getCallerAccountAccountGet(
-                accessToken
-            ) as Map
+    Account getAccount() {
+        return callApi("GET getAccount") {
+            this.accountsApi.getCallerAccountAccountGet()
         }
-        return response
     }
 
     /**
@@ -824,12 +818,11 @@ class Instance {
         }
 
         // Do call
-        Map response = callApi("POST createTransform", "${body.toJson()}") { String accessToken ->
+        Map response = callApi("POST createTransform", "${body.toJson()}") {
             this.transformsApi.createTransformInstancesInstanceIdTransformsPost(
                 this.settings.id,
                 body,
-                null,
-                accessToken
+                null
             ) as Map
         }
 
@@ -870,12 +863,11 @@ class Instance {
         }
 
         // Do call
-        Map<String, Object> response = callApi("POST createArtifact", "${body.toJson()}") { String accessToken ->
+        Map<String, Object> response = callApi("POST createArtifact", "${body.toJson()}") {
             this.artifactsApi.createArtifactInstancesInstanceIdArtifactsCreatePost(
                 this.settings.id,
                 body,
-                null,
-                accessToken
+                null
             ) as Map<String, Object>
         }
 
@@ -897,7 +889,7 @@ class Instance {
     Map getArtifactByPath(String path) {
         if (!path) { throw new IllegalStateException('Path is null or empty. Please check the path.') }
 
-        Map<String, Object> response = callApi("GET getArtifactByPath", "path=${path}") { String accessToken ->
+        Map<String, Object> response = callApi("GET getArtifactByPath", "path=${path}") {
             try {
                 // Inner try-catch is a workaround for older API versions returning 500 instead of 404
                 // when artifact doesn't exist. Newer API versions return 404 directly (handled by callApi).
@@ -906,8 +898,7 @@ class Instance {
                 this.artifactsApi.getArtifactByPathInstancesInstanceIdArtifactsByPathGet(
                     this.settings.id,
                     path,
-                    null,
-                    accessToken
+                    null
                 ) as Map<String, Object>
             } catch (ApiException innerEx) {
                 // Handle 500 with DoesNotExist inside closure to prevent retries (legacy API behavior)
@@ -962,12 +953,11 @@ class Instance {
         String kwargsString = kwargs ? groovy.json.JsonOutput.toJson(kwargs) : '{}'
 
         // Do call
-        Map<String, Object> response = callApi("POST uploadArtifact", "file=${file}, kwargs=${kwargsString}") { String accessToken ->
+        Map<String, Object> response = callApi("POST uploadArtifact", "file=${file}, kwargs=${kwargsString}") {
             this.artifactsApi.uploadArtifactInstancesInstanceIdArtifactsUploadPost(
                 this.settings.id,
                 file,
                 null,
-                accessToken,
                 kwargsString
             ) as Map<String, Object>
         }
@@ -1067,19 +1057,6 @@ class Instance {
 
     // ------------------- PRIVATE METHODS -------------------
     /**
-     * Get the bearer token for authenticating instance API requests, or {@code null} for
-     * anonymous access. The instance API treats a missing Authorization header as
-     * anonymous (public reads), whereas the publishable anon key is rejected here; the
-     * generated client omits the header when this is null.
-     */
-    protected String getBearerToken() {
-        if (this.hub.isAnonymous()) {
-            return null
-        }
-        return 'Bearer ' + this.hub.getAccessToken()
-    }
-
-    /**
      * Call the Lamin API with the provided closure.
      * This method handles token expiration and refreshes the token if necessary.
      * Traces the operation before and after the call, and warns on retries.
@@ -1094,7 +1071,8 @@ class Instance {
      *
      * @param opName  The name of the API operation, e.g. "POST createArtifact"
      * @param opArgs  Optional string describing the key arguments, e.g. "path=s3://bucket/key"
-     * @param closure The closure to call with the access token
+     * @param closure The closure performing the API call (auth is applied by the client's
+     *                bearer-token supplier, see the constructor)
      * @return the result of the closure call
      * @throws ApiException if an error occurs while calling the API
      */
@@ -1104,10 +1082,9 @@ class Instance {
         Integer retries = 0
         boolean tokenRefreshed = false
         while (true) {
-            String accessToken = getBearerToken()
             log.trace fullDesc
             try {
-                T result = closure.call(accessToken)
+                T result = closure.call()
                 log.trace "[${callId}] response: ${result}"
                 return result
             } catch (ApiException e) {
