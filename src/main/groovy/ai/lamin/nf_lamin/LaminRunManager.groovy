@@ -1003,29 +1003,37 @@ final class LaminRunManager {
             return
         }
 
-        try {
-            // Check if link already exists
-            List<Map> existingLinks = laminInstance.getRecords(
-                moduleName: 'core',
-                modelName: 'artifact_input_of_runs',
-                filter: [and: [[artifact_id: [eq: artifactId]], [run_id: [eq: runId]]]]
-            )
-            if (existingLinks) {
-                log.debug "Artifact ${artifactUid} is already linked as input to run ${run.get('uid')}"
-                return
-            }
+        upsertLink(
+            'artifact_input_of_runs',
+            [artifact_id: artifactId, run_id: runId] as Map<String, Object>,
+            ['artifact_id', 'run_id'],
+            "artifact ${artifactUid} as input to run ${run.get('uid')}"
+        )
+    }
 
-            laminInstance.createRecord(
+    /**
+     * Idempotently create a link record by upserting on its unique key.
+     *
+     * <p>For link tables with a nullable feature column (e.g. {@code artifactproject}),
+     * the unique constraint treats nulls as non-distinct, so {@code feature_id: null}
+     * must be part of the record and the conflict key.
+     *
+     * @param modelName The link model name (e.g. 'artifactproject')
+     * @param data The link record fields
+     * @param conflictColumns The columns of the model's unique constraint
+     * @param description Human-readable description for logging, e.g. "artifact x to project y"
+     */
+    private void upsertLink(String modelName, Map<String, Object> data, List<String> conflictColumns, String description) {
+        try {
+            laminInstance.upsertRecord(
                 moduleName: 'core',
-                modelName: 'artifact_input_of_runs',
-                data: [
-                    artifact_id: artifactId,
-                    run_id: runId
-                ]
+                modelName: modelName,
+                data: data,
+                conflictColumns: conflictColumns
             )
-            log.debug "Linked artifact ${artifactUid} as input to run ${run.get('uid')}"
+            log.debug "Linked ${description}"
         } catch (Exception e) {
-            log.warn "Could not link artifact ${artifactUid} to run: ${e.getMessage()}"
+            log.warn "Could not link ${description}: ${e.getMessage()}"
         }
     }
 
@@ -1058,26 +1066,12 @@ final class LaminRunManager {
                     continue
                 }
 
-                // Check if link already exists
-                List<Map> existingLinks = laminInstance.getRecords(
-                    moduleName: 'core',
-                    modelName: 'artifactproject',
-                    filter: [and: [[artifact_id: [eq: artifactId]], [project_id: [eq: projectId]]]]
+                upsertLink(
+                    'artifactproject',
+                    [artifact_id: artifactId, project_id: projectId, feature_id: null] as Map<String, Object>,
+                    ['artifact_id', 'feature_id', 'project_id'],
+                    "artifact ${artifactUid} to project ${projectUid}"
                 )
-                if (existingLinks) {
-                    log.debug "Artifact ${artifactUid} is already linked to project ${projectUid}"
-                    continue
-                }
-
-                laminInstance.createRecord(
-                    moduleName: 'core',
-                    modelName: 'artifactproject',
-                    data: [
-                        artifact_id: artifactId,
-                        project_id: projectId
-                    ]
-                )
-                log.debug "Linked artifact ${artifactUid} to project ${projectUid}"
             } catch (Exception e) {
                 log.warn "Could not link artifact ${artifactUid} to project ${projectUid}: ${e.getMessage()}"
             }
@@ -1113,26 +1107,12 @@ final class LaminRunManager {
                     continue
                 }
 
-                // Check if link already exists
-                List<Map> existingLinks = laminInstance.getRecords(
-                    moduleName: 'core',
-                    modelName: 'artifactulabel',
-                    filter: [and: [[artifact_id: [eq: artifactId]], [ulabel_id: [eq: ulabelId]]]]
+                upsertLink(
+                    'artifactulabel',
+                    [artifact_id: artifactId, ulabel_id: ulabelId, feature_id: null] as Map<String, Object>,
+                    ['artifact_id', 'feature_id', 'ulabel_id'],
+                    "artifact ${artifactUid} to ulabel ${ulabelUid}"
                 )
-                if (existingLinks) {
-                    log.debug "Artifact ${artifactUid} is already linked to ulabel ${ulabelUid}"
-                    continue
-                }
-
-                laminInstance.createRecord(
-                    moduleName: 'core',
-                    modelName: 'artifactulabel',
-                    data: [
-                        artifact_id: artifactId,
-                        ulabel_id: ulabelId
-                    ]
-                )
-                log.debug "Linked artifact ${artifactUid} to ulabel ${ulabelUid}"
             } catch (Exception e) {
                 log.warn "Could not link artifact ${artifactUid} to ulabel ${ulabelUid}: ${e.getMessage()}"
             }
@@ -1310,26 +1290,12 @@ final class LaminRunManager {
                     continue
                 }
 
-                // Check if link already exists
-                List<Map> existingLinks = laminInstance.getRecords(
-                    moduleName: 'core',
-                    modelName: 'transformproject',
-                    filter: [and: [[transform_id: [eq: transformId]], [project_id: [eq: projectId]]]]
+                upsertLink(
+                    'transformproject',
+                    [transform_id: transformId, project_id: projectId] as Map<String, Object>,
+                    ['project_id', 'transform_id'],
+                    "transform ${transformUid} to project ${projectUid}"
                 )
-                if (existingLinks) {
-                    log.debug "Transform ${transformUid} is already linked to project ${projectUid}"
-                    continue
-                }
-
-                laminInstance.createRecord(
-                    moduleName: 'core',
-                    modelName: 'transformproject',
-                    data: [
-                        transform_id: transformId,
-                        project_id: projectId
-                    ]
-                )
-                log.debug "Linked transform ${transformUid} to project ${projectUid}"
             } catch (Exception e) {
                 log.warn "Could not link transform ${transformUid} to project ${projectUid}: ${e.getMessage()}"
             }
@@ -1365,26 +1331,12 @@ final class LaminRunManager {
                     continue
                 }
 
-                // Check if link already exists
-                List<Map> existingLinks = laminInstance.getRecords(
-                    moduleName: 'core',
-                    modelName: 'transformulabel',
-                    filter: [and: [[transform_id: [eq: transformId]], [ulabel_id: [eq: ulabelId]]]]
+                upsertLink(
+                    'transformulabel',
+                    [transform_id: transformId, ulabel_id: ulabelId] as Map<String, Object>,
+                    ['transform_id', 'ulabel_id'],
+                    "transform ${transformUid} to ulabel ${ulabelUid}"
                 )
-                if (existingLinks) {
-                    log.debug "Transform ${transformUid} is already linked to ulabel ${ulabelUid}"
-                    continue
-                }
-
-                laminInstance.createRecord(
-                    moduleName: 'core',
-                    modelName: 'transformulabel',
-                    data: [
-                        transform_id: transformId,
-                        ulabel_id: ulabelId
-                    ]
-                )
-                log.debug "Linked transform ${transformUid} to ulabel ${ulabelUid}"
             } catch (Exception e) {
                 log.warn "Could not link transform ${transformUid} to ulabel ${ulabelUid}: ${e.getMessage()}"
             }
@@ -1420,26 +1372,12 @@ final class LaminRunManager {
                     continue
                 }
 
-                // Check if link already exists
-                List<Map> existingLinks = laminInstance.getRecords(
-                    moduleName: 'core',
-                    modelName: 'runproject',
-                    filter: [and: [[run_id: [eq: runId]], [project_id: [eq: projectId]]]]
+                upsertLink(
+                    'runproject',
+                    [run_id: runId, project_id: projectId] as Map<String, Object>,
+                    ['project_id', 'run_id'],
+                    "run ${runUid} to project ${projectUid}"
                 )
-                if (existingLinks) {
-                    log.debug "Run ${runUid} is already linked to project ${projectUid}"
-                    continue
-                }
-
-                laminInstance.createRecord(
-                    moduleName: 'core',
-                    modelName: 'runproject',
-                    data: [
-                        run_id: runId,
-                        project_id: projectId
-                    ]
-                )
-                log.debug "Linked run ${runUid} to project ${projectUid}"
             } catch (Exception e) {
                 log.warn "Could not link run ${runUid} to project ${projectUid}: ${e.getMessage()}"
             }
@@ -1475,26 +1413,12 @@ final class LaminRunManager {
                     continue
                 }
 
-                // Check if link already exists
-                List<Map> existingLinks = laminInstance.getRecords(
-                    moduleName: 'core',
-                    modelName: 'runulabel',
-                    filter: [and: [[run_id: [eq: runId]], [ulabel_id: [eq: ulabelId]]]]
+                upsertLink(
+                    'runulabel',
+                    [run_id: runId, ulabel_id: ulabelId] as Map<String, Object>,
+                    ['run_id', 'ulabel_id'],
+                    "run ${runUid} to ulabel ${ulabelUid}"
                 )
-                if (existingLinks) {
-                    log.debug "Run ${runUid} is already linked to ulabel ${ulabelUid}"
-                    continue
-                }
-
-                laminInstance.createRecord(
-                    moduleName: 'core',
-                    modelName: 'runulabel',
-                    data: [
-                        run_id: runId,
-                        ulabel_id: ulabelId
-                    ]
-                )
-                log.debug "Linked run ${runUid} to ulabel ${ulabelUid}"
             } catch (Exception e) {
                 log.warn "Could not link run ${runUid} to ulabel ${ulabelUid}: ${e.getMessage()}"
             }
