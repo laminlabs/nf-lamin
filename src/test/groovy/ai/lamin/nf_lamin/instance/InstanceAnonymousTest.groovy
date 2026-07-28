@@ -16,6 +16,7 @@
 
 package ai.lamin.nf_lamin.instance
 
+import ai.lamin.lamin_api_client.auth.HttpBearerAuth
 import ai.lamin.nf_lamin.hub.InstanceSettings
 import ai.lamin.nf_lamin.hub.LaminHub
 import spock.lang.Specification
@@ -37,6 +38,10 @@ class InstanceAnonymousTest extends Specification {
         ] as Map<String, Object>)
     }
 
+    private static HttpBearerAuth bearerAuth(Instance instance) {
+        return instance.apiClient.getAuthentication('LaminAccessToken') as HttpBearerAuth
+    }
+
     def "anonymous hub yields a null bearer token (no Authorization header)"() {
         given:
         def hub = new LaminHub('https://hub.lamin.ai', 'sb_publishable_test', null)
@@ -44,10 +49,10 @@ class InstanceAnonymousTest extends Specification {
 
         expect:
         hub.anonymous
-        instance.getBearerToken() == null
+        bearerAuth(instance).bearerToken == null
     }
 
-    def "authenticated hub yields a Bearer token"() {
+    def "authenticated hub yields a bearer token"() {
         given:
         // A pre-set access token avoids a network JWT fetch.
         def hub = new LaminHub('https://hub.lamin.ai', 'sb_publishable_test', 'user-api-key')
@@ -56,6 +61,7 @@ class InstanceAnonymousTest extends Specification {
 
         expect:
         !hub.anonymous
-        instance.getBearerToken() == 'Bearer preset-jwt'
+        // raw token; the HttpBearerAuth scheme adds the 'Bearer ' prefix
+        bearerAuth(instance).bearerToken == 'preset-jwt'
     }
 }

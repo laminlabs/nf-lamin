@@ -40,6 +40,7 @@ import nextflow.file.FileHelper
 import nextflow.script.WorkflowMetadata
 
 import ai.lamin.lamin_api_client.ApiException
+import ai.lamin.lamin_api_client.model.Account
 import ai.lamin.nf_lamin.hub.LaminHub
 import ai.lamin.nf_lamin.hub.LaminHubSettings
 import ai.lamin.nf_lamin.instance.Instance
@@ -284,9 +285,9 @@ final class LaminRunManager {
         }
         String instanceString = "${laminInstance.getOwner()}/${laminInstance.getName()}"
         try {
-            Map account = laminInstance.getAccount()
-            this.accountHandle = account.handle as String
-            log.info "→ connected lamindb: '${instanceString}' as '${account.handle}'"
+            Account account = laminInstance.getAccount()
+            this.accountHandle = account.getHandle()
+            log.info "→ connected lamindb: '${instanceString}' as '${account.getHandle()}'"
         } catch (ApiException e) {
             log.error "✗ Could not connect lamindb: '${instanceString}'!"
             log.error 'API call failed: ' + e.getMessage()

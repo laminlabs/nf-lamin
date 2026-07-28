@@ -269,7 +269,9 @@ class LaminCmdEntry implements PluginAbstractExec {
     private int run(String label, @SuppressWarnings('unused') Void unused, Closure<?> action) {
         try {
             Object result = action.call()
-            println JsonOutput.prettyPrint(JsonOutput.toJson(result))
+            // serialize via the client Gson so typed models (e.g. Account) print with
+            // their API field names
+            println JsonOutput.prettyPrint(ai.lamin.lamin_api_client.JSON.getGson().toJson(result))
             return 0
         } catch (Exception e) {
             System.err.println("${label} failed: ${e.message}")
