@@ -192,7 +192,6 @@ class LaminStorageResolverTest extends Specification {
         expect:
         target.resolveUri('a/b.txt') == 's3://bucket/root/a/b.txt'
         target.resolveUri(null) == 's3://bucket/root'
-        target.rootPrefix == 'root'
-        new LaminStorageTarget(storageRoot: 's3://bucket').rootPrefix == ''
+        new LaminStorageTarget(storageRoot: 's3://bucket/root/').resolveUri('a.txt') == 's3://bucket/root/a.txt'
     }
 }

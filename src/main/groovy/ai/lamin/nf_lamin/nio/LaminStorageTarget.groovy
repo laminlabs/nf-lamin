@@ -65,15 +65,6 @@ class LaminStorageTarget {
         return key ? "${root}/${key}".toString() : root
     }
 
-    /**
-     * The path part of the storage root, i.e. the key prefix every object below it carries.
-     * Empty when the root is a bare bucket.
-     */
-    String getRootPrefix() {
-        String path = new URI(storageRoot).path
-        return path ? path.replaceFirst('^/', '').replaceFirst('/$', '') : ''
-    }
-
     @Override
     String toString() {
         return "LaminStorageTarget(root: ${storageRoot}, uid: ${storageUid}, space: ${spaceUid ?: spaceId})"
