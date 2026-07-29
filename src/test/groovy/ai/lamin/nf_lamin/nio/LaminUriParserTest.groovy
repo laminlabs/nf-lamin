@@ -225,7 +225,16 @@ class LaminUriParserTest extends Specification {
 
     def "should throw on missing components"() {
         when:
-        LaminUriParser.parse('lamin://laminlabs/lamindata')
+        LaminUriParser.parse('lamin://laminlabs')
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains("Invalid URI format")
+    }
+
+    def "should throw when an artifact URI has no uid"() {
+        when:
+        LaminUriParser.parse('lamin://laminlabs/lamindata/artifact')
 
         then:
         def e = thrown(IllegalArgumentException)
@@ -256,5 +265,224 @@ class LaminUriParserTest extends Specification {
         'lamin://org/inst/artifact/abc123'                     | 'org'         | 'inst'           | 'abc123'
         'lamin://my-org/my-instance/artifact/uid_with_under'   | 'my-org'      | 'my-instance'    | 'uid_with_under'
         'lamin://o/i/artifact/u'                               | 'o'           | 'i'              | 'u'
+    }
+
+    // ==================== Storage URIs ====================
+
+    def "artifact URIs are of kind ARTIFACT"() {
+        expect:
+        LaminUriParser.parse('lamin://org/inst/artifact/abc123').kind == LaminUriKind.ARTIFACT
+        !LaminUriParser.parse('lamin://org/inst/artifact/abc123').storage
+    }
+
+    @Unroll
+    def "should parse the three publish grammars: #uri"() {
+        when:
+        def parsed = LaminUriParser.parse(uri)
+
+        then:
+        parsed.kind == LaminUriKind.STORAGE
+        parsed.storage
+        parsed.spaceRef == expectedSpace
+        parsed.storageReference == expectedStorage
+        parsed.key == expectedKey
+
+        where:
+        uri                                                                 | expectedSpace  | expectedStorage | expectedKey
+        'lamin://org/inst'                                                  | null           | null            | null
+        'lamin://org/inst?prefix=results'                                   | null           | null            | 'results'
+        'lamin://org/inst?space=spce12345678'                               | 'spce12345678' | null            | null
+        'lamin://org/inst?storage=stor12345678'                             | null           | 'stor12345678'  | null
+        'lamin://org/inst?space=spce12345678&storage=stor12345678&prefix=r' | 'spce12345678' | 'stor12345678'  | 'r'
+        'lamin://org/inst/space/spce12345678'                               | 'spce12345678' | null            | null
+        'lamin://org/inst/space/spce12345678?storage=stor12345678&prefix=q' | 'spce12345678' | 'stor12345678'  | 'q'
+        'lamin://org/inst/storage/stor12345678'                             | null           | 'stor12345678'  | null
+    }
+
+    @Unroll
+    def "should render publish URIs canonically: #uri -> #expected"() {
+        expect:
+        LaminUriParser.parse(uri).toUriString() == expected
+
+        where:
+        uri                                                         || expected
+        'lamin://org/inst'                                          || 'lamin://org/inst'
+        'lamin://org/inst?prefix=results'                           || 'lamin://org/inst?prefix=results'
+        'lamin://org/inst?prefix=/results/'                         || 'lamin://org/inst?prefix=results'
+        'lamin://org/inst?space=sp12345'                            || 'lamin://org/inst/space/sp12345'
+        'lamin://org/inst?storage=st12345'                          || 'lamin://org/inst/storage/st12345'
+        'lamin://org/inst/space/sp12345?storage=st1&prefix=out'     || 'lamin://org/inst/space/sp12345?storage=st1&prefix=out'
+        'lamin://org/inst/storage/st1?prefix=out/qc/report.html'    || 'lamin://org/inst/storage/st1?prefix=out/qc/report.html'
+        'lamin://org/inst/storage/st1'                              || 'lamin://org/inst/storage/st1'
+    }
+
+    @Unroll
+    def "should reject a #type selector that is not a UID"() {
+        when:
+        LaminUriParser.parse("lamin://org/inst?${type}=s3://bucket/root")
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains("A ${type} must be selected by its UID")
+
+        where:
+        type << ['space', 'storage']
+    }
+
+    @Unroll
+    def "parsing a canonical URI should round-trip: #uri"() {
+        given:
+        def parsed = LaminUriParser.parse(uri)
+
+        expect:
+        LaminUriParser.parse(parsed.toUriString()) == parsed
+        LaminUriParser.parse(parsed.toUriString()).toUriString() == parsed.toUriString()
+
+        where:
+        uri << [
+            'lamin://org/inst/artifact/abc123',
+            'lamin://org/inst/artifact/abc123/sub/dir/file.txt',
+            'lamin://org/inst',
+            'lamin://org/inst?prefix=results',
+            'lamin://org/inst?space=sp1&storage=st1&prefix=results/qc',
+            'lamin://org/inst/space/sp1',
+            'lamin://org/inst/storage/st1?prefix=a/b/c.txt',
+            'lamin://org/inst?prefix=with space/and%23hash',
+            'lamin://org/inst?prefix=artifact/space/storage'
+        ]
+    }
+
+    @Unroll
+    def "should normalise the key: #prefix -> #expected"() {
+        expect:
+        LaminUriParser.parse("lamin://org/inst?prefix=${prefix}").key == expected
+
+        where:
+        prefix              || expected
+        'results'           || 'results'
+        '/results'          || 'results'
+        'results/'          || 'results'
+        'a//b'              || 'a/b'
+        'a/./b'             || 'a/b'
+        'a/b/../c'          || 'a/c'
+        '.'                 || null
+        '/'                 || null
+    }
+
+    def "should reject a key that escapes the storage root"() {
+        when:
+        LaminUriParser.parse('lamin://org/inst?prefix=../elsewhere')
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains('outside of the storage root')
+    }
+
+    @Unroll
+    def "should reject the reserved .lamindb prefix: #prefix"() {
+        when:
+        LaminUriParser.parse("lamin://org/inst?prefix=${prefix}")
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains('reserved by LaminDB')
+
+        where:
+        prefix << ['.lamindb', '.lamindb/results', '/.lamindb/']
+    }
+
+    def "should reject unknown query parameters"() {
+        when:
+        LaminUriParser.parse('lamin://org/inst?prefixx=results')
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains("Unknown query parameter 'prefixx'")
+    }
+
+    def "should reject query parameters on artifact URIs"() {
+        when:
+        LaminUriParser.parse('lamin://org/inst/artifact/abc123?prefix=results')
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains('not supported for artifact URIs')
+    }
+
+    @Unroll
+    def "should reject a duplicate #type selector"() {
+        when:
+        LaminUriParser.parse("lamin://org/inst/${type}/one?${type}=two")
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains("Duplicate ${type} selector")
+
+        where:
+        type << ['space', 'storage']
+    }
+
+    def "should reject a key given as path segments"() {
+        when:
+        LaminUriParser.parse('lamin://org/inst/storage/abc/results/file.txt')
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains("must be given as '?prefix=...'")
+    }
+
+    def "should reject an empty selector"() {
+        when:
+        LaminUriParser.parse('lamin://org/inst/space/')
+
+        then:
+        thrown(IllegalArgumentException)
+    }
+
+    // ==================== Storage navigation ====================
+
+    def "withSubPath should append to the key and normalise"() {
+        given:
+        def parsed = LaminUriParser.parse('lamin://org/inst?prefix=results')
+
+        expect:
+        parsed.withSubPath('qc/report.html').key == 'results/qc/report.html'
+        parsed.withSubPath('./x').key == 'results/x'
+    }
+
+    def "withoutSubPath should return the storage root"() {
+        given:
+        def parsed = LaminUriParser.parse('lamin://org/inst/space/sp1?prefix=results/qc')
+
+        when:
+        def root = parsed.withoutSubPath()
+
+        then:
+        root.key == null
+        root.spaceRef == 'sp1'
+        root.toUriString() == 'lamin://org/inst/space/sp1'
+    }
+
+    def "getFileName and getParent should walk the key"() {
+        given:
+        def parsed = LaminUriParser.parse('lamin://org/inst?prefix=results/qc/report.html')
+
+        expect:
+        parsed.fileName == 'report.html'
+        parsed.parent.key == 'results/qc'
+        parsed.parent.parent.key == 'results'
+        parsed.parent.parent.parent.key == null
+        parsed.parent.parent.parent.parent == null
+    }
+
+    def "getFileName should be null for the storage root"() {
+        expect:
+        LaminUriParser.parse('lamin://org/inst').fileName == null
+    }
+
+    def "getKeySegments should split the key"() {
+        expect:
+        LaminUriParser.parse('lamin://org/inst?prefix=a/b/c').keySegments == ['a', 'b', 'c']
+        LaminUriParser.parse('lamin://org/inst').keySegments == []
     }
 }
