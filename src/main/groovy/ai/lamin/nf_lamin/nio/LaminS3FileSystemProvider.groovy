@@ -30,10 +30,12 @@ import java.nio.file.FileSystemNotFoundException
 import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.NoSuchFileException
+import java.nio.file.FileAlreadyExistsException
 import java.nio.file.OpenOption
 import java.nio.file.Path
 import java.nio.file.ProviderMismatchException
 import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.attribute.FileAttribute
 import java.nio.file.attribute.FileAttributeView
@@ -52,10 +54,15 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client as AwsS3Client
+import software.amazon.awssdk.services.s3.model.CommonPrefix
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException
+import software.amazon.awssdk.services.s3.model.S3Object
 
 /**
  * FileSystemProvider for lamin-s3:// URIs.
@@ -225,27 +232,141 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
 
     @Override
     OutputStream newOutputStream(Path path, OpenOption... options) throws IOException {
-        throw new UnsupportedOperationException("Writing to ${SCHEME}:// paths is not supported")
+        LaminS3Path s3Path = toLaminS3Path(path)
+        Set<OpenOption> opts = options as Set<OpenOption>
+        if (!opts) {
+            // Same defaults java.nio.file.Files applies for an unqualified open
+            opts = [StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE] as Set<OpenOption>
+        }
+
+        if (opts.contains(StandardOpenOption.APPEND)) {
+            // S3 has no append; fall back to the byte-channel route, which reads the object
+            // back first
+            return super.newOutputStream(path, options)
+        }
+        if (opts.contains(StandardOpenOption.READ)) {
+            throw new IllegalArgumentException("READ not allowed when opening ${path} for writing")
+        }
+
+        checkWritable(s3Path)
+        boolean exists = exists(s3Path)
+        if (opts.contains(StandardOpenOption.CREATE_NEW) && exists) {
+            throw new FileAlreadyExistsException(path.toString())
+        }
+        if (!exists && !opts.contains(StandardOpenOption.CREATE) && !opts.contains(StandardOpenOption.CREATE_NEW)) {
+            throw new NoSuchFileException(path.toString())
+        }
+
+        return new LaminS3OutputStream(uploaderFor(s3Path), s3Path.bucket, s3Path.key)
     }
 
     @Override
     SeekableByteChannel newByteChannel(Path path, Set<? extends OpenOption> options, FileAttribute<?>... attrs) throws IOException {
-        throw new UnsupportedOperationException("SeekableByteChannel not supported for ${SCHEME}:// paths")
+        LaminS3Path s3Path = toLaminS3Path(path)
+        boolean forWrite = options.any {
+            it in [StandardOpenOption.WRITE, StandardOpenOption.APPEND,
+                   StandardOpenOption.CREATE, StandardOpenOption.CREATE_NEW]
+        }
+        if (forWrite) {
+            checkWritable(s3Path)
+        }
+        if (options.contains(StandardOpenOption.CREATE_NEW) && exists(s3Path)) {
+            throw new FileAlreadyExistsException(path.toString())
+        }
+
+        // Stage the object locally, work on it there, and put it back on close
+        Path tempFile = Files.createTempFile('nf-lamin-', '.channel')
+        try {
+            if (!options.contains(StandardOpenOption.CREATE_NEW)) {
+                copyToLocal(s3Path, tempFile)
+            }
+        }
+        catch (NoSuchFileException e) {
+            if (!forWrite) {
+                Files.deleteIfExists(tempFile)
+                throw e
+            }
+        }
+
+        Set<OpenOption> localOptions = new HashSet<OpenOption>(options)
+        localOptions.remove(StandardOpenOption.CREATE_NEW)
+        localOptions.add(StandardOpenOption.CREATE)
+        localOptions.remove(StandardOpenOption.TRUNCATE_EXISTING)
+
+        SeekableByteChannel channel = Files.newByteChannel(tempFile, localOptions)
+        return new LaminS3ByteChannel(channel, tempFile, forWrite ? uploaderFor(s3Path) : null, s3Path)
     }
 
     @Override
     DirectoryStream<Path> newDirectoryStream(Path dir, DirectoryStream.Filter<? super Path> filter) throws IOException {
-        throw new UnsupportedOperationException("Directory listing not supported for ${SCHEME}:// paths")
+        LaminS3Path s3Dir = toLaminS3Path(dir)
+        String prefix = s3Dir.key ? s3Dir.key.replaceFirst('/$', '') + '/' : ''
+        LaminS3FileSystem fs = (LaminS3FileSystem) s3Dir.fileSystem
+
+        Set<String> names = new LinkedHashSet<String>()
+        try {
+            String continuationToken = null
+            while (true) {
+                ListObjectsV2Response page = fs.s3Client.listObjectsV2(
+                    ListObjectsV2Request.builder()
+                        .bucket(s3Dir.bucket)
+                        .prefix(prefix)
+                        .delimiter(LaminS3Path.SEP)
+                        .continuationToken(continuationToken)
+                        .build()
+                )
+                page.contents().each { S3Object object ->
+                    String name = object.key().substring(prefix.length())
+                    if (name) {
+                        names.add(name)
+                    }
+                }
+                page.commonPrefixes().each { CommonPrefix common ->
+                    String name = common.prefix().substring(prefix.length()).replaceFirst('/$', '')
+                    if (name) {
+                        names.add(name)
+                    }
+                }
+                if (!page.isTruncated()) {
+                    break
+                }
+                continuationToken = page.nextContinuationToken()
+            }
+        }
+        catch (Exception e) {
+            throw new IOException("Failed to list ${dir}", e)
+        }
+
+        List<Path> entries = names.collect { String name -> (Path) new LaminS3Path(fs, prefix + name) }
+        if (filter != null) {
+            entries = entries.findAll { Path p -> filter.accept(p) }
+        }
+        return new LaminS3DirectoryStream(entries)
     }
 
     @Override
     void createDirectory(Path dir, FileAttribute<?>... attrs) throws IOException {
-        throw new UnsupportedOperationException("Creating directories in ${SCHEME}:// paths is not supported")
+        // S3 has no directories. Creating zero-byte markers would litter Lamin-managed
+        // storage with objects LaminDB never created, so this is deliberately a no-op.
+        toLaminS3Path(dir)
     }
 
     @Override
     void delete(Path path) throws IOException {
-        throw new UnsupportedOperationException("Deleting ${SCHEME}:// paths is not supported")
+        LaminS3Path s3Path = toLaminS3Path(path)
+        checkWritable(s3Path)
+        if (!exists(s3Path)) {
+            throw new NoSuchFileException(path.toString())
+        }
+        try {
+            AwsS3Client client = ((LaminS3FileSystem) s3Path.fileSystem).s3Client
+            client.deleteObject(DeleteObjectRequest.builder().bucket(s3Path.bucket).key(s3Path.key).build())
+            // Also drop the directory marker some tools write alongside the object
+            client.deleteObject(DeleteObjectRequest.builder().bucket(s3Path.bucket).key(s3Path.key + LaminS3Path.SEP).build())
+        }
+        catch (Exception e) {
+            throw new IOException("Failed to delete ${path}", e)
+        }
     }
 
     @Override
@@ -339,7 +460,7 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
 
     @Override
     boolean canUpload(Path source, Path target) {
-        return false
+        return isLocalFileSystem(source) && target instanceof LaminS3Path && !target.fileSystem.isReadOnly()
     }
 
     @Override
@@ -375,7 +496,29 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
 
     @Override
     void upload(Path localFile, Path remoteDestination, CopyOption... options) throws IOException {
-        throw new UnsupportedOperationException("Uploading to ${SCHEME}:// paths is not supported")
+        log.debug "upload: ${localFile} -> ${remoteDestination}"
+        LaminS3Path target = toLaminS3Path(remoteDestination)
+        checkWritable(target)
+
+        CopyOptions opts = CopyOptions.parse(options)
+        if (!opts.replaceExisting() && exists(target)) {
+            throw new FileAlreadyExistsException(remoteDestination.toString())
+        }
+
+        LaminS3Uploader uploader = uploaderFor(target)
+        if (!Files.isDirectory(localFile)) {
+            uploader.upload(localFile, target.bucket, target.key)
+            return
+        }
+
+        String baseKey = target.key.replaceFirst('/$', '')
+        Files.walk(localFile).each { Path source ->
+            if (Files.isDirectory(source)) {
+                return
+            }
+            String relative = localFile.relativize(source).toString().replace(File.separator, LaminS3Path.SEP)
+            uploader.upload(source, target.bucket, "${baseKey}/${relative}")
+        }
     }
 
     // ==================== Helpers ====================
@@ -389,5 +532,106 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
 
     private static boolean isLocalFileSystem(Path path) {
         return path.fileSystem == java.nio.file.FileSystems.getDefault()
+    }
+
+    /**
+     * Uploader for the file system a path belongs to. Protected so tests can control the
+     * multipart threshold.
+     */
+    protected LaminS3Uploader uploaderFor(LaminS3Path path) {
+        return new LaminS3Uploader(((LaminS3FileSystem) path.fileSystem).s3Client)
+    }
+
+    private static void checkWritable(LaminS3Path path) throws IOException {
+        LaminS3FileSystem fs = (LaminS3FileSystem) path.fileSystem
+        if (fs.isReadOnly()) {
+            throw new AccessDeniedException(
+                path.toString(), null,
+                "LaminHub granted only '${fs.role ?: 'read'}' access to storage ${fs.storageRoot}"
+            )
+        }
+    }
+
+    private boolean exists(LaminS3Path path) {
+        try {
+            checkAccess(path)
+            return true
+        }
+        catch (NoSuchFileException e) {
+            return false
+        }
+        catch (IOException e) {
+            return false
+        }
+    }
+
+    private void copyToLocal(LaminS3Path source, Path target) throws IOException {
+        InputStream stream = newInputStream(source)
+        try {
+            Files.copy(stream, target, StandardCopyOption.REPLACE_EXISTING)
+        }
+        finally {
+            stream.close()
+        }
+    }
+
+    /**
+     * A byte channel backed by a local temp file, uploaded back to S3 on close when the
+     * channel was opened for writing.
+     */
+    @CompileStatic
+    private static class LaminS3ByteChannel implements SeekableByteChannel {
+
+        @Delegate
+        private final SeekableByteChannel delegate
+        private final Path tempFile
+        private final LaminS3Uploader uploader
+        private final LaminS3Path target
+
+        LaminS3ByteChannel(SeekableByteChannel delegate, Path tempFile, LaminS3Uploader uploader, LaminS3Path target) {
+            this.delegate = delegate
+            this.tempFile = tempFile
+            this.uploader = uploader
+            this.target = target
+        }
+
+        @Override
+        void close() throws IOException {
+            if (!delegate.isOpen()) {
+                return
+            }
+            try {
+                delegate.close()
+                if (uploader != null) {
+                    uploader.upload(tempFile, target.bucket, target.key)
+                }
+            }
+            finally {
+                Files.deleteIfExists(tempFile)
+            }
+        }
+    }
+
+    /**
+     * A directory stream over an eagerly listed set of entries.
+     */
+    @CompileStatic
+    private static class LaminS3DirectoryStream implements DirectoryStream<Path> {
+
+        private final List<Path> entries
+
+        LaminS3DirectoryStream(List<Path> entries) {
+            this.entries = entries
+        }
+
+        @Override
+        Iterator<Path> iterator() {
+            return entries.iterator()
+        }
+
+        @Override
+        void close() throws IOException {
+            // nothing to release, the listing is already complete
+        }
     }
 }

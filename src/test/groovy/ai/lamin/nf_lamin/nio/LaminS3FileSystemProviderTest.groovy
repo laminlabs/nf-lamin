@@ -18,23 +18,36 @@ package ai.lamin.nf_lamin.nio
 
 import spock.lang.Specification
 
+import java.nio.file.AccessDeniedException
+import java.nio.file.FileAlreadyExistsException
 import java.nio.file.FileSystemNotFoundException
 import java.nio.file.Files
 import java.nio.file.NoSuchFileException
 import java.nio.file.Path
 import java.nio.file.ProviderMismatchException
 import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.BasicFileAttributes
+import java.util.function.Supplier
+
+import ai.lamin.nf_lamin.hub.CloudAccessResponse
 
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.core.ResponseInputStream
+import software.amazon.awssdk.core.sync.RequestBody
 import software.amazon.awssdk.http.AbortableInputStream
 import software.amazon.awssdk.services.s3.S3Client as AwsS3Client
+import software.amazon.awssdk.services.s3.model.CommonPrefix
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest
 import software.amazon.awssdk.services.s3.model.GetObjectRequest
 import software.amazon.awssdk.services.s3.model.GetObjectResponse
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Response
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException
+import software.amazon.awssdk.services.s3.model.PutObjectRequest
+import software.amazon.awssdk.services.s3.model.S3Object
 
 /**
  * Tests for LaminS3FileSystemProvider.
@@ -62,6 +75,15 @@ class LaminS3FileSystemProviderTest extends Specification {
     def setup() {
         s3Client = Mock(AwsS3Client)
         provider = new TestableLaminS3FileSystemProvider(injectedClient: s3Client)
+    }
+
+    /** A file system for which LaminHub granted write access. */
+    private LaminS3FileSystem writableFs(String storageRoot = 's3://bucket/prefix') {
+        def access = new CloudAccessResponse([
+            Credentials         : [AccessKeyId: 'AKID', SecretAccessKey: 'secret', SessionToken: 'token'],
+            StorageAccessibility: [role: 'write']
+        ] as Map<String, Object>)
+        return provider.getOrCreateFileSystem(storageRoot, { access } as Supplier<CloudAccessResponse>, null)
     }
 
     // ==================== Scheme ====================
@@ -261,7 +283,7 @@ class LaminS3FileSystemProviderTest extends Specification {
 
     // ==================== Unsupported operations ====================
 
-    def "newOutputStream() throws UnsupportedOperationException"() {
+    def "newOutputStream() refuses to write to a read-only storage"() {
         given:
         provider.getOrCreateFileSystem('s3://bucket/prefix', 'AKID', 'secret', 'token')
         def p = provider.getPath(new URI('lamin-s3://bucket/k'))
@@ -270,55 +292,122 @@ class LaminS3FileSystemProviderTest extends Specification {
         provider.newOutputStream(p)
 
         then:
-        thrown(UnsupportedOperationException)
+        thrown(AccessDeniedException)
     }
 
-    def "newByteChannel() throws UnsupportedOperationException"() {
+    def "newOutputStream() uploads what was written on close"() {
         given:
-        provider.getOrCreateFileSystem('s3://bucket/prefix', 'AKID', 'secret', 'token')
-        def p = provider.getPath(new URI('lamin-s3://bucket/k'))
+        writableFs()
+        def p = provider.getPath(new URI('lamin-s3://bucket/results/report.txt'))
 
         when:
-        provider.newByteChannel(p, Collections.emptySet())
+        def out = provider.newOutputStream(p)
+        out.write('hello'.bytes)
+        out.close()
 
         then:
-        thrown(UnsupportedOperationException)
+        1 * s3Client.putObject({ PutObjectRequest r ->
+            r.bucket() == 'bucket' && r.key() == 'results/report.txt' && r.contentLength() == 5L
+        }, _ as RequestBody)
     }
 
-    def "newDirectoryStream() throws UnsupportedOperationException"() {
+    def "newOutputStream() with CREATE_NEW fails when the object exists"() {
         given:
-        provider.getOrCreateFileSystem('s3://bucket/prefix', 'AKID', 'secret', 'token')
-        def p = provider.getPath(new URI('lamin-s3://bucket/k'))
+        writableFs()
+        def p = provider.getPath(new URI('lamin-s3://bucket/results/report.txt'))
+        s3Client.headObject(_ as HeadObjectRequest) >> HeadObjectResponse.builder().contentLength(5L).build()
 
         when:
-        provider.newDirectoryStream(p, { true })
+        provider.newOutputStream(p, StandardOpenOption.CREATE_NEW)
 
         then:
-        thrown(UnsupportedOperationException)
+        thrown(FileAlreadyExistsException)
     }
 
-    def "createDirectory() throws UnsupportedOperationException"() {
+    def "newOutputStream() without CREATE fails when the object is missing"() {
         given:
-        provider.getOrCreateFileSystem('s3://bucket/prefix', 'AKID', 'secret', 'token')
-        def p = provider.getPath(new URI('lamin-s3://bucket/k'))
+        writableFs()
+        def p = provider.getPath(new URI('lamin-s3://bucket/results/report.txt'))
+        s3Client.headObject(_ as HeadObjectRequest) >> { throw NoSuchKeyException.builder().message('nope').build() }
+
+        when:
+        provider.newOutputStream(p, StandardOpenOption.WRITE)
+
+        then:
+        thrown(NoSuchFileException)
+    }
+
+    def "newByteChannel() uploads on close when opened for writing"() {
+        given:
+        writableFs()
+        def p = provider.getPath(new URI('lamin-s3://bucket/results/index.csv'))
+
+        when:
+        def channel = provider.newByteChannel(p, [StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE] as Set)
+        channel.write(java.nio.ByteBuffer.wrap('a,b\n'.bytes))
+        channel.close()
+
+        then:
+        1 * s3Client.headObject(_ as HeadObjectRequest) >> { throw NoSuchKeyException.builder().message('nope').build() }
+        1 * s3Client.putObject({ PutObjectRequest r -> r.key() == 'results/index.csv' }, _ as RequestBody)
+    }
+
+    def "newDirectoryStream() lists objects and common prefixes"() {
+        given:
+        writableFs()
+        def dir = provider.getPath(new URI('lamin-s3://bucket/results'))
+
+        and:
+        def page = ListObjectsV2Response.builder()
+            .contents(S3Object.builder().key('results/report.txt').build())
+            .commonPrefixes(CommonPrefix.builder().prefix('results/qc/').build())
+            .build()
+        s3Client.listObjectsV2(_ as ListObjectsV2Request) >> page
+
+        when:
+        def entries = provider.newDirectoryStream(dir, { true }).collect { it.toString() }
+
+        then:
+        entries == ['lamin-s3://bucket/results/report.txt', 'lamin-s3://bucket/results/qc']
+    }
+
+    def "createDirectory() is a no-op"() {
+        given:
+        writableFs()
+        def p = provider.getPath(new URI('lamin-s3://bucket/results'))
 
         when:
         provider.createDirectory(p)
 
         then:
-        thrown(UnsupportedOperationException)
+        0 * s3Client._
     }
 
-    def "delete() throws UnsupportedOperationException"() {
+    def "delete() removes the object and its directory marker"() {
         given:
-        provider.getOrCreateFileSystem('s3://bucket/prefix', 'AKID', 'secret', 'token')
-        def p = provider.getPath(new URI('lamin-s3://bucket/k'))
+        writableFs()
+        def p = provider.getPath(new URI('lamin-s3://bucket/results/report.txt'))
+        s3Client.headObject(_ as HeadObjectRequest) >> HeadObjectResponse.builder().contentLength(5L).build()
 
         when:
         provider.delete(p)
 
         then:
-        thrown(UnsupportedOperationException)
+        1 * s3Client.deleteObject({ DeleteObjectRequest r -> r.key() == 'results/report.txt' })
+        1 * s3Client.deleteObject({ DeleteObjectRequest r -> r.key() == 'results/report.txt/' })
+    }
+
+    def "delete() throws NoSuchFileException when the object is missing"() {
+        given:
+        writableFs()
+        def p = provider.getPath(new URI('lamin-s3://bucket/results/report.txt'))
+        s3Client.headObject(_ as HeadObjectRequest) >> { throw NoSuchKeyException.builder().message('nope').build() }
+
+        when:
+        provider.delete(p)
+
+        then:
+        thrown(NoSuchFileException)
     }
 
     def "move() throws UnsupportedOperationException"() {
@@ -358,7 +447,7 @@ class LaminS3FileSystemProviderTest extends Specification {
         thrown(UnsupportedOperationException)
     }
 
-    def "upload() throws UnsupportedOperationException"() {
+    def "upload() refuses to write to a read-only storage"() {
         given:
         provider.getOrCreateFileSystem('s3://bucket/prefix', 'AKID', 'secret', 'token')
         def s3Path = provider.getPath(new URI('lamin-s3://bucket/k'))
@@ -368,7 +457,77 @@ class LaminS3FileSystemProviderTest extends Specification {
         provider.upload(localPath, s3Path)
 
         then:
-        thrown(UnsupportedOperationException)
+        thrown(AccessDeniedException)
+    }
+
+    def "upload() puts a local file"() {
+        given:
+        writableFs()
+        def target = provider.getPath(new URI('lamin-s3://bucket/results/report.txt'))
+        def local = Files.createTempFile('nf-lamin-test-', '.txt')
+        Files.write(local, 'hello'.bytes)
+        s3Client.headObject(_ as HeadObjectRequest) >> { throw NoSuchKeyException.builder().message('nope').build() }
+
+        when:
+        provider.upload(local, target)
+
+        then:
+        1 * s3Client.putObject({ PutObjectRequest r ->
+            r.bucket() == 'bucket' && r.key() == 'results/report.txt'
+        }, _ as RequestBody)
+
+        cleanup:
+        Files.deleteIfExists(local)
+    }
+
+    def "upload() walks a local directory"() {
+        given:
+        writableFs()
+        def target = provider.getPath(new URI('lamin-s3://bucket/results'))
+        def dir = Files.createTempDirectory('nf-lamin-test-')
+        Files.write(dir.resolve('a.txt'), 'a'.bytes)
+        Files.createDirectory(dir.resolve('sub'))
+        Files.write(dir.resolve('sub/b.txt'), 'b'.bytes)
+        s3Client.headObject(_ as HeadObjectRequest) >> { throw NoSuchKeyException.builder().message('nope').build() }
+
+        when:
+        provider.upload(dir, target)
+
+        then:
+        1 * s3Client.putObject({ PutObjectRequest r -> r.key() == 'results/a.txt' }, _ as RequestBody)
+        1 * s3Client.putObject({ PutObjectRequest r -> r.key() == 'results/sub/b.txt' }, _ as RequestBody)
+
+        cleanup:
+        dir.toFile().deleteDir()
+    }
+
+    def "upload() refuses to overwrite without REPLACE_EXISTING"() {
+        given:
+        writableFs()
+        def target = provider.getPath(new URI('lamin-s3://bucket/results/report.txt'))
+        def local = Files.createTempFile('nf-lamin-test-', '.txt')
+        s3Client.headObject(_ as HeadObjectRequest) >> HeadObjectResponse.builder().contentLength(5L).build()
+
+        when:
+        provider.upload(local, target)
+
+        then:
+        thrown(FileAlreadyExistsException)
+
+        cleanup:
+        Files.deleteIfExists(local)
+    }
+
+    def "canUpload() is true only for a writable target"() {
+        given:
+        def local = java.nio.file.Paths.get('/tmp/local.txt')
+        provider.getOrCreateFileSystem('s3://bucket/readonly', 'AKID', 'secret', 'token')
+        def readOnly = new LaminS3Path(provider.getOrCreateFileSystem('s3://bucket/readonly', 'AKID', 'secret', 'token'), 'k')
+        def writable = new LaminS3Path(writableFs('s3://bucket/writable'), 'k')
+
+        expect:
+        provider.canUpload(local, writable)
+        !provider.canUpload(local, readOnly)
     }
 
     // ==================== Attribute views ====================
