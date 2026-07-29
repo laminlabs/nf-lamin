@@ -4,11 +4,13 @@ import ai.lamin.nf_lamin.instance.Instance
 import ai.lamin.nf_lamin.model.RunStatus
 import nextflow.Session
 import nextflow.exception.AbortSignalException
+import nextflow.script.WorkflowMetadata
 import spock.lang.Specification
 
 import java.lang.reflect.Field
 import java.net.URI
 import java.nio.file.Path
+import java.time.OffsetDateTime
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import sun.misc.Signal
@@ -110,6 +112,31 @@ class LaminRunManagerTest extends Specification {
             !args.containsKey('space_id')
         }) >> [uid: 'testuid1234567890ab']
         result != null
+    }
+
+    def 'startRun omits the reference when not running on Seqera Platform'() {
+        given:
+        def manager = LaminRunManager.instance
+        def mockInstance = Mock(Instance)
+        manager.setCurrentInstance(mockInstance)
+        injectField(manager, 'config', new LaminConfig([instance: 'testorg/testinst', api_key: 'test-key']))
+        injectField(manager, 'run', [uid: 'R456', id: 99] as Map<String, Object>)
+
+        // Stub(WorkflowMetadata) has no getPlatform(): this is the Nextflow 25.10 shape
+        def metadata = Stub(WorkflowMetadata) {
+            getStart() >> OffsetDateTime.now()
+        }
+        injectField(manager, 'session', Stub(Session) { getWorkflowMetadata() >> metadata })
+
+        when:
+        manager.startRun()
+
+        then:
+        1 * mockInstance.updateRecord({ Map args ->
+            Map data = args.data as Map
+            !data.containsKey('reference') &&
+            !data.containsKey('reference_type')
+        }) >> [uid: 'R456']
     }
 
     def 'createInputArtifactsAsync returns before worker finishes (non-blocking)'() {

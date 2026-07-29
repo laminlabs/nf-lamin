@@ -48,6 +48,7 @@ import ai.lamin.nf_lamin.instance.PermissionDeniedException
 import ai.lamin.nf_lamin.hub.InstanceSettings
 import ai.lamin.nf_lamin.model.RunStatus
 import ai.lamin.nf_lamin.nio.LaminPath
+import ai.lamin.nf_lamin.util.SeqeraPlatformHelper
 import ai.lamin.nf_lamin.util.TransformInfoHelper
 import ai.lamin.nf_lamin.config.ArtifactConfig
 import ai.lamin.nf_lamin.config.ArtifactEvaluation
@@ -256,6 +257,20 @@ final class LaminRunManager {
         }
     }
 
+    /**
+     * Build the `reference` / `reference_type` fields pointing at the Seqera Platform run.
+     *
+     * @return a map with the reference fields, or an empty map
+     */
+    private Map<String, Object> runReferenceFields() {
+        String reference = SeqeraPlatformHelper.resolveRunReference(session)
+        if (!reference || reference == run?.get('reference')) {
+            return [:]
+        }
+        log.debug "Setting run.reference to '${reference}'"
+        return [reference: reference, reference_type: SeqeraPlatformHelper.REFERENCE_TYPE] as Map<String, Object>
+    }
+
     void startRun() {
         log.debug 'LaminRunManager.startRun'
         if (run == null || laminInstance == null || session == null || config.dryRun) {
@@ -263,14 +278,22 @@ final class LaminRunManager {
         }
 
         WorkflowMetadata wfMetadata = session.getWorkflowMetadata()
+
+        // Collect the fields to update on the run record
+        Map<String, Object> updateData = [
+            started_at: wfMetadata.start,
+            _status_code: RunStatus.STARTED.code
+        ] as Map<String, Object>
+
+        // Add Seqera Platform run reference
+        updateData.putAll(runReferenceFields())
+
+        // Update the run record
         Map<String, Object> updatedRun = laminInstance.updateRecord(
             moduleName: 'core',
             modelName: 'run',
             uid: run.get('uid') as String,
-            data: [
-                started_at: wfMetadata.start,
-                _status_code: RunStatus.STARTED.code
-            ]
+            data: updateData
         )
         if (run.uid != updatedRun.uid) {
             log.warn "Run UID changed from ${run.uid} to ${updatedRun.uid} on start update!"
@@ -621,6 +644,9 @@ final class LaminRunManager {
         if (reportArtifactId != null) {
             updateData.put('report_id', reportArtifactId)
         }
+
+        // Add Seqera Platform run reference
+        updateData.putAll(runReferenceFields())
 
         Map<String, Object> updatedRun = laminInstance.updateRecord(
             moduleName: 'core',
