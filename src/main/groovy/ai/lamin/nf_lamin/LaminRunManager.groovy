@@ -47,6 +47,7 @@ import ai.lamin.nf_lamin.instance.Instance
 import ai.lamin.nf_lamin.instance.PermissionDeniedException
 import ai.lamin.nf_lamin.hub.InstanceSettings
 import ai.lamin.nf_lamin.model.RunStatus
+import ai.lamin.nf_lamin.nio.LaminFileSystemProvider
 import ai.lamin.nf_lamin.nio.LaminPath
 import ai.lamin.nf_lamin.nio.LaminPaths
 import ai.lamin.nf_lamin.util.TransformInfoHelper
@@ -1431,6 +1432,21 @@ final class LaminRunManager {
      * @param remotePath The remote storage path of the artifact (e.g., s3://bucket/file.txt)
      * @return the artifact map if found, null otherwise
      */
+    /**
+     * The space of the storage location a publish target resolved to, or null when it has
+     * none. The resolver caches its lookups, so this costs no extra API call.
+     */
+    private Integer spaceIdOfPublishTarget(LaminPath path) {
+        try {
+            LaminFileSystemProvider provider = (LaminFileSystemProvider) path.fileSystem.provider()
+            return provider.resolveStorageTarget(path).spaceId
+        }
+        catch (Exception e) {
+            log.debug "Could not determine the space of ${path}: ${e.message}"
+            return null
+        }
+    }
+
     private Map<String, Object> fetchArtifact(String remotePath) {
         if (remotePath == null || laminInstance == null) {
             return null
@@ -1468,9 +1484,16 @@ final class LaminRunManager {
             throw new IllegalArgumentException("Parameter 'path' must be a valid Path object")
         }
 
-        // If path is a LaminPath, resolve it to the underlying storage path
+        // If path is a LaminPath, resolve it to the underlying storage path. A publish
+        // target also decides the artifact's space, since the storage location it resolved
+        // to is the one LaminDB associates with that space.
+        Integer spaceId = resolvedSpaceId
         if (path instanceof LaminPath) {
-            path = ((LaminPath) path).resolveToStorage()
+            LaminPath laminPath = (LaminPath) path
+            if (laminPath.parsed.storage) {
+                spaceId = spaceIdOfPublishTarget(laminPath) ?: spaceId
+            }
+            path = laminPath.resolveToStorage()
         }
 
         // Validate and extract optional parameters
@@ -1526,8 +1549,8 @@ final class LaminRunManager {
             if (kind != null) {
                 apiParams.put('kind', kind)
             }
-            if (resolvedSpaceId != null) {
-                apiParams.put('space_id', resolvedSpaceId)
+            if (spaceId != null) {
+                apiParams.put('space_id', spaceId)
             }
             if (resolvedBranchId != null) {
                 apiParams.put('branch_id', resolvedBranchId)

@@ -28,6 +28,7 @@ import nextflow.trace.event.FilePublishEvent
 import nextflow.trace.event.WorkflowOutputEvent
 
 import ai.lamin.nf_lamin.model.RunStatus
+import ai.lamin.nf_lamin.nio.LaminPath
 
 /**
  * Implements workflow events observer for Lamin provenance tracking
@@ -59,6 +60,11 @@ class LaminObserver implements TraceObserverV2 {
         // only to resolve lamin:// URIs, so skip run tracking instead of failing the run.
         if (!LaminConfig.isTrackingConfigured(session)) {
             log.debug "nf-lamin: no instance configured; run tracking disabled (lamin:// URIs can still be resolved)"
+            if (session?.outputDir instanceof LaminPath) {
+                log.warn "Publishing to ${session.outputDir}, but no Lamin instance is configured: " +
+                    "files will be written to storage without being registered as artifacts. " +
+                    "Set lamin.instance and lamin.api_key to register them."
+            }
             trackingEnabled = false
             runFinalized = true
             return

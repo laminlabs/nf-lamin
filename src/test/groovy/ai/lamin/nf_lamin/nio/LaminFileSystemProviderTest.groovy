@@ -20,6 +20,7 @@ import spock.lang.Specification
 
 import java.nio.file.FileSystemNotFoundException
 import java.nio.file.Path
+import java.nio.file.AccessDeniedException
 import java.nio.file.Paths
 import java.nio.file.ProviderMismatchException
 
@@ -210,7 +211,7 @@ class LaminFileSystemProviderTest extends Specification {
 
     // ==================== Unsupported Write Operations Tests ====================
 
-    def "newOutputStream should throw UnsupportedOperationException"() {
+    def "newOutputStream should refuse artifact URIs, which are read-only"() {
         given:
         def uri = new URI('lamin://laminlabs/lamindata/artifact/uid123')
         def path = provider.getPath(uri)
@@ -219,10 +220,10 @@ class LaminFileSystemProviderTest extends Specification {
         provider.newOutputStream(path)
 
         then:
-        thrown(UnsupportedOperationException)
+        thrown(AccessDeniedException)
     }
 
-    def "createDirectory should throw UnsupportedOperationException"() {
+    def "createDirectory should throw UnsupportedOperationException for artifact URIs"() {
         given:
         def uri = new URI('lamin://laminlabs/lamindata/artifact/uid123')
         def path = provider.getPath(uri)
@@ -234,7 +235,30 @@ class LaminFileSystemProviderTest extends Specification {
         thrown(UnsupportedOperationException)
     }
 
-    def "delete should throw UnsupportedOperationException"() {
+    def "createDirectory should be a no-op for publish targets"() {
+        given:
+        def path = provider.getPath(new URI('lamin://laminlabs/lamindata?prefix=results/qc'))
+
+        when:
+        provider.createDirectory(path)
+
+        then:
+        noExceptionThrown()
+    }
+
+    def "canUpload should only accept a local source and a publish target"() {
+        given:
+        def local = Paths.get('/local/source')
+        def target = provider.getPath(new URI('lamin://laminlabs/lamindata?prefix=results/report.html'))
+        def artifact = provider.getPath(new URI('lamin://laminlabs/lamindata/artifact/uid123'))
+
+        expect:
+        provider.canUpload(local, target)
+        !provider.canUpload(local, artifact)
+        !provider.canUpload(local, Paths.get('/local/target'))
+    }
+
+    def "delete should refuse artifact URIs, which are read-only"() {
         given:
         def uri = new URI('lamin://laminlabs/lamindata/artifact/uid123')
         def path = provider.getPath(uri)
@@ -243,7 +267,7 @@ class LaminFileSystemProviderTest extends Specification {
         provider.delete(path)
 
         then:
-        thrown(UnsupportedOperationException)
+        thrown(AccessDeniedException)
     }
 
     def "move should throw UnsupportedOperationException"() {
@@ -259,7 +283,7 @@ class LaminFileSystemProviderTest extends Specification {
         thrown(UnsupportedOperationException)
     }
 
-    def "copy to lamin path should throw UnsupportedOperationException"() {
+    def "copy to lamin path should refuse artifact URIs, which are read-only"() {
         given:
         def uri = new URI('lamin://laminlabs/lamindata/artifact/uid123')
         def target = provider.getPath(uri)
@@ -269,7 +293,7 @@ class LaminFileSystemProviderTest extends Specification {
         provider.copy(source, target)
 
         then:
-        thrown(UnsupportedOperationException)
+        thrown(AccessDeniedException)
     }
 
     def "getFileStore should throw UnsupportedOperationException"() {
@@ -296,7 +320,7 @@ class LaminFileSystemProviderTest extends Specification {
         thrown(UnsupportedOperationException)
     }
 
-    def "upload should throw UnsupportedOperationException"() {
+    def "upload should refuse artifact URIs, which are read-only"() {
         given:
         def uri = new URI('lamin://laminlabs/lamindata/artifact/uid123')
         def target = provider.getPath(uri)
@@ -306,7 +330,7 @@ class LaminFileSystemProviderTest extends Specification {
         provider.upload(source, target)
 
         then:
-        thrown(UnsupportedOperationException)
+        thrown(AccessDeniedException)
     }
 
     // ==================== isSameFile Tests ====================

@@ -57,18 +57,29 @@ class FeaturesConfig {
     ''')
     final Boolean use_output_labels
 
+    @ConfigOption
+    @Description('''
+        Enable publishing Nextflow outputs into Lamin-managed storage via lamin:// URIs,
+        e.g. `-output-dir 'lamin://owner/instance'`. When enabled (default: true), published
+        files are written to the instance's storage location and registered as artifacts.
+        Disable this to keep lamin:// paths read-only.
+    ''')
+    final Boolean publish_to_lamin_storage
+
     /**
      * Default constructor
      */
     FeaturesConfig() {
         this.manage_s3_credentials = true
         this.use_output_labels = true
+        this.publish_to_lamin_storage = true
     }
 
     /**
      * Create a FeaturesConfig from a configuration map.
      *
-     * @param opts Configuration map with keys: manage_s3_credentials, publish_dir_labels
+     * @param opts Configuration map with keys: manage_s3_credentials, use_output_labels,
+     *             publish_to_lamin_storage
      */
     FeaturesConfig(Map opts) {
         this.manage_s3_credentials = opts?.containsKey('manage_s3_credentials')
@@ -77,10 +88,14 @@ class FeaturesConfig {
         this.use_output_labels = opts?.containsKey('use_output_labels')
             ? (opts.use_output_labels as Boolean)
             : true
+        this.publish_to_lamin_storage = opts?.containsKey('publish_to_lamin_storage')
+            ? (opts.publish_to_lamin_storage as Boolean)
+            : true
     }
 
     @Override
     String toString() {
-        return "FeaturesConfig{manage_s3_credentials=${manage_s3_credentials}, use_output_labels=${use_output_labels}}"
+        return "FeaturesConfig{manage_s3_credentials=${manage_s3_credentials}, " +
+            "use_output_labels=${use_output_labels}, publish_to_lamin_storage=${publish_to_lamin_storage}}"
     }
 }

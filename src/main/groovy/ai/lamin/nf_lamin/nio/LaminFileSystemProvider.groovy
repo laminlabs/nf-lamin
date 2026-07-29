@@ -32,6 +32,7 @@ import java.nio.file.LinkOption
 import java.nio.file.OpenOption
 import java.nio.file.Path
 import java.nio.file.ProviderMismatchException
+import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.attribute.FileAttribute
 import java.nio.file.attribute.FileAttributeView
@@ -407,13 +408,23 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
 
     @Override
     OutputStream newOutputStream(Path path, OpenOption... options) throws IOException {
-        throw new UnsupportedOperationException("Writing to lamin:// paths is not supported")
+        LaminPath laminPath = toLaminPath(path)
+        checkPublishable(laminPath)
+        Path underlying = resolveToUnderlyingPath(laminPath, true)
+        return Files.newOutputStream(underlying, options)
     }
 
     @Override
     SeekableByteChannel newByteChannel(Path path, Set<? extends OpenOption> options, FileAttribute<?>... attrs) throws IOException {
         LaminPath laminPath = toLaminPath(path)
-        Path underlying = resolveToUnderlyingPath(laminPath)
+        boolean forWrite = options.any {
+            it in [StandardOpenOption.WRITE, StandardOpenOption.APPEND,
+                   StandardOpenOption.CREATE, StandardOpenOption.CREATE_NEW]
+        }
+        if (forWrite) {
+            checkPublishable(laminPath)
+        }
+        Path underlying = resolveToUnderlyingPath(laminPath, forWrite)
         return Files.newByteChannel(underlying, options, attrs)
     }
 
@@ -431,12 +442,19 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
 
     @Override
     void createDirectory(Path dir, FileAttribute<?>... attrs) throws IOException {
-        throw new UnsupportedOperationException("Creating directories in lamin:// paths is not supported")
+        LaminPath laminPath = toLaminPath(dir)
+        if (!laminPath.parsed.storage) {
+            throw new UnsupportedOperationException("Creating directories in lamin:// artifact paths is not supported")
+        }
+        // Object stores have no directories, so there is nothing to create. Making this a
+        // no-op is what lets Files.createDirectories -- and with it PublishDir -- succeed.
     }
 
     @Override
     void delete(Path path) throws IOException {
-        throw new UnsupportedOperationException("Deleting lamin:// paths is not supported")
+        LaminPath laminPath = toLaminPath(path)
+        checkPublishable(laminPath)
+        FileHelper.deletePath(resolveToUnderlyingPath(laminPath, true))
     }
 
     @Override
@@ -449,7 +467,9 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
             return
         }
 
-        throw new UnsupportedOperationException("Copying to lamin:// paths is not supported")
+        LaminPath laminTarget = toLaminPath(target)
+        checkPublishable(laminTarget)
+        FileHelper.copyPath(source, resolveToUnderlyingPath(laminTarget, true), options)
     }
 
     @Override
@@ -517,8 +537,10 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
 
     @Override
     boolean canUpload(Path source, Path target) {
-        // Cannot upload TO lamin:// paths
-        return false
+        if (!(target instanceof LaminPath) || !((LaminPath) target).parsed.storage) {
+            return false
+        }
+        return isLocalFileSystem(source) && isPublishEnabled()
     }
 
     @Override
@@ -558,13 +580,48 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
 
     @Override
     void upload(Path localFile, Path remoteDestination, CopyOption... options) throws IOException {
-        throw new UnsupportedOperationException("Uploading to lamin:// paths is not supported")
+        log.debug "upload: ${localFile} -> ${remoteDestination}"
+
+        LaminPath laminPath = toLaminPath(remoteDestination)
+        checkPublishable(laminPath)
+        // copyPath re-dispatches to whichever provider actually owns the resolved path,
+        // so the lamin-s3 uploader and nf-amazon are both reached the same way
+        FileHelper.copyPath(localFile, resolveToUnderlyingPath(laminPath, true), options)
     }
 
     // ==================== Helper Methods ====================
 
     private static boolean isLocalFileSystem(Path path) {
         return path.fileSystem == java.nio.file.FileSystems.getDefault()
+    }
+
+    private static boolean isPublishEnabled() {
+        LaminConfig config = LaminConnection.getInstance().getConfig()
+        return config?.features?.publish_to_lamin_storage != false
+    }
+
+    /**
+     * Refuse to write to anything but a publish target, and only when publishing is enabled.
+     */
+    private static void checkPublishable(LaminPath laminPath) throws IOException {
+        if (!laminPath.parsed.storage) {
+            throw new AccessDeniedException(
+                laminPath.toUriString(), null,
+                "artifact URIs are read-only; publish to 'lamin://${laminPath.owner}/${laminPath.instance}' instead"
+            )
+        }
+        if (!isPublishEnabled()) {
+            throw new AccessDeniedException(
+                laminPath.toUriString(), null,
+                "publishing to lamin:// is disabled (lamin.features.publish_to_lamin_storage = false)"
+            )
+        }
+        if (laminPath.parsed.key?.startsWith(LaminUriParser.AUTO_KEY_PREFIX)) {
+            throw new AccessDeniedException(
+                laminPath.toUriString(), null,
+                "'${LaminUriParser.AUTO_KEY_PREFIX}/' is reserved by LaminDB for auto-managed artifacts"
+            )
+        }
     }
 
     private static void copyDirectory(Path source, Path target, CopyOption... options) throws IOException {
