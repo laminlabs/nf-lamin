@@ -55,6 +55,18 @@ final class LaminS3Path implements Path {
     String getBucket() { return fs.bucketName }
     String getKey() { return key }
 
+    /**
+     * The canonical {@code s3://bucket/key} form of this path.
+     *
+     * {@link #toUri()} and {@link #toString()} deliberately return the internal
+     * {@code lamin-s3://} form, which is the NIO identity of the path. LaminDB only knows
+     * about the real storage location, so anything crossing the API boundary (artifact
+     * registration in particular) must use this form instead.
+     */
+    String getCanonicalUriString() {
+        return "s3://${bucket}/${key}"
+    }
+
     @Override
     FileSystem getFileSystem() {
         return fs

@@ -413,6 +413,18 @@ class LaminS3PathTest extends Specification {
         uri.host == 'my-bucket'
     }
 
+    // ==================== canonicalUriString ====================
+
+    def "canonicalUriString() produces the real s3:// storage URI"() {
+        expect:
+        path('prefix/file.txt').canonicalUriString == 's3://my-bucket/prefix/file.txt'
+    }
+
+    def "canonicalUriString() is unaffected by the storage root prefix"() {
+        expect:
+        new LaminS3Path(fs2, 'other/file.txt').canonicalUriString == 's3://my-bucket/other/file.txt'
+    }
+
     // ==================== toAbsolutePath / toRealPath ====================
 
     def "toAbsolutePath() returns self"() {

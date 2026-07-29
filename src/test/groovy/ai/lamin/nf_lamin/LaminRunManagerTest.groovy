@@ -2,8 +2,12 @@ package ai.lamin.nf_lamin
 
 import ai.lamin.nf_lamin.instance.Instance
 import ai.lamin.nf_lamin.model.RunStatus
+import ai.lamin.nf_lamin.nio.LaminS3FileSystem
+import ai.lamin.nf_lamin.nio.LaminS3FileSystemProvider
+import ai.lamin.nf_lamin.nio.LaminS3Path
 import nextflow.Session
 import nextflow.exception.AbortSignalException
+import software.amazon.awssdk.services.s3.S3Client as AwsS3Client
 import spock.lang.Specification
 
 import java.lang.reflect.Field
@@ -110,6 +114,50 @@ class LaminRunManagerTest extends Specification {
             !args.containsKey('space_id')
         }) >> [uid: 'testuid1234567890ab']
         result != null
+    }
+
+    def 'fetchOrCreateArtifact registers a LaminS3Path under its real s3:// location'() {
+        given:
+        def manager = LaminRunManager.instance
+        def mockInstance = Mock(Instance)
+        def config = new LaminConfig([instance: 'testorg/testinst', api_key: 'test-key'])
+        manager.setCurrentInstance(mockInstance)
+        injectField(manager, 'config', config)
+
+        def s3fs = new LaminS3FileSystem(Mock(LaminS3FileSystemProvider), 's3://test-bucket/prefix', Mock(AwsS3Client), 'ak')
+        def laminS3Path = new LaminS3Path(s3fs, 'prefix/results/report.html')
+
+        mockInstance.getOwner() >> 'testorg'
+        mockInstance.getName() >> 'testinst'
+
+        when:
+        manager.fetchOrCreateArtifact([path: laminS3Path])
+
+        then: 'the internal lamin-s3:// scheme never reaches the API'
+        1 * mockInstance.createArtifact({ Map args ->
+            args.get('path') == 's3://test-bucket/prefix/results/report.html'
+        }) >> [uid: 'testuid1234567890ab']
+    }
+
+    def 'fetchOrCreateArtifact never sends an explicit key'() {
+        given:
+        def manager = LaminRunManager.instance
+        def mockInstance = Mock(Instance)
+        def config = new LaminConfig([instance: 'testorg/testinst', api_key: 'test-key'])
+        manager.setCurrentInstance(mockInstance)
+        injectField(manager, 'config', config)
+
+        def mockPath = Mock(Path)
+        mockPath.toUri() >> new URI('s3://test-bucket/results/report.html')
+
+        mockInstance.getOwner() >> 'testorg'
+        mockInstance.getName() >> 'testinst'
+
+        when:
+        manager.fetchOrCreateArtifact([path: mockPath, description: 'a report'])
+
+        then: 'LaminDB derives the key from the storage-relative path; an explicit key would make it virtual'
+        1 * mockInstance.createArtifact({ Map args -> !args.containsKey('key') }) >> [uid: 'testuid1234567890ab']
     }
 
     def 'createInputArtifactsAsync returns before worker finishes (non-blocking)'() {

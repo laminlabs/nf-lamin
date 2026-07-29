@@ -48,6 +48,7 @@ import ai.lamin.nf_lamin.instance.PermissionDeniedException
 import ai.lamin.nf_lamin.hub.InstanceSettings
 import ai.lamin.nf_lamin.model.RunStatus
 import ai.lamin.nf_lamin.nio.LaminPath
+import ai.lamin.nf_lamin.nio.LaminPaths
 import ai.lamin.nf_lamin.util.TransformInfoHelper
 import ai.lamin.nf_lamin.config.ArtifactConfig
 import ai.lamin.nf_lamin.config.ArtifactEvaluation
@@ -1506,8 +1507,9 @@ final class LaminRunManager {
         }
 
         String logContext = runId != null ? "for run ${runId}" : "without run association"
-        // Note: need to clean path because the protocol can get printed as s3:/ or s3:///
-        String pathStr = path.toUri().toString().replaceAll('^(\\w+)://*', '$1://')
+        // Renders the canonical storage URI: lamin-s3:// paths become s3://, and the protocol
+        // is normalised because some providers print it as s3:/ or s3:///
+        String pathStr = LaminPaths.toStorageUriString(path)
         Map<String, Object> artifact = null
         ReentrantLock pathLock = artifactLocks.computeIfAbsent(pathStr) { new ReentrantLock() }
         pathLock.lock()
