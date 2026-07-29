@@ -191,3 +191,52 @@ lamin {
 ```
 
 → [Full config](https://github.com/laminlabs/nf-lamin/blob/main/examples/quantms/nextflow.config)
+
+---
+
+## Reading an artifact and publishing the results back
+
+This one needs no pipeline: it reads an artifact by URI, processes it, and publishes the
+result into the instance's storage, where it is registered as a new artifact.
+
+```groovy
+params.input = 'lamin://laminlabs/lamindata/artifact/PnNjE93TdZGJ'
+
+process summarize {
+  input:
+  path sample
+
+  output:
+  path 'summary.txt'
+
+  script:
+  """
+  wc -l ${sample} > summary.txt
+  """
+}
+
+workflow {
+  channel.of(file(params.input))
+    | summarize
+}
+```
+
+Run it with the output directory pointed at your instance:
+
+```bash
+nextflow run summarize.nf \
+  -c lamin.config \
+  -output-dir 'lamin://laminlabs/lamindata?prefix=summaries'
+```
+
+The summary lands at `<storage-root>/summaries/summary.txt` and is registered with
+`key = summaries/summary.txt`, linked to the run.
+
+To publish into a specific space or storage location instead:
+
+```bash
+-output-dir 'lamin://laminlabs/lamindata/space/<space-uid>?prefix=summaries'
+-output-dir 'lamin://laminlabs/lamindata/storage/<storage-uid>?prefix=summaries'
+```
+
+→ See [`lamin://` URIs](lamin-uri.md) for the full grammar.

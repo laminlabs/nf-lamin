@@ -212,9 +212,11 @@ lamin {
 
 Optional toggles for plugin features.
 
-| Setting                 | Type    | Default | Description                                                                         |
-| ----------------------- | ------- | ------- | ----------------------------------------------------------------------------------- |
-| `manage_s3_credentials` | Boolean | `true`  | Enable automatic credential federation for S3 (see [`lamin://` URIs](lamin-uri.md)) |
+| Setting                    | Type    | Default | Description                                                                         |
+| -------------------------- | ------- | ------- | ----------------------------------------------------------------------------------- |
+| `manage_s3_credentials`    | Boolean | `true`  | Enable automatic credential federation for S3 (see [`lamin://` URIs](lamin-uri.md)) |
+| `use_output_labels`        | Boolean | `true`  | Link `publishDir` labels to artifacts as ULabels                                    |
+| `publish_to_lamin_storage` | Boolean | `true`  | Allow publishing workflow outputs to `lamin://` targets                             |
 
 **Example** — disable credential federation if it causes issues in your environment:
 
@@ -226,7 +228,13 @@ lamin {
 }
 ```
 
-When `manage_s3_credentials = false`, the plugin resolves `lamin://` URIs to their underlying `s3://` paths and lets Nextflow handle authentication via the standard credential provider chain (environment variables, AWS credentials file, instance profile, etc.).
+When `manage_s3_credentials = false`, the plugin resolves `lamin://` URIs to their underlying `s3://` paths and lets Nextflow handle authentication via the standard credential provider chain (environment variables, AWS credentials file, instance profile, etc.). This applies to publishing as well as reading.
+
+When `publish_to_lamin_storage = false`, `lamin://` paths stay read-only and publishing to one fails with a message saying so.
+
+### `space_uid` and publish targets
+
+A publish target that names a space -- `?space=<uid>` or `/space/<uid>` -- decides the space of the artifacts published to it, because the storage location it resolves to is the one LaminDB associates with that space. `lamin.space_uid` applies to everything else, including publish targets that name no space.
 
 ---
 

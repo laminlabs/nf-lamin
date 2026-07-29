@@ -54,6 +54,19 @@ flowchart TB
 | `hub/LaminHub.groovy`      | JWT auth + instance settings from laminhub.com       |
 | `instance/Instance.groovy` | REST API client for LaminDB instance                 |
 
+### The `nio` package (`lamin://` URIs)
+
+| File                               | Purpose                                                           |
+| ---------------------------------- | ----------------------------------------------------------------- |
+| `LaminUriParser.groovy`            | Parses and canonically renders artifact and publish URIs          |
+| `LaminPath.groovy`                 | `Path` over a `lamin://` URI                                      |
+| `LaminFileSystemProvider.groovy`   | Resolves a `LaminPath` to storage; delegates reads and writes     |
+| `LaminStorageResolver.groovy`      | Resolves the space/storage selectors of a publish target (cached) |
+| `LaminS3FileSystemProvider.groovy` | `lamin-s3://` provider using LaminHub session credentials         |
+| `LaminS3Uploader.groovy`           | PutObject + hand-rolled multipart upload                          |
+
+A publish target (`lamin://owner/instance?prefix=...`) is writable; an artifact URI is not.
+
 ### Observer Lifecycle
 
 ```groovy
@@ -163,10 +176,15 @@ nextflowPlugin {
     extensionPoints = [
         'ai.lamin.nf_lamin.LaminExtension',
         'ai.lamin.nf_lamin.LaminFactory',
-        'ai.lamin.nf_lamin.LaminConfig'
+        'ai.lamin.nf_lamin.LaminConfig',
+        'ai.lamin.nf_lamin.nio.LaminPathFactory',
+        'ai.lamin.nf_lamin.nio.LaminPathSerializer'
     ]
 }
 ```
+
+Every extension must be listed here. The `@Extension` annotation alone does **not** register
+one -- `META-INF/extensions.idx` is generated from this list.
 
 ## LaminDB API Integration
 

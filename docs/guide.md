@@ -55,6 +55,27 @@ ln.Run.get("your-run-uid")
 
 ![](guide/nf_core_scrnaseq_run.png)
 
+### Publishing outputs to Lamin storage
+
+Point the output directory at a `lamin://` URI to write the outputs straight into your
+instance's storage location:
+
+```bash tags=["skip-execution"]
+nextflow run <your-pipeline> -c lamin.config -output-dir 'lamin://your-org/your-instance?prefix=results'
+```
+
+Or per process, with `publishDir`:
+
+```groovy tags=["skip-execution"]
+publishDir 'lamin://your-org/your-instance?prefix=results', mode: 'copy'
+```
+
+Each published file is registered as an artifact in place, with its path relative to the
+storage root as the key -- no copy, no `.lamindb/` indirection.
+
+→ See {doc}`/reference/lamin-uri` for the full URI grammar, including publishing into a
+specific space or storage location.
+
 → See {doc}`/reference` for the full `nf-lamin` configuration reference.
 
 → See {doc}`/reference/examples` for ready-to-run examples for existing pipelines.
