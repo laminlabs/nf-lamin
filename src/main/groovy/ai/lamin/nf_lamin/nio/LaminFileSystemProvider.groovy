@@ -158,9 +158,22 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
     @Override
     Path getPath(URI uri) {
         log.debug "getPath: uri=${uri}"
+        return getPath(LaminUriParser.parse(uri))
+    }
 
-        LaminUriParser parsed = LaminUriParser.parse(uri)
-        LaminFileSystem fs = getOrCreateFileSystem(uri)
+    /**
+     * Build a path for an already-parsed URI, creating the file system if needed.
+     */
+    LaminPath getPath(LaminUriParser parsed) {
+        LaminFileSystem fs
+        String instanceSlug = parsed.instanceSlug
+        synchronized (fileSystems) {
+            fs = fileSystems.get(instanceSlug)
+            if (fs == null) {
+                fs = new LaminFileSystem(this, instanceSlug)
+                fileSystems.put(instanceSlug, fs)
+            }
+        }
         return new LaminPath(fs, parsed)
     }
 

@@ -138,12 +138,12 @@ class LaminFileSystemTest extends Specification {
         1 * provider.removeFileSystem('owner/instance')
     }
 
-    def "isReadOnly should return true"() {
+    def "isReadOnly should return false, writability is enforced per path"() {
         given:
         def fs = new LaminFileSystem(provider, 'owner/instance')
 
         expect:
-        fs.isReadOnly()
+        !fs.isReadOnly()
     }
 
     def "getSeparator should return forward slash"() {

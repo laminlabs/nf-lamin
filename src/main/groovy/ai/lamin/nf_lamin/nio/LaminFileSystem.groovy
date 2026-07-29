@@ -124,8 +124,9 @@ final class LaminFileSystem extends FileSystem implements Closeable {
 
     @Override
     boolean isReadOnly() {
-        // For now, lamin:// paths are read-only (artifact inputs)
-        return true
+        // Artifact URIs are read-only and storage URIs are writable, so writability is
+        // enforced per path -- with a message saying why -- rather than by a blanket flag
+        return false
     }
 
     @Override

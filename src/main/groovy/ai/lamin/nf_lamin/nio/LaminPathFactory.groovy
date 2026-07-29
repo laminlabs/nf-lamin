@@ -50,8 +50,11 @@ class LaminPathFactory extends FileSystemPathFactory {
         }
 
         try {
-            URI uri = new URI(uriString)
-            return FileHelper.getOrCreateFileSystemFor(uri).provider().getPath(uri)
+            // Parsed directly rather than through java.net.URI, which rejects the spaces and
+            // braces that a publish key can legitimately contain
+            LaminUriParser parsed = LaminUriParser.parse(uriString)
+            LaminFileSystemProvider provider = FileHelper.getOrInstallProvider(LaminFileSystemProvider)
+            return provider.getPath(parsed)
         } catch (Exception e) {
             log.debug "Failed to parse lamin URI: ${uriString}", e
             return null

@@ -42,8 +42,8 @@ final class LaminPath implements Path {
 
     private final LaminFileSystem fileSystem
     private final LaminUriParser parsed
-    /** Name element this path represents, or null when the path is absolute. */
-    private final String relativeName
+    /** Relative path this object represents, or null when the path is absolute. */
+    private final String relativePath
 
     /**
      * Create a new absolute LaminPath.
@@ -60,10 +60,10 @@ final class LaminPath implements Path {
      *
      * @param fileSystem The LaminFileSystem this path belongs to
      * @param parsed The parsed URI components
-     * @param relativeName When set, this path is a relative name element (as returned by
-     *        {@link #getFileName()}) rather than an absolute path
+     * @param relativePath When set, this path is a relative path (as returned by
+     *        {@link #getFileName()} or {@link #relativize}) rather than an absolute path
      */
-    LaminPath(LaminFileSystem fileSystem, LaminUriParser parsed, String relativeName) {
+    LaminPath(LaminFileSystem fileSystem, LaminUriParser parsed, String relativePath) {
         if (fileSystem == null) {
             throw new IllegalArgumentException("FileSystem cannot be null")
         }
@@ -72,7 +72,7 @@ final class LaminPath implements Path {
         }
         this.fileSystem = fileSystem
         this.parsed = parsed
-        this.relativeName = relativeName
+        this.relativePath = relativePath
     }
 
     /**
@@ -160,7 +160,7 @@ final class LaminPath implements Path {
     boolean isAbsolute() {
         // A name element (as returned by getFileName()) is relative; anything else carries
         // a full lamin:// URI and is therefore absolute
-        return relativeName == null
+        return relativePath == null
     }
 
     @Override
@@ -175,11 +175,31 @@ final class LaminPath implements Path {
 
     @Override
     Path getFileName() {
-        String fileName = relativeName ?: parsed.fileName
+        String fileName = isAbsolute() ? parsed.fileName : lastSegment(relativePath)
         if (fileName == null || fileName.isEmpty()) {
             return null
         }
         return new LaminPath(fileSystem, parsed, fileName)
+    }
+
+    /** The segments of this path that behave hierarchically, i.e. below the root. */
+    private List<String> nameSegments() {
+        if (!isAbsolute()) {
+            return splitSegments(relativePath)
+        }
+        return parsed.storage ? parsed.keySegments : null
+    }
+
+    private static List<String> splitSegments(String value) {
+        return value ? (value.split(LaminUriParser.SEP) as List<String>) : ([] as List<String>)
+    }
+
+    private static String lastSegment(String value) {
+        if (!value) {
+            return null
+        }
+        int lastSep = value.lastIndexOf(LaminUriParser.SEP)
+        return lastSep >= 0 ? value.substring(lastSep + 1) : value
     }
 
     @Override
@@ -193,8 +213,9 @@ final class LaminPath implements Path {
 
     @Override
     int getNameCount() {
-        if (!isAbsolute()) {
-            return 1
+        List<String> segments = nameSegments()
+        if (segments != null) {
+            return segments.size()
         }
         // Count: owner, instance, resourceType, resourceId, plus sub-path components
         int count = 4  // owner/instance/resourceType/resourceId
@@ -206,11 +227,12 @@ final class LaminPath implements Path {
 
     @Override
     Path getName(int index) {
-        if (!isAbsolute()) {
-            if (index != 0) {
-                throw new IllegalArgumentException("Index ${index} out of range [0, 1)")
+        List<String> segments = nameSegments()
+        if (segments != null) {
+            if (index < 0 || index >= segments.size()) {
+                throw new IllegalArgumentException("Index ${index} out of range [0, ${segments.size()})")
             }
-            return this
+            return new LaminPath(fileSystem, parsed, segments[index])
         }
         // Lamin URIs (lamin://owner/instance/artifact/uid) are not hierarchical file paths.
         // Individual components cannot exist as standalone paths - you cannot navigate to
@@ -226,11 +248,12 @@ final class LaminPath implements Path {
 
     @Override
     Path subpath(int beginIndex, int endIndex) {
-        if (!isAbsolute()) {
-            if (beginIndex != 0 || endIndex != 1) {
+        List<String> segments = nameSegments()
+        if (segments != null) {
+            if (beginIndex < 0 || endIndex > segments.size() || beginIndex >= endIndex) {
                 throw new IllegalArgumentException("Invalid subpath range [${beginIndex}, ${endIndex})")
             }
-            return this
+            return new LaminPath(fileSystem, parsed, segments[beginIndex..<endIndex].join(LaminUriParser.SEP))
         }
         // Lamin URIs (lamin://owner/instance/artifact/uid) are not hierarchical file paths.
         // You cannot extract partial paths like 'owner/instance' as they are not valid lamin URIs.
@@ -248,7 +271,38 @@ final class LaminPath implements Path {
         if (!(other instanceof LaminPath)) {
             return false
         }
+        LaminPath that = (LaminPath) other
+        if (isAbsolute() != that.isAbsolute()) {
+            return false
+        }
+        if (!isAbsolute()) {
+            return segmentsStartWith(relativePath, that.relativePath)
+        }
+        // For a storage location, compare keys segment by segment so that 'results' is not
+        // reported as a prefix of 'results-old'
+        if (parsed.storage && that.parsed.storage) {
+            return sameStorageLocation(that) && segmentsStartWith(parsed.key, that.parsed.key)
+        }
         return toString().startsWith(other.toString())
+    }
+
+    /** Whether both paths address the same storage location, ignoring their keys. */
+    private boolean sameStorageLocation(LaminPath that) {
+        return parsed.owner == that.parsed.owner &&
+               parsed.instance == that.parsed.instance &&
+               parsed.resourceType == that.parsed.resourceType &&
+               parsed.resourceId == that.parsed.resourceId &&
+               parsed.storageRef == that.parsed.storageRef
+    }
+
+    private static boolean segmentsStartWith(String value, String prefix) {
+        if (!prefix) {
+            return true
+        }
+        if (!value) {
+            return false
+        }
+        return value == prefix || value.startsWith(prefix + LaminUriParser.SEP)
     }
 
     @Override
@@ -271,7 +325,11 @@ final class LaminPath implements Path {
 
     @Override
     Path normalize() {
-        // Lamin paths are already normalized
+        if (!isAbsolute()) {
+            String normalized = relativePath ? (LaminUriParser.normalizeKey(relativePath) ?: '') : relativePath
+            return normalized == relativePath ? this : new LaminPath(fileSystem, parsed, normalized)
+        }
+        // Keys are normalised as they are built, and artifact URIs have nothing to normalise
         return this
     }
 
@@ -285,10 +343,7 @@ final class LaminPath implements Path {
             return other
         }
 
-        // Resolve the other path relative to this path
-        String otherStr = other.toString()
-        LaminUriParser newParsed = parsed.withSubPath(otherStr)
-        return new LaminPath(fileSystem, newParsed)
+        return resolve(other.toString())
     }
 
     @Override
@@ -300,6 +355,11 @@ final class LaminPath implements Path {
         // If it's an absolute path (has scheme), parse it
         if (other.startsWith(LaminUriParser.SCHEME + ':')) {
             return new LaminPath(fileSystem, LaminUriParser.parse(other))
+        }
+
+        if (!isAbsolute()) {
+            String joined = relativePath ? "${relativePath}/${other}".toString() : other
+            return new LaminPath(fileSystem, parsed, joined)
         }
 
         // Otherwise resolve relative to this path
@@ -347,6 +407,19 @@ final class LaminPath implements Path {
         }
 
         LaminPath otherPath = (LaminPath) other
+
+        // For a storage location the result stays on this provider, so that walking it with
+        // Files.createDirectories/walkFileTree keeps producing LaminPaths
+        if (isAbsolute() && parsed.storage && otherPath.isAbsolute() && otherPath.parsed.storage) {
+            if (!otherPath.startsWith(this)) {
+                throw new IllegalArgumentException("Cannot relativize '${otherPath}' against '${this}'")
+            }
+            String relativeKey = parsed.hasKey()
+                ? otherPath.parsed.key.substring(parsed.key.length()).replaceFirst('^/', '')
+                : otherPath.parsed.key
+            return new LaminPath(fileSystem, parsed, relativeKey ?: '')
+        }
+
         String thisUri = toUriString()
         String otherUri = otherPath.toUriString()
 
@@ -370,7 +443,7 @@ final class LaminPath implements Path {
     @Override
     URI toUri() {
         if (!isAbsolute()) {
-            throw new IllegalStateException("Cannot build a URI for the relative path '${relativeName}'")
+            throw new IllegalStateException("Cannot build a URI for the relative path '${relativePath}'")
         }
         return parsed.toUri()
     }
@@ -421,8 +494,9 @@ final class LaminPath implements Path {
 
     @Override
     Iterator<Path> iterator() {
-        if (!isAbsolute()) {
-            return Collections.singletonList((Path) this).iterator()
+        List<String> segments = nameSegments()
+        if (segments != null) {
+            return segments.collect { String s -> (Path) new LaminPath(fileSystem, parsed, s) }.iterator()
         }
         // Lamin URIs (lamin://owner/instance/artifact/uid) are not hierarchical file paths.
         // Individual components cannot be iterated as Path objects since they are not valid
@@ -445,8 +519,8 @@ final class LaminPath implements Path {
 
     @Override
     String toString() {
-        // A name element renders as just that name, so it can be used for staging paths
-        return relativeName ?: toUriString()
+        // A relative path renders as just that path, so it can be used for staging paths
+        return isAbsolute() ? toUriString() : relativePath
     }
 
     @Override
@@ -454,11 +528,11 @@ final class LaminPath implements Path {
         if (this.is(obj)) return true
         if (!(obj instanceof LaminPath)) return false
         LaminPath other = (LaminPath) obj
-        return parsed == other.parsed && relativeName == other.relativeName
+        return parsed == other.parsed && relativePath == other.relativePath
     }
 
     @Override
     int hashCode() {
-        return Objects.hash(parsed, relativeName)
+        return Objects.hash(parsed, relativePath)
     }
 }

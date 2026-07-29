@@ -822,6 +822,110 @@ class LaminPathTest extends Specification {
         path1.hashCode() == path2.hashCode()
     }
 
+    // ==================== Storage flavour Tests ====================
+
+    def "storage paths should walk their key hierarchically"() {
+        given:
+        def path = createPath('lamin://laminlabs/lamindata?prefix=results/qc/report.html')
+
+        expect:
+        path.nameCount == 3
+        path.getName(0).toString() == 'results'
+        path.getName(2).toString() == 'report.html'
+        path.subpath(0, 2).toString() == 'results/qc'
+        path.iterator().collect { it.toString() } == ['results', 'qc', 'report.html']
+        path.fileName.toString() == 'report.html'
+    }
+
+    def "the storage root should have no name elements"() {
+        given:
+        def path = createPath('lamin://laminlabs/lamindata')
+
+        expect:
+        path.nameCount == 0
+        path.fileName == null
+        path.parent == null
+        path.root == path
+    }
+
+    def "getParent should walk up to the storage root"() {
+        given:
+        def path = createPath('lamin://laminlabs/lamindata/space/sp1?prefix=results/qc/report.html')
+
+        expect:
+        path.parent.toString() == 'lamin://laminlabs/lamindata/space/sp1?prefix=results/qc'
+        path.parent.parent.toString() == 'lamin://laminlabs/lamindata/space/sp1?prefix=results'
+        path.parent.parent.parent.toString() == 'lamin://laminlabs/lamindata/space/sp1'
+        path.parent.parent.parent.parent == null
+    }
+
+    def "resolve should append to the key and normalise"() {
+        given:
+        def path = createPath('lamin://laminlabs/lamindata?prefix=results')
+
+        expect:
+        path.resolve('qc/report.html').toString() == 'lamin://laminlabs/lamindata?prefix=results/qc/report.html'
+        path.resolve('/qc/report.html').toString() == 'lamin://laminlabs/lamindata?prefix=results/qc/report.html'
+        path.resolve('./qc').toString() == 'lamin://laminlabs/lamindata?prefix=results/qc'
+    }
+
+    def "startsWith should only match on segment boundaries"() {
+        given:
+        def base = createPath('lamin://laminlabs/lamindata?prefix=results')
+
+        expect:
+        createPath('lamin://laminlabs/lamindata?prefix=results/qc').startsWith(base)
+        createPath('lamin://laminlabs/lamindata?prefix=results').startsWith(base)
+        !createPath('lamin://laminlabs/lamindata?prefix=results-old/qc').startsWith(base)
+        createPath('lamin://laminlabs/lamindata?prefix=anything').startsWith(createPath('lamin://laminlabs/lamindata'))
+    }
+
+    def "startsWith should not match across storage locations"() {
+        given:
+        def base = createPath('lamin://laminlabs/lamindata/space/sp1?prefix=results')
+
+        expect:
+        !createPath('lamin://laminlabs/lamindata/space/sp2?prefix=results/qc').startsWith(base)
+        !createPath('lamin://laminlabs/lamindata?prefix=results/qc').startsWith(base)
+    }
+
+    def "relativize should stay on the lamin provider for storage paths"() {
+        given:
+        def base = createPath('lamin://laminlabs/lamindata?prefix=results')
+        def file = createPath('lamin://laminlabs/lamindata?prefix=results/qc/report.html')
+
+        when:
+        def relative = base.relativize(file)
+
+        then:
+        relative instanceof LaminPath
+        !relative.isAbsolute()
+        relative.toString() == 'qc/report.html'
+
+        and: 'resolving it back yields the original path'
+        base.resolve(relative) == file
+    }
+
+    def "relativize against the storage root should give the whole key"() {
+        given:
+        def base = createPath('lamin://laminlabs/lamindata')
+        def file = createPath('lamin://laminlabs/lamindata?prefix=results/report.html')
+
+        expect:
+        base.relativize(file).toString() == 'results/report.html'
+    }
+
+    def "a multi-segment relative path should behave hierarchically"() {
+        given:
+        def base = createPath('lamin://laminlabs/lamindata?prefix=results')
+        def relative = base.relativize(createPath('lamin://laminlabs/lamindata?prefix=results/qc/report.html'))
+
+        expect:
+        relative.nameCount == 2
+        relative.fileName.toString() == 'report.html'
+        relative.getName(0).toString() == 'qc'
+    }
+
     // ==================== Helper Methods ====================
 
     private LaminPath createPath(String uri) {
