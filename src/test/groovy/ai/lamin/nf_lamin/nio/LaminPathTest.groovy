@@ -715,13 +715,56 @@ class LaminPathTest extends Specification {
         path.toString() == 'lamin://laminlabs/lamindata/artifact/uid123'
     }
 
-    def "toString should return filename when isFileName is true"() {
+    def "toString should return just the name for a name element"() {
         given:
         def path = createPath('lamin://laminlabs/lamindata/artifact/uid123/file.txt')
         def fileName = path.fileName
 
         expect:
         fileName.toString() == 'file.txt'
+    }
+
+    // ==================== Name element (relative) Tests ====================
+
+    def "getFileName should return a relative path"() {
+        given:
+        def path = createPath('lamin://laminlabs/lamindata/artifact/uid123/file.txt')
+
+        expect:
+        !path.fileName.isAbsolute()
+        path.fileName.root == null
+        path.fileName.nameCount == 1
+    }
+
+    def "resolving a name element against its parent should join rather than replace"() {
+        given:
+        def path = createPath('lamin://laminlabs/lamindata/artifact/uid123/sub/file.txt')
+        def parent = path.parent
+
+        when:
+        def joined = parent.resolve(path.fileName)
+
+        then:
+        joined.toString() == 'lamin://laminlabs/lamindata/artifact/uid123/sub/file.txt'
+    }
+
+    def "a name element should not equal the path it came from"() {
+        given:
+        def path = createPath('lamin://laminlabs/lamindata/artifact/uid123/file.txt')
+
+        expect:
+        path.fileName != path
+    }
+
+    def "toUri should fail for a name element"() {
+        given:
+        def path = createPath('lamin://laminlabs/lamindata/artifact/uid123/file.txt')
+
+        when:
+        path.fileName.toUri()
+
+        then:
+        thrown(IllegalStateException)
     }
 
     // ==================== equals Tests ====================

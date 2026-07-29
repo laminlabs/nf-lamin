@@ -42,16 +42,17 @@ final class LaminPath implements Path {
 
     private final LaminFileSystem fileSystem
     private final LaminUriParser parsed
-    private final boolean isFileName  // When true, toString() returns just the filename
+    /** Name element this path represents, or null when the path is absolute. */
+    private final String relativeName
 
     /**
-     * Create a new LaminPath.
+     * Create a new absolute LaminPath.
      *
      * @param fileSystem The LaminFileSystem this path belongs to
      * @param parsed The parsed URI components
      */
     LaminPath(LaminFileSystem fileSystem, LaminUriParser parsed) {
-        this(fileSystem, parsed, false)
+        this(fileSystem, parsed, (String) null)
     }
 
     /**
@@ -59,9 +60,10 @@ final class LaminPath implements Path {
      *
      * @param fileSystem The LaminFileSystem this path belongs to
      * @param parsed The parsed URI components
-     * @param isFileName When true, toString() returns just the filename component
+     * @param relativeName When set, this path is a relative name element (as returned by
+     *        {@link #getFileName()}) rather than an absolute path
      */
-    LaminPath(LaminFileSystem fileSystem, LaminUriParser parsed, boolean isFileName) {
+    LaminPath(LaminFileSystem fileSystem, LaminUriParser parsed, String relativeName) {
         if (fileSystem == null) {
             throw new IllegalArgumentException("FileSystem cannot be null")
         }
@@ -70,7 +72,7 @@ final class LaminPath implements Path {
         }
         this.fileSystem = fileSystem
         this.parsed = parsed
-        this.isFileName = isFileName
+        this.relativeName = relativeName
     }
 
     /**
@@ -156,8 +158,9 @@ final class LaminPath implements Path {
 
     @Override
     boolean isAbsolute() {
-        // Lamin paths are always absolute (they have a scheme)
-        return true
+        // A name element (as returned by getFileName()) is relative; anything else carries
+        // a full lamin:// URI and is therefore absolute
+        return relativeName == null
     }
 
     @Override
@@ -172,12 +175,11 @@ final class LaminPath implements Path {
 
     @Override
     Path getFileName() {
-        String fileName = parsed.fileName
+        String fileName = relativeName ?: parsed.fileName
         if (fileName == null || fileName.isEmpty()) {
             return null
         }
-        // Return a path marked as isFileName=true so toString() returns just the filename
-        return new LaminPath(fileSystem, parsed, true)
+        return new LaminPath(fileSystem, parsed, fileName)
     }
 
     @Override
@@ -191,6 +193,9 @@ final class LaminPath implements Path {
 
     @Override
     int getNameCount() {
+        if (!isAbsolute()) {
+            return 1
+        }
         // Count: owner, instance, resourceType, resourceId, plus sub-path components
         int count = 4  // owner/instance/resourceType/resourceId
         if (parsed.hasSubPath()) {
@@ -201,6 +206,12 @@ final class LaminPath implements Path {
 
     @Override
     Path getName(int index) {
+        if (!isAbsolute()) {
+            if (index != 0) {
+                throw new IllegalArgumentException("Index ${index} out of range [0, 1)")
+            }
+            return this
+        }
         // Lamin URIs (lamin://owner/instance/artifact/uid) are not hierarchical file paths.
         // Individual components cannot exist as standalone paths - you cannot navigate to
         // 'lamin://owner/' or 'lamin://owner/instance/artifact/' without a complete artifact UID.
@@ -215,6 +226,12 @@ final class LaminPath implements Path {
 
     @Override
     Path subpath(int beginIndex, int endIndex) {
+        if (!isAbsolute()) {
+            if (beginIndex != 0 || endIndex != 1) {
+                throw new IllegalArgumentException("Invalid subpath range [${beginIndex}, ${endIndex})")
+            }
+            return this
+        }
         // Lamin URIs (lamin://owner/instance/artifact/uid) are not hierarchical file paths.
         // You cannot extract partial paths like 'owner/instance' as they are not valid lamin URIs.
         // If you're seeing this error, you may be using a lamin:// path in a context that
@@ -231,12 +248,12 @@ final class LaminPath implements Path {
         if (!(other instanceof LaminPath)) {
             return false
         }
-        return toUriString().startsWith(((LaminPath) other).toUriString())
+        return toString().startsWith(other.toString())
     }
 
     @Override
     boolean startsWith(String other) {
-        return toUriString().startsWith(other)
+        return toString().startsWith(other)
     }
 
     @Override
@@ -244,12 +261,12 @@ final class LaminPath implements Path {
         if (!(other instanceof LaminPath)) {
             return false
         }
-        return toUriString().endsWith(((LaminPath) other).toUriString())
+        return toString().endsWith(other.toString())
     }
 
     @Override
     boolean endsWith(String other) {
-        return toUriString().endsWith(other)
+        return toString().endsWith(other)
     }
 
     @Override
@@ -352,6 +369,9 @@ final class LaminPath implements Path {
 
     @Override
     URI toUri() {
+        if (!isAbsolute()) {
+            throw new IllegalStateException("Cannot build a URI for the relative path '${relativeName}'")
+        }
         return parsed.toUri()
     }
 
@@ -401,6 +421,9 @@ final class LaminPath implements Path {
 
     @Override
     Iterator<Path> iterator() {
+        if (!isAbsolute()) {
+            return Collections.singletonList((Path) this).iterator()
+        }
         // Lamin URIs (lamin://owner/instance/artifact/uid) are not hierarchical file paths.
         // Individual components cannot be iterated as Path objects since they are not valid
         // standalone lamin URIs. If you're seeing this error, you may be using a lamin:// path
@@ -417,17 +440,13 @@ final class LaminPath implements Path {
         if (!(other instanceof LaminPath)) {
             return -1
         }
-        return toUriString().compareTo(((LaminPath) other).toUriString())
+        return toString().compareTo(other.toString())
     }
 
     @Override
     String toString() {
-        // When isFileName is true (i.e., this path was returned by getFileName()),
-        // return just the filename component so it can be used for staging paths
-        if (isFileName) {
-            return parsed.fileName
-        }
-        return toUriString()
+        // A name element renders as just that name, so it can be used for staging paths
+        return relativeName ?: toUriString()
     }
 
     @Override
@@ -435,11 +454,11 @@ final class LaminPath implements Path {
         if (this.is(obj)) return true
         if (!(obj instanceof LaminPath)) return false
         LaminPath other = (LaminPath) obj
-        return parsed == other.parsed
+        return parsed == other.parsed && relativeName == other.relativeName
     }
 
     @Override
     int hashCode() {
-        return parsed.hashCode()
+        return Objects.hash(parsed, relativeName)
     }
 }
