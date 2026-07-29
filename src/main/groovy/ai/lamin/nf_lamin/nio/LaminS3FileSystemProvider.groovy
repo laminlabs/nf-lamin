@@ -39,9 +39,14 @@ import java.nio.file.attribute.FileAttribute
 import java.nio.file.attribute.FileAttributeView
 import java.nio.file.spi.FileSystemProvider
 
+import java.util.function.Supplier
+
 import nextflow.file.CopyOptions
 import nextflow.file.FileSystemTransferAware
 
+import ai.lamin.nf_lamin.hub.CloudAccessResponse
+
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient
@@ -110,11 +115,41 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
             }
 
             // Create a new S3 client with the temporary session credentials
-            AwsS3Client s3Client = createS3Client(accessKeyId, secretAccessKey, sessionToken)
+            AwsSessionCredentials credentials = AwsSessionCredentials.create(accessKeyId, secretAccessKey, sessionToken)
+            AwsS3Client s3Client = createS3Client(StaticCredentialsProvider.create(credentials), null)
 
             LaminS3FileSystem fs = new LaminS3FileSystem(this, storageRoot, s3Client, accessKeyId)
             fileSystems.put(storageRoot, fs)
             log.debug "Created LaminS3FileSystem for storageRoot '${storageRoot}' with accessKeyId ending in '${accessKeyId.takeRight(4)}'"
+            return fs
+        }
+    }
+
+    /**
+     * Get or create an S3 file system whose credentials are refreshed on demand.
+     *
+     * Unlike the static variant above, the returned file system is never invalidated: the
+     * SDK asks the supplier for credentials on every request, so a long-running transfer
+     * survives the expiry of the credentials it started with.
+     *
+     * @param storageRoot The full storage root URI (e.g. {@code s3://bucket/prefix})
+     * @param supplier Supplies current LaminHub credentials for this storage root
+     * @param region Storage region, or null to let cross-region access sort it out
+     * @return The LaminS3FileSystem for this storageRoot
+     */
+    LaminS3FileSystem getOrCreateFileSystem(String storageRoot, Supplier<CloudAccessResponse> supplier, String region) {
+        synchronized (fileSystems) {
+            LaminS3FileSystem existing = fileSystems.get(storageRoot)
+            if (existing != null) {
+                return existing
+            }
+
+            CloudAccessResponse access = supplier.get()
+            AwsS3Client s3Client = createS3Client(new LaminCloudCredentialsProvider(supplier), region)
+
+            LaminS3FileSystem fs = new LaminS3FileSystem(this, storageRoot, s3Client, access?.accessKeyId, access?.role)
+            fileSystems.put(storageRoot, fs)
+            log.debug "Created LaminS3FileSystem for storageRoot '${storageRoot}' (role=${access?.role}, region=${region})"
             return fs
         }
     }
@@ -124,15 +159,14 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
     }
 
     /**
-     * Creates an AWS S3 client with the given temporary session credentials.
+     * Creates an AWS S3 client for the given credentials.
      * Protected to allow test subclasses to inject mock clients.
      */
-    protected AwsS3Client createS3Client(String accessKeyId, String secretAccessKey, String sessionToken) {
-        AwsSessionCredentials credentials = AwsSessionCredentials.create(accessKeyId, secretAccessKey, sessionToken)
+    protected AwsS3Client createS3Client(AwsCredentialsProvider credentialsProvider, String region) {
         return AwsS3Client.builder()
             .crossRegionAccessEnabled(true)
-            .region(Region.US_EAST_1)  // default; crossRegionAccessEnabled handles the rest
-            .credentialsProvider(StaticCredentialsProvider.create(credentials))
+            .region(region ? Region.of(region) : Region.US_EAST_1)
+            .credentialsProvider(credentialsProvider)
             .httpClientBuilder(UrlConnectionHttpClient.builder())
             .build()
     }

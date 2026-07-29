@@ -26,6 +26,7 @@ import java.nio.file.ProviderMismatchException
 import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.BasicFileAttributes
 
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.core.ResponseInputStream
 import software.amazon.awssdk.http.AbortableInputStream
 import software.amazon.awssdk.services.s3.S3Client as AwsS3Client
@@ -50,7 +51,7 @@ class LaminS3FileSystemProviderTest extends Specification {
         AwsS3Client injectedClient
 
         @Override
-        protected AwsS3Client createS3Client(String accessKeyId, String secretAccessKey, String sessionToken) {
+        protected AwsS3Client createS3Client(AwsCredentialsProvider credentialsProvider, String region) {
             return injectedClient
         }
     }

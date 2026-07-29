@@ -46,14 +46,18 @@ final class LaminS3FileSystem extends FileSystem {
     private final AwsS3Client s3Client
     // Track which access key this filesystem was created with, for cache invalidation
     final String accessKeyId
+    /** Access level LaminHub granted for this storage root, e.g. 'read' or 'write'. */
+    final String role
 
     private volatile boolean closed = false
 
-    LaminS3FileSystem(LaminS3FileSystemProvider provider, String storageRoot, AwsS3Client s3Client, String accessKeyId) {
+    LaminS3FileSystem(LaminS3FileSystemProvider provider, String storageRoot, AwsS3Client s3Client,
+                      String accessKeyId, String role = null) {
         this.provider = provider
         this.storageRoot = storageRoot
         this.s3Client = s3Client
         this.accessKeyId = accessKeyId
+        this.role = role
         log.debug "Created LaminS3FileSystem for storageRoot: ${storageRoot}"
     }
 
@@ -88,7 +92,7 @@ final class LaminS3FileSystem extends FileSystem {
 
     @Override
     boolean isReadOnly() {
-        return true
+        return role != 'write'
     }
 
     @Override
