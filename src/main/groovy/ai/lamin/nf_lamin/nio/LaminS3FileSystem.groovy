@@ -27,6 +27,8 @@ import java.nio.file.WatchService
 import java.nio.file.attribute.UserPrincipalLookupService
 import java.nio.file.spi.FileSystemProvider
 
+import ai.lamin.nf_lamin.hub.CloudAccessResponse
+
 import software.amazon.awssdk.services.s3.S3Client as AwsS3Client
 
 /**
@@ -92,7 +94,7 @@ final class LaminS3FileSystem extends FileSystem {
 
     @Override
     boolean isReadOnly() {
-        return role != 'write'
+        return !CloudAccessResponse.WRITE_ROLES.contains(role)
     }
 
     @Override

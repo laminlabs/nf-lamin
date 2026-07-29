@@ -122,6 +122,14 @@ class CloudAccessResponse {
         return accessKeyId && secretAccessKey && sessionToken
     }
 
+    /** LaminHub roles that allow writing to a storage location. */
+    static final List<String> WRITE_ROLES = ['write', 'admin'].asImmutable()
+
+    /** Returns true when LaminHub granted a role that allows writing. */
+    boolean isWritable() {
+        return WRITE_ROLES.contains(role)
+    }
+
     /**
      * Returns true when the cached response has passed its freshness window (STS expiry minus
      * 5 minutes) and a fresh call to LaminHub should be made.

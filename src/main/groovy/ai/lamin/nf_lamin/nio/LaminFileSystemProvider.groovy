@@ -368,7 +368,7 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
 
         // Once LaminHub has spoken, honour what it said: falling back to the ambient AWS
         // credentials here would write under a different identity than the one authorised
-        if (forWrite && cloudAccess.role != 'write') {
+        if (forWrite && !cloudAccess.isWritable()) {
             throw new AccessDeniedException(
                 laminPath.toUriString(), null,
                 "LaminHub granted only '${cloudAccess.role}' access to storage ${storageRoot}. " +

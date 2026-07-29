@@ -108,8 +108,8 @@ class LaminObserver implements TraceObserverV2 {
      *       path and links any publishDir labels as ULabels (if the
      *       {@code features.publish_dir_labels} flag is enabled).</li>
      *   <li><strong>Index/manifest file</strong> (written after {@code onWorkflowOutput}):
-     *       the Artifact was already created by {@link #onWorkflowOutput}; only the labels
-     *       are linked to the existing artifact.</li>
+     *       creates the Artifact, using the output name {@link #onWorkflowOutput} recorded
+     *       for it.</li>
      * </ul>
      */
     @Override
@@ -133,8 +133,9 @@ class LaminObserver implements TraceObserverV2 {
      * {@link LaminRunManager#createOutputArtifactOnWorkflowOutput} is a no-op for those paths.</p>
      *
      * <p>For index/manifest files ({@code event.index}) this hook fires <em>before</em> the
-     * corresponding {@link #onFilePublish}, so the artifact is created here with the output
-     * name in its description; the subsequent {@code onFilePublish} then attaches labels.</p>
+     * file is written, and on a re-run the file is deleted and rewritten in between, so only
+     * the output name is recorded here; the subsequent {@code onFilePublish} creates the
+     * artifact.</p>
      */
     @Override
     void onWorkflowOutput(WorkflowOutputEvent event) {
@@ -150,7 +151,7 @@ class LaminObserver implements TraceObserverV2 {
             }
         }
         if (event.index != null) {
-            state.createOutputArtifactOnWorkflowOutputAsync(event.index, event.name)
+            state.rememberOutputName(event.index, event.name)
         }
     }
 

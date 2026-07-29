@@ -94,6 +94,8 @@ final class LaminRunManager {
     // Cache of published output artifacts (key: path URI string, value: artifact map)
     // Written by createOutputArtifact; read by createOutputArtifact(labels) and trackWorkflowOutput
     private final Map<String, Map> publishedArtifactsByPath = Collections.synchronizedMap(new LinkedHashMap<String, Map>())
+    // Output names of paths announced by onWorkflowOutput before they were written
+    private final Map<String, String> pendingOutputNames = new ConcurrentHashMap<String, String>()
 
     // Tracks whether the one-time local file warning has been shown this session
     private volatile boolean localFileWarningShown = false
@@ -119,6 +121,7 @@ final class LaminRunManager {
         LaminConnection.getInstance().reset()
         recordResolutionCache.clear()
         publishedArtifactsByPath.clear()
+        pendingOutputNames.clear()
         artifactExecutor = createArtifactExecutor(ApiConfig.DEFAULT_MAX_WORKERS)
     }
 
@@ -707,6 +710,21 @@ final class LaminRunManager {
         }
     }
 
+    /**
+     * Record the output name of an index file, to be used when it is published.
+     *
+     * The index file is announced before it is written, and is deleted and rewritten on a
+     * re-run, so it can only be registered from the {@code onFilePublish} that follows.
+     *
+     * @param path       The index file path ({@code WorkflowOutputEvent.index})
+     * @param outputName The workflow output block name
+     */
+    void rememberOutputName(Path path, String outputName) {
+        if (path != null && outputName != null) {
+            pendingOutputNames.put(path.toUri().toString(), outputName)
+        }
+    }
+
     void createInputArtifactsAsync(String taskName, List<Path> sources) {
         submitToExecutor("input artifacts for task '${taskName}'") {
             try {
@@ -877,7 +895,7 @@ final class LaminRunManager {
             }
             return cachedArtifact
         }
-        return createOutputArtifact(path, null, labels, null)
+        return createOutputArtifact(path, null, labels, pendingOutputNames.remove(pathKey))
     }
 
     /**
