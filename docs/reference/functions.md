@@ -51,4 +51,55 @@ workflow {
 }
 ```
 
+## `annotateArtifact()`
+
+Attaches metadata to the artifact that Lamin registers for a file.
+
+The file keeps being published by Nextflow as usual — `publishDir` and workflow outputs are untouched. This function only records what should be attached to the resulting artifact, which lets a workflow decide its metadata programmatically instead of only through static config.
+
+**Parameters:**
+
+| Name           | Type          | Description                                    |
+| -------------- | ------------- | ---------------------------------------------- |
+| _(positional)_ | Path/String   | The file to annotate, or a collection of files |
+| `kind`         | String        | Artifact kind: `dataset`, `model`, or `plan`   |
+| `description`  | String        | Artifact description                           |
+| `ulabel_uids`  | List\<String> | ULabel UIDs or named references to link        |
+| `project_uids` | List\<String> | Project UIDs or named references to link       |
+
+Like the [UID fields in the config](config.md#core-settings), `ulabel_uids` and `project_uids` accept a UID, or a named reference: `'?name'` (look up, omit if missing), `'!name'` (look up, error if missing), `'+name'` (create if missing).
+
+**Returns:** the file it was given, unchanged, so the call can be the body of a `map` closure.
+
+**Example:**
+
+```groovy
+include { annotateArtifact } from 'plugin/nf-lamin'
+
+workflow {
+  ALIGN(ch_reads)
+    | map { meta, bam ->
+        annotateArtifact(bam,
+          kind: 'dataset',
+          description: "Aligned reads for sample ${meta.id}",
+          ulabel_uids: ['+alignment', meta.qc_passed ? '+qc-passed' : '+qc-failed']
+        )
+        [meta, bam]
+      }
+    | set { ch_bam }
+
+  publish:
+  bam = ch_bam
+}
+```
+
+**Notes:**
+
+- It can be called before or after the file is published — the annotation is applied whenever the artifact is registered.
+- Repeated calls for the same file accumulate.
+- It does nothing when no Lamin instance is configured, so a workflow using it still runs without the plugin being connected.
+- A file that is annotated but never tracked as an artifact is reported in a warning at the end of the run.
+
+---
+
 All functions return `null` if the plugin hasn't initialized the run yet, so they are best used in the workflow body (not in process definitions).
