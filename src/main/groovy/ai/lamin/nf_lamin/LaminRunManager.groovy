@@ -46,6 +46,7 @@ import ai.lamin.nf_lamin.hub.LaminHubSettings
 import ai.lamin.nf_lamin.instance.Instance
 import ai.lamin.nf_lamin.instance.PermissionDeniedException
 import ai.lamin.nf_lamin.hub.InstanceSettings
+import ai.lamin.nf_lamin.model.ArtifactAnnotation
 import ai.lamin.nf_lamin.model.RunStatus
 import ai.lamin.nf_lamin.nio.LaminPath
 import ai.lamin.nf_lamin.util.TransformInfoHelper
@@ -93,6 +94,15 @@ final class LaminRunManager {
     // Written by createOutputArtifact; read by createOutputArtifact(labels) and trackWorkflowOutput
     private final Map<String, Map> publishedArtifactsByPath = Collections.synchronizedMap(new LinkedHashMap<String, Map>())
 
+    // Annotations requested from the workflow via annotateArtifact(), keyed by annotation key
+    private final Map<String, List<ArtifactAnnotation>> pendingAnnotations = new ConcurrentHashMap<String, List<ArtifactAnnotation>>()
+
+    // Artifacts already created, keyed by every annotation key that resolves to them
+    private final Map<String, List<Map<String, Object>>> artifactsByAnnotationKey = new ConcurrentHashMap<String, List<Map<String, Object>>>()
+
+    // Annotation keys that matched at least one artifact
+    private final Set<String> matchedAnnotationKeys = ConcurrentHashMap.newKeySet()
+
     // Tracks whether the one-time local file warning has been shown this session
     private volatile boolean localFileWarningShown = false
 
@@ -117,6 +127,9 @@ final class LaminRunManager {
         LaminConnection.getInstance().reset()
         recordResolutionCache.clear()
         publishedArtifactsByPath.clear()
+        pendingAnnotations.clear()
+        artifactsByAnnotationKey.clear()
+        matchedAnnotationKeys.clear()
         artifactExecutor = createArtifactExecutor(ApiConfig.DEFAULT_MAX_WORKERS)
     }
 
@@ -685,10 +698,10 @@ final class LaminRunManager {
         }
     }
 
-    void createOutputArtifactOnFilePublishAsync(Path target, List<String> labels) {
+    void createOutputArtifactOnFilePublishAsync(Path source, Path target, List<String> labels) {
         submitToExecutor("file-publish artifact for ${target}") {
             try {
-                createOutputArtifactOnFilePublish(target, labels)
+                createOutputArtifactOnFilePublish(source, target, labels)
             } catch (Exception e) {
                 logArtifactFailure("Failed to create output artifact for ${target}", e)
             }
@@ -716,6 +729,201 @@ final class LaminRunManager {
                 logArtifactFailure("Failed to create input artifacts for ${taskName}", e)
             }
         }
+    }
+
+    /**
+     * Record metadata to attach to the artifact of a path, as requested from a workflow via
+     * {@code annotateArtifact()}.
+     *
+     * The workflow and the publishing machinery run concurrently, so a path may be annotated
+     * either before or after its artifact exists. Both orders are handled: the annotation is
+     * remembered here and drained by {@link #recordArtifactForAnnotation}, and any artifact
+     * already registered for the path is annotated right away.
+     *
+     * @param path       The file being annotated
+     * @param annotation The metadata to attach
+     */
+    void registerAnnotation(Path path, ArtifactAnnotation annotation) {
+        if (path == null || annotation == null || annotation.isEmpty()) {
+            log.debug "Ignoring empty annotation for ${path}"
+            return
+        }
+        if (laminInstance == null) {
+            log.debug "No Lamin instance configured; ignoring annotation for ${path}"
+            return
+        }
+        if (config?.dryRun) {
+            log.info "Dry-run mode: would annotate ${path.toUri()} with ${annotation}"
+            return
+        }
+
+        String key = annotationKey(path)
+        if (key == null) {
+            return
+        }
+        log.debug "Registering annotation for ${key}: ${annotation}"
+
+        pendingAnnotations
+            .computeIfAbsent(key, { Collections.synchronizedList(new ArrayList<ArtifactAnnotation>()) })
+            .add(annotation)
+
+        List<Map<String, Object>> artifacts = artifactsByAnnotationKey.get(key)
+        if (artifacts == null) {
+            return
+        }
+        // The artifact already exists, so apply straight away - on a worker thread, since this
+        // runs on a dataflow operator thread that must not block on API calls
+        matchedAnnotationKeys.add(key)
+        List<Map<String, Object>> snapshot
+        synchronized (artifacts) {
+            snapshot = new ArrayList<Map<String, Object>>(artifacts)
+        }
+        for (Map<String, Object> artifact : snapshot) {
+            submitToExecutor("annotation for ${key}") {
+                try {
+                    applyAnnotation(artifact, annotation)
+                } catch (Exception e) {
+                    logArtifactFailure("Failed to annotate artifact ${artifact.get('uid')}", e)
+                }
+            }
+        }
+    }
+
+    /**
+     * Register an artifact under the paths that may have been annotated for it, and apply any
+     * annotation already requested for those paths.
+     *
+     * Runs on the artifact executor (the callers create artifacts there), so annotations are
+     * applied inline rather than submitted again.
+     *
+     * @param artifact The artifact map (must contain 'id' and 'uid')
+     * @param paths    Paths that resolve to this artifact; nulls are ignored
+     */
+    private void recordArtifactForAnnotation(Map<String, Object> artifact, Path... paths) {
+        if (artifact == null || paths == null) {
+            return
+        }
+        for (Path path : paths) {
+            String key = annotationKey(path)
+            if (key == null) {
+                continue
+            }
+            artifactsByAnnotationKey
+                .computeIfAbsent(key, { Collections.synchronizedList(new ArrayList<Map<String, Object>>()) })
+                .add(artifact)
+
+            List<ArtifactAnnotation> annotations = pendingAnnotations.get(key)
+            if (annotations == null) {
+                continue
+            }
+            matchedAnnotationKeys.add(key)
+            List<ArtifactAnnotation> snapshot
+            synchronized (annotations) {
+                snapshot = new ArrayList<ArtifactAnnotation>(annotations)
+            }
+            for (ArtifactAnnotation annotation : snapshot) {
+                try {
+                    applyAnnotation(artifact, annotation)
+                } catch (Exception e) {
+                    logArtifactFailure("Failed to annotate artifact ${artifact.get('uid')}", e)
+                }
+            }
+        }
+    }
+
+    /**
+     * Attach an annotation's metadata to an artifact.
+     *
+     * Every operation is an idempotent PATCH or upsert, so re-applying an annotation - which
+     * happens when a path is annotated both before and after its artifact was created - is
+     * harmless.
+     *
+     * @param artifact   The artifact map (must contain 'id' and 'uid')
+     * @param annotation The metadata to attach
+     */
+    private void applyAnnotation(Map<String, Object> artifact, ArtifactAnnotation annotation) {
+        if (artifact == null || annotation == null || laminInstance == null) {
+            return
+        }
+        String artifactUid = artifact.get('uid') as String
+        if (!artifactUid) {
+            log.warn "Cannot annotate artifact without a uid: ${artifact}"
+            return
+        }
+
+        Map<String, Object> updates = [:] as Map<String, Object>
+        if (annotation.kind) {
+            updates.put('kind', annotation.kind)
+        }
+        if (annotation.description) {
+            updates.put('description', annotation.description)
+        }
+        if (updates) {
+            try {
+                laminInstance.updateRecord(
+                    moduleName: 'core',
+                    modelName: 'artifact',
+                    uid: artifactUid,
+                    data: updates
+                )
+                log.debug "Updated artifact ${artifactUid} with ${updates}"
+            } catch (Exception e) {
+                log.warn "Could not update artifact ${artifactUid} with ${updates}: ${e.getMessage()}"
+            }
+        }
+
+        linkArtifactToUlabels(artifact, annotation.ulabelUids)
+        linkArtifactToProjects(artifact, annotation.projectUids)
+    }
+
+    /**
+     * Warn about annotations that never matched an artifact, i.e. files that were annotated but
+     * never published or otherwise tracked. Called once all artifact tasks have completed.
+     */
+    void warnUnmatchedAnnotations() {
+        List<String> unmatched = pendingAnnotations.keySet().findAll { !matchedAnnotationKeys.contains(it) }.toList()
+        if (!unmatched) {
+            return
+        }
+        log.warn "annotateArtifact was called for ${unmatched.size()} path(s) that were not tracked as artifacts, " +
+            "so their annotations were not applied: ${unmatched.join(', ')}"
+    }
+
+    /**
+     * The key a path is annotated under.
+     *
+     * Absolutises and normalises the path so that the value a workflow holds (which may be
+     * relative) matches the one reported by the publish event, and renders remote protocols
+     * consistently because some providers print them as {@code s3:/} or {@code s3:///}.
+     *
+     * @param path The path to key on
+     * @return the annotation key, or null if the path is null
+     */
+    private static String annotationKey(Path path) {
+        if (path == null) {
+            return null
+        }
+        URI uri
+        try {
+            uri = path.toAbsolutePath().normalize().toUri()
+        } catch (Exception e) {
+            log.debug "Could not absolutise ${path}: ${e.message}"
+            uri = path.toUri()
+        }
+
+        String uriStr = uri.toString()
+        String scheme = uri.getScheme()
+        // Leave local paths alone: 'file' URIs have no authority, so their leading slashes
+        // are part of the path and collapsing them would mangle the key
+        if (scheme == null || scheme == 'file') {
+            return uriStr
+        }
+        String rest = uriStr.substring(scheme.length() + 1)
+        int slashes = 0
+        while (slashes < rest.length() && rest.charAt(slashes) == ('/' as char)) {
+            slashes++
+        }
+        return scheme + '://' + rest.substring(slashes)
     }
 
     /**
@@ -853,6 +1061,11 @@ final class LaminRunManager {
         linkArtifactToProjects(artifact, artifactProjectUids)
         linkArtifactToUlabels(artifact, artifactUlabelUids)
 
+        // A lamin:// input is annotated under the URI the workflow holds, but registered under
+        // the storage path it resolves to, so record both
+        Path storagePath = path instanceof LaminPath ? ((LaminPath) path).resolveToStorage() : null
+        recordArtifactForAnnotation(artifact, path, storagePath)
+
         return artifact
     }
 
@@ -863,19 +1076,23 @@ final class LaminRunManager {
      * (which fires first for index/manifest files), only the labels are linked to the
      * existing artifact rather than creating a duplicate.
      *
+     * @param source The path the file was published from ({@code FilePublishEvent.source}), which
+     *               is the path the workflow itself holds and can annotate (may be null)
      * @param path   The published file path ({@code FilePublishEvent.target})
      * @param labels Labels from the publishDir {@code label} directive (may be null or empty)
      */
-    Map<String, Object> createOutputArtifactOnFilePublish(Path path, List<String> labels) {
+    Map<String, Object> createOutputArtifactOnFilePublish(Path source, Path path, List<String> labels) {
         String pathKey = path.toUri().toString()
         Map<String, Object> cachedArtifact = publishedArtifactsByPath.get(pathKey) as Map<String, Object>
         if (cachedArtifact != null) {
             if (labels && config?.features?.use_output_labels != false) {
                 linkArtifactToUlabels(cachedArtifact, labels.collect { "+${it}" as String })
             }
+            // The source is only known here, so register it even when the artifact already exists
+            recordArtifactForAnnotation(cachedArtifact, source)
             return cachedArtifact
         }
-        return createOutputArtifact(path, null, labels, null)
+        return createOutputArtifact(path, null, labels, null, source)
     }
 
     /**
@@ -885,7 +1102,7 @@ final class LaminRunManager {
      * @param evaluation Pre-built evaluation carrying kind, key, ulabels, and description config
      */
     Map<String, Object> createOutputArtifactFromConfigPaths(Path path, ArtifactEvaluation evaluation) {
-        return createOutputArtifact(path, evaluation, null, null)
+        return createOutputArtifact(path, evaluation, null, null, null)
     }
 
     /**
@@ -906,14 +1123,14 @@ final class LaminRunManager {
         String pathKey = path.toUri().toString()
         if (!publishedArtifactsByPath.containsKey(pathKey)) {
             // Path was not captured via onFilePublish – create it now so it is still recorded.
-            Map<String, Object> artifact = createOutputArtifact(path, null, null, outputName)
+            Map<String, Object> artifact = createOutputArtifact(path, null, null, outputName, null)
             if (artifact == null) {
                 log.debug "No artifact tracked for workflow output '${outputName}' at ${pathKey}"
             }
         }
     }
 
-    private Map<String, Object> createOutputArtifact(Path path, ArtifactEvaluation prebuiltEvaluation, List<String> labels, String outputName) {
+    private Map<String, Object> createOutputArtifact(Path path, ArtifactEvaluation prebuiltEvaluation, List<String> labels, String outputName, Path source) {
         if (run == null || laminInstance == null || config.dryRun) {
             return null
         }
@@ -975,6 +1192,10 @@ final class LaminRunManager {
 
         // Cache so trackWorkflowOutput can find the artifact without creating a duplicate
         publishedArtifactsByPath.put(path.toUri().toString(), artifact)
+
+        // Apply any annotations the workflow requested for this file, under both the path it
+        // was published from (what the workflow holds) and the path it was published to
+        recordArtifactForAnnotation(artifact, source, path)
 
         return artifact
     }

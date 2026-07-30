@@ -19,12 +19,14 @@ package ai.lamin.nf_lamin
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import nextflow.Session
+import nextflow.file.FileHelper
 import nextflow.plugin.extension.Function
 import nextflow.plugin.extension.PluginExtensionPoint
 import java.nio.file.Path
 import ai.lamin.nf_lamin.hub.LaminHub
 import ai.lamin.nf_lamin.instance.Instance
 import ai.lamin.nf_lamin.hub.InstanceSettings
+import ai.lamin.nf_lamin.model.ArtifactAnnotation
 
 /**
  * Implements a custom function which can be imported by
@@ -71,6 +73,75 @@ class LaminExtension extends PluginExtensionPoint {
     @Function
     String getInstanceSlug() {
         return LaminRunManager.instance.getInstanceSlug()
+    }
+
+    /**
+     * Attaches metadata to the artifact that Lamin registers for a file.
+     *
+     * The file keeps being published by Nextflow as usual; this only records what should be
+     * attached to the resulting artifact. It can therefore be called before or after the file
+     * is published, and repeated calls for the same file accumulate.
+     *
+     * <pre>
+     * ch_out | map { f -&gt; annotateArtifact(f, kind: 'dataset', ulabel_uids: ['+qc-passed']) }
+     * </pre>
+     *
+     * Does nothing when no Lamin instance is configured, so a workflow using it still runs
+     * without the plugin being connected.
+     *
+     * @param opts   Named arguments: {@code kind}, {@code description}, {@code ulabel_uids},
+     *               {@code project_uids}
+     * @param target A file, a file path as a String, or a collection of either
+     * @return {@code target}, unchanged, so the call can be the body of a {@code map} closure
+     * @throws IllegalArgumentException if an option or the target type is not supported
+     */
+    @Function
+    Object annotateArtifact(Map opts, Object target) {
+        ArtifactAnnotation annotation = ArtifactAnnotation.fromMap(opts)
+        for (Path path : toPaths(target)) {
+            LaminRunManager.instance.registerAnnotation(path, annotation)
+        }
+        return target
+    }
+
+    /**
+     * Attaches metadata to the artifact of a file, without any named arguments.
+     *
+     * @see #annotateArtifact(Map, Object)
+     */
+    @Function
+    Object annotateArtifact(Object target) {
+        return annotateArtifact([:], target)
+    }
+
+    /**
+     * Resolve the target of {@code annotateArtifact} to the paths it refers to.
+     *
+     * @param target A Path, a path String, or a collection of either
+     * @return the resolved paths
+     * @throws IllegalArgumentException if the target is null or of an unsupported type
+     */
+    private static List<Path> toPaths(Object target) {
+        if (target == null) {
+            throw new IllegalArgumentException('annotateArtifact: no file to annotate (target is null)')
+        }
+        if (target instanceof Path) {
+            return [(Path) target]
+        }
+        if (target instanceof CharSequence) {
+            return [FileHelper.asPath(target.toString())]
+        }
+        if (target instanceof Collection) {
+            List<Path> paths = []
+            for (Object item : (Collection) target) {
+                paths.addAll(toPaths(item))
+            }
+            return paths
+        }
+        throw new IllegalArgumentException(
+            "annotateArtifact: cannot annotate a ${target.getClass().simpleName}, " +
+            'expected a file, a file path, or a collection of either'
+        )
     }
 
 }
