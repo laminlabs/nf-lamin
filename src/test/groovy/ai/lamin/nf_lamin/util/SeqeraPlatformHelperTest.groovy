@@ -152,11 +152,6 @@ class SeqeraPlatformHelperTest extends Specification {
         Session.getDeclaredField('observersV2') != null
     }
 
-    def 'reference type is Seqera'() {
-        expect:
-        SeqeraPlatformHelper.REFERENCE_TYPE == 'Seqera'
-    }
-
     /**
      * Guards the getter names against the real Nextflow classes -- the fakes above cannot catch a
      * typo, because a wrong name and an absent one both resolve to null. Skipped until the

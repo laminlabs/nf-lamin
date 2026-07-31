@@ -37,9 +37,6 @@ import java.lang.reflect.Field
 @CompileStatic
 class SeqeraPlatformHelper {
 
-    /** Matches the {@code reference_type} of the existing Seqera runs on laminlabs/lamindata. */
-    static final String REFERENCE_TYPE = 'Seqera'
-
     /** Session fields holding the trace observers, newest Nextflow first. */
     private static final List<String> OBSERVER_FIELDS = ['observersV2', 'observers']
 

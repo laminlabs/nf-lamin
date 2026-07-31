@@ -292,7 +292,7 @@ final class LaminRunManager {
             return [:]
         }
         log.debug "Setting run.reference to '${reference}'"
-        return [reference: reference, reference_type: SeqeraPlatformHelper.REFERENCE_TYPE] as Map<String, Object>
+        return [reference: reference, reference_type: 'Seqera'] as Map<String, Object>
     }
 
     void startRun() {
