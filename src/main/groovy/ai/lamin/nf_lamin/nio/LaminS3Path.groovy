@@ -192,6 +192,19 @@ final class LaminS3Path implements Path {
         return new URI(SCHEME, bucket, "/${key}", null, null)
     }
 
+    /**
+     * The same object addressed with the standard {@code s3://} scheme.
+     *
+     * The {@code lamin-s3://} scheme exists only to attach Lamin-managed credentials to a
+     * bucket, so anything outside this plugin -- the Lamin API in particular -- expects the
+     * underlying {@code s3://} form.
+     *
+     * @return the storage URI, e.g. {@code s3://my-bucket/prefix/file.h5ad}
+     */
+    String toStorageUri() {
+        return "s3://${bucket}/${key}"
+    }
+
     @Override
     Path toAbsolutePath() {
         return this

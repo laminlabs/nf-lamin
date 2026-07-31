@@ -19,6 +19,11 @@ package ai.lamin.nf_lamin.util
 import spock.lang.Specification
 import java.nio.file.Path
 
+import ai.lamin.nf_lamin.nio.LaminS3FileSystem
+import ai.lamin.nf_lamin.nio.LaminS3FileSystemProvider
+import ai.lamin.nf_lamin.nio.LaminS3Path
+import software.amazon.awssdk.services.s3.S3Client as AwsS3Client
+
 class PathUtilsTest extends Specification {
 
     // ========== toPaths tests ==========
@@ -93,5 +98,38 @@ class PathUtilsTest extends Specification {
     def 'toUriKey normalises a path with . and .. segments'() {
         expect:
         PathUtils.toUriKey(Path.of('/tmp/sub/../output.json')) == 'file:///tmp/output.json'
+    }
+
+    def 'toUriKey keeps the plugin-only lamin-s3 scheme'() {
+        expect:
+        PathUtils.toUriKey(laminS3Path('prefix/file.txt')) == 'lamin-s3://my-bucket/prefix/file.txt'
+    }
+
+    // ========== toStorageUri tests ==========
+
+    def 'toStorageUri returns null for a null path'() {
+        expect:
+        PathUtils.toStorageUri(null) == null
+    }
+
+    def 'toStorageUri renders a lamin-s3 path with the s3 scheme'() {
+        expect:
+        PathUtils.toStorageUri(laminS3Path('9fm7UN13/.lamindb/abc0000.yaml')) ==
+            's3://my-bucket/9fm7UN13/.lamindb/abc0000.yaml'
+    }
+
+    def 'toStorageUri leaves an ordinary path to toUriKey'() {
+        given:
+        Path path = Path.of('/tmp/output.json')
+
+        expect:
+        PathUtils.toStorageUri(path) == PathUtils.toUriKey(path)
+    }
+
+    private LaminS3Path laminS3Path(String key) {
+        def fs = new LaminS3FileSystem(
+            Mock(LaminS3FileSystemProvider), 's3://my-bucket/prefix', Mock(AwsS3Client), 'key1'
+        )
+        return new LaminS3Path(fs, key)
     }
 }

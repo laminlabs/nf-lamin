@@ -413,6 +413,18 @@ class LaminS3PathTest extends Specification {
         uri.host == 'my-bucket'
     }
 
+    // ==================== toStorageUri ====================
+
+    def "toStorageUri() renders the path with the s3:// scheme"() {
+        expect:
+        path('prefix/file.txt').toStorageUri() == 's3://my-bucket/prefix/file.txt'
+    }
+
+    def "toStorageUri() handles a key with a dot-directory"() {
+        expect:
+        path('9fm7UN13/.lamindb/abc0000.yaml').toStorageUri() == 's3://my-bucket/9fm7UN13/.lamindb/abc0000.yaml'
+    }
+
     // ==================== toAbsolutePath / toRealPath ====================
 
     def "toAbsolutePath() returns self"() {

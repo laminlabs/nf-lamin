@@ -20,6 +20,8 @@ import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import nextflow.file.FileHelper
 import java.nio.file.Path
+import ai.lamin.nf_lamin.nio.LaminPath
+import ai.lamin.nf_lamin.nio.LaminS3Path
 
 /**
  * Utility methods for resolving paths handed to the plugin by a workflow.
@@ -60,6 +62,29 @@ class PathUtils {
             "${fnName}: cannot resolve a ${value.getClass().simpleName} to a file, " +
             'expected a file, a file path, or a collection of either'
         )
+    }
+
+    /**
+     * Render a path as the URI a service outside the plugin should see.
+     *
+     * The {@code lamin://} and {@code lamin-s3://} schemes are notations of this plugin -- one
+     * addresses an artifact, the other attaches Lamin-managed credentials to a bucket -- and
+     * neither means anything to the Lamin API, so both are rendered as the storage URI they
+     * stand for. Every other path is rendered by {@link #toUriKey}.
+     *
+     * @param path The path to render
+     * @return the storage URI, e.g. {@code s3://my-bucket/prefix/file.h5ad}, or null if the
+     *         path is null
+     */
+    static String toStorageUri(Path path) {
+        if (path == null) {
+            return null
+        }
+        Path storagePath = path instanceof LaminPath ? ((LaminPath) path).resolveToStorage() : path
+        if (storagePath instanceof LaminS3Path) {
+            return ((LaminS3Path) storagePath).toStorageUri()
+        }
+        return toUriKey(storagePath)
     }
 
     /**

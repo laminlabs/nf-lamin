@@ -1691,7 +1691,7 @@ final class LaminRunManager {
         }
 
         String logContext = runId != null ? "for run ${runId}" : "without run association"
-        String pathStr = PathUtils.toUriKey(path)
+        String pathStr = PathUtils.toStorageUri(path)
         Map<String, Object> artifact = null
         ReentrantLock pathLock = artifactLocks.computeIfAbsent(pathStr) { new ReentrantLock() }
         pathLock.lock()
