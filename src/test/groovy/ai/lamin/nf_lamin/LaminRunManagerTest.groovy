@@ -140,6 +140,43 @@ class LaminRunManagerTest extends Specification {
         }) >> [uid: 'R456']
     }
 
+    def 'startRun stores the watch url and reference type when running on Seqera Platform'() {
+        given:
+        def manager = LaminRunManager.instance
+        def mockInstance = Mock(Instance)
+        manager.setCurrentInstance(mockInstance)
+        injectField(manager, 'config', new LaminConfig([instance: 'testorg/testinst', api_key: 'test-key']))
+        injectField(manager, 'run', [uid: 'R456', id: 99] as Map<String, Object>)
+
+        String watchUrl = 'https://cloud.seqera.io/orgs/o/workspaces/w/watch/b0siCig3qoUvZ'
+        def metadata = new MetadataWithPlatform(platform: new PlatformWithUrl(workflowUrl: watchUrl))
+        injectField(manager, 'session', Stub(Session) { getWorkflowMetadata() >> metadata })
+
+        when:
+        manager.startRun()
+
+        then:
+        1 * mockInstance.updateRecord({ Map args ->
+            Map data = args.data as Map
+            data.get('reference') == watchUrl &&
+            data.get('reference_type') == 'Seqera'
+        }) >> [uid: 'R456']
+    }
+
+    /** Mimics Nextflow >= 26.04, where WorkflowMetadata exposes getPlatform(). */
+    static class MetadataWithPlatform extends WorkflowMetadata {
+
+        Object platform
+
+    }
+
+    /** Mimics nextflow.script.PlatformMetadata. */
+    static class PlatformWithUrl {
+
+        Object workflowUrl
+
+    }
+
     def 'createInputArtifactsAsync returns before worker finishes (non-blocking)'() {
         given:
         def manager = LaminRunManager.instance
