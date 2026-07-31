@@ -178,7 +178,8 @@ class LaminExtensionTest extends Specification {
 
         then:
         def e = thrown(IllegalArgumentException)
-        e.message.contains('cannot annotate')
+        e.message.contains('annotateArtifact')
+        e.message.contains('cannot resolve a Integer to a file')
     }
 
     def 'annotateArtifact rejects unknown options'() {

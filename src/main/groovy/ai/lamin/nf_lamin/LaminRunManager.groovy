@@ -49,6 +49,7 @@ import ai.lamin.nf_lamin.hub.InstanceSettings
 import ai.lamin.nf_lamin.model.ArtifactAnnotation
 import ai.lamin.nf_lamin.model.RunStatus
 import ai.lamin.nf_lamin.nio.LaminPath
+import ai.lamin.nf_lamin.util.PathUtils
 import ai.lamin.nf_lamin.util.TransformInfoHelper
 import ai.lamin.nf_lamin.config.ArtifactConfig
 import ai.lamin.nf_lamin.config.ArtifactEvaluation
@@ -757,7 +758,7 @@ final class LaminRunManager {
             return
         }
 
-        String key = annotationKey(path)
+        String key = PathUtils.toUriKey(path)
         if (key == null) {
             return
         }
@@ -804,7 +805,7 @@ final class LaminRunManager {
             return
         }
         for (Path path : paths) {
-            String key = annotationKey(path)
+            String key = PathUtils.toUriKey(path)
             if (key == null) {
                 continue
             }
@@ -887,43 +888,6 @@ final class LaminRunManager {
         }
         log.warn "annotateArtifact was called for ${unmatched.size()} path(s) that were not tracked as artifacts, " +
             "so their annotations were not applied: ${unmatched.join(', ')}"
-    }
-
-    /**
-     * The key a path is annotated under.
-     *
-     * Absolutises and normalises the path so that the value a workflow holds (which may be
-     * relative) matches the one reported by the publish event, and renders remote protocols
-     * consistently because some providers print them as {@code s3:/} or {@code s3:///}.
-     *
-     * @param path The path to key on
-     * @return the annotation key, or null if the path is null
-     */
-    private static String annotationKey(Path path) {
-        if (path == null) {
-            return null
-        }
-        URI uri
-        try {
-            uri = path.toAbsolutePath().normalize().toUri()
-        } catch (Exception e) {
-            log.debug "Could not absolutise ${path}: ${e.message}"
-            uri = path.toUri()
-        }
-
-        String uriStr = uri.toString()
-        String scheme = uri.getScheme()
-        // Leave local paths alone: 'file' URIs have no authority, so their leading slashes
-        // are part of the path and collapsing them would mangle the key
-        if (scheme == null || scheme == 'file') {
-            return uriStr
-        }
-        String rest = uriStr.substring(scheme.length() + 1)
-        int slashes = 0
-        while (slashes < rest.length() && rest.charAt(slashes) == ('/' as char)) {
-            slashes++
-        }
-        return scheme + '://' + rest.substring(slashes)
     }
 
     /**
@@ -1082,7 +1046,7 @@ final class LaminRunManager {
      * @param labels Labels from the publishDir {@code label} directive (may be null or empty)
      */
     Map<String, Object> createOutputArtifactOnFilePublish(Path source, Path path, List<String> labels) {
-        String pathKey = path.toUri().toString()
+        String pathKey = PathUtils.toUriKey(path)
         Map<String, Object> cachedArtifact = publishedArtifactsByPath.get(pathKey) as Map<String, Object>
         if (cachedArtifact != null) {
             if (labels && config?.features?.use_output_labels != false) {
@@ -1120,7 +1084,7 @@ final class LaminRunManager {
         if (run == null || laminInstance == null || config?.dryRun) {
             return
         }
-        String pathKey = path.toUri().toString()
+        String pathKey = PathUtils.toUriKey(path)
         if (!publishedArtifactsByPath.containsKey(pathKey)) {
             // Path was not captured via onFilePublish – create it now so it is still recorded.
             Map<String, Object> artifact = createOutputArtifact(path, null, null, outputName, null)
@@ -1191,7 +1155,7 @@ final class LaminRunManager {
         }
 
         // Cache so trackWorkflowOutput can find the artifact without creating a duplicate
-        publishedArtifactsByPath.put(path.toUri().toString(), artifact)
+        publishedArtifactsByPath.put(PathUtils.toUriKey(path), artifact)
 
         // Apply any annotations the workflow requested for this file, under both the path it
         // was published from (what the workflow holds) and the path it was published to
@@ -1468,8 +1432,8 @@ final class LaminRunManager {
         }
 
         try {
-            String pathUri = path.toUri().toString()
-            String baseUri = baseDir.toUri().toString()
+            String pathUri = PathUtils.toUriKey(path)
+            String baseUri = PathUtils.toUriKey(baseDir)
 
             if (!baseUri.endsWith('/')) {
                 baseUri += '/'

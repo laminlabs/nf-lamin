@@ -19,7 +19,6 @@ package ai.lamin.nf_lamin
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import nextflow.Session
-import nextflow.file.FileHelper
 import nextflow.plugin.extension.Function
 import nextflow.plugin.extension.PluginExtensionPoint
 import java.nio.file.Path
@@ -27,6 +26,7 @@ import ai.lamin.nf_lamin.hub.LaminHub
 import ai.lamin.nf_lamin.instance.Instance
 import ai.lamin.nf_lamin.hub.InstanceSettings
 import ai.lamin.nf_lamin.model.ArtifactAnnotation
+import ai.lamin.nf_lamin.util.PathUtils
 
 /**
  * Implements a custom function which can be imported by
@@ -98,7 +98,7 @@ class LaminExtension extends PluginExtensionPoint {
     @Function
     Object annotateArtifact(Map opts, Object target) {
         ArtifactAnnotation annotation = ArtifactAnnotation.fromMap(opts)
-        for (Path path : toPaths(target)) {
+        for (Path path : PathUtils.toPaths(target, 'annotateArtifact')) {
             LaminRunManager.instance.registerAnnotation(path, annotation)
         }
         return target
@@ -112,36 +112,6 @@ class LaminExtension extends PluginExtensionPoint {
     @Function
     Object annotateArtifact(Object target) {
         return annotateArtifact([:], target)
-    }
-
-    /**
-     * Resolve the target of {@code annotateArtifact} to the paths it refers to.
-     *
-     * @param target A Path, a path String, or a collection of either
-     * @return the resolved paths
-     * @throws IllegalArgumentException if the target is null or of an unsupported type
-     */
-    private static List<Path> toPaths(Object target) {
-        if (target == null) {
-            throw new IllegalArgumentException('annotateArtifact: no file to annotate (target is null)')
-        }
-        if (target instanceof Path) {
-            return [(Path) target]
-        }
-        if (target instanceof CharSequence) {
-            return [FileHelper.asPath(target.toString())]
-        }
-        if (target instanceof Collection) {
-            List<Path> paths = []
-            for (Object item : (Collection) target) {
-                paths.addAll(toPaths(item))
-            }
-            return paths
-        }
-        throw new IllegalArgumentException(
-            "annotateArtifact: cannot annotate a ${target.getClass().simpleName}, " +
-            'expected a file, a file path, or a collection of either'
-        )
     }
 
 }
