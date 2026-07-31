@@ -1691,8 +1691,7 @@ final class LaminRunManager {
         }
 
         String logContext = runId != null ? "for run ${runId}" : "without run association"
-        // Note: need to clean path because the protocol can get printed as s3:/ or s3:///
-        String pathStr = path.toUri().toString().replaceAll('^(\\w+)://*', '$1://')
+        String pathStr = PathUtils.toUriKey(path)
         Map<String, Object> artifact = null
         ReentrantLock pathLock = artifactLocks.computeIfAbsent(pathStr) { new ReentrantLock() }
         pathLock.lock()
