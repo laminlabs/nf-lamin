@@ -55,7 +55,7 @@ workflow {
 
 Attaches metadata to the artifact that Lamin registers for a file.
 
-The file keeps being published by Nextflow as usual — `publishDir` and workflow outputs are untouched. This function only records what should be attached to the resulting artifact, which lets a workflow decide its metadata programmatically instead of only through static config.
+This function records what should be attached to the resulting artifact, which lets a workflow decide its metadata programmatically instead of only through static config.
 
 **Parameters:**
 
@@ -95,7 +95,7 @@ workflow {
 
 **Notes:**
 
-- It can be called before or after the file is published — the annotation is applied whenever the artifact is registered.
+- It can be called before or after the file is published. The annotation is applied whenever the artifact is registered.
 - Repeated calls for the same file accumulate.
 - It does nothing when no Lamin instance is configured, so a workflow using it still runs without the plugin being connected.
 - A file that is annotated but never tracked as an artifact is reported in a warning at the end of the run.
