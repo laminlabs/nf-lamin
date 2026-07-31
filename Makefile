@@ -20,13 +20,18 @@ install:
 release:
 	./gradlew releasePlugin
 
+# Where the validation workflows publish to. Set to a remote bucket (e.g.
+# OUTDIR=$LAMIN_TEST_BUCKET/validation/$(date +%s)) to exercise artifact tracking,
+# which only happens for remote paths.
+OUTDIR ?= results
+
 # Run all validation workflows
-# Usage: make validate [BRANCH=branch-name] [VERSION=x.y.z] [ARGS="extra args"]
+# Usage: make validate [BRANCH=branch-name] [VERSION=x.y.z] [OUTDIR=s3://...] [ARGS="extra args"]
 validate: validate-legacy validate-run
 
 # Run the legacy validation workflow (Nextflow < 26.04, legacy DSL2 syntax parser)
 # Uses publishDir directive; output directory is set via --output-dir param.
-# Usage: make validate-legacy [BRANCH=branch-name] [VERSION=x.y.z] [ARGS="extra args"]
+# Usage: make validate-legacy [BRANCH=branch-name] [VERSION=x.y.z] [OUTDIR=s3://...] [ARGS="extra args"]
 validate-legacy:
 	BRANCH=$${BRANCH:-$$(git symbolic-ref --short HEAD 2>/dev/null || echo "main")}; \
 	VERSION=$${VERSION:-$$(awk -F"'" '/^version =/{print $$2}' build.gradle)}; \
@@ -38,13 +43,13 @@ validate-legacy:
 		-main-script validation/legacy_syntax_parser/main.nf \
 		-config configs/ci.config \
 		-plugins "nf-lamin@$$VERSION" \
-		--output-dir results \
+		--output-dir $(OUTDIR) \
 		$(ARGS)
 
 # Run the validation workflow using Nextflow 26.04+ features
 # Uses typed params/processes/workflows and the workflow output block.
 # Output directory is set via the -output-dir CLI option.
-# Usage: make validate-run [BRANCH=branch-name] [VERSION=x.y.z] [ARGS="extra args"]
+# Usage: make validate-run [BRANCH=branch-name] [VERSION=x.y.z] [OUTDIR=s3://...] [ARGS="extra args"]
 validate-run:
 	BRANCH=$${BRANCH:-$$(git symbolic-ref --short HEAD 2>/dev/null || echo "main")}; \
 	VERSION=$${VERSION:-$$(awk -F"'" '/^version =/{print $$2}' build.gradle)}; \
@@ -56,5 +61,5 @@ validate-run:
 		-main-script validation/run/main.nf \
 		-config configs/ci.config \
 		-plugins "nf-lamin@$$VERSION" \
-		-output-dir results \
+		-output-dir $(OUTDIR) \
 		$(ARGS)
