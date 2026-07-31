@@ -24,11 +24,10 @@ import java.lang.reflect.Field
 /**
  * Reads the Seqera Platform watch URL from the Nextflow session.
  *
- * Nextflow 26.04 exposes {@code workflow.platform}
- * (<a href="https://github.com/nextflow-io/nextflow/pull/6545">nextflow-io/nextflow#6545</a>),
- * which nf-tower fills with the watch URL. On 25.10, the minimum supported version, it is only
- * held in a private field of the nf-tower observer. Both are read reflectively, and anything
- * unexpected yields no reference rather than an error.
+ * Nextflow 26.04 exposes {@code workflow.platform} which nf-tower fills with the watch URL.
+ * On 25.10, the minimum supported version, it is only held in a private field of the nf-tower
+ * observer. Both are read reflectively, and anything unexpected yields no reference rather than
+ * an error.
  */
 @Slf4j
 @CompileStatic
