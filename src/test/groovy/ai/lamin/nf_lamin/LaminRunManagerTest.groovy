@@ -171,8 +171,7 @@ class LaminRunManagerTest extends Specification {
         injectField(manager, 'config', new LaminConfig([instance: 'testorg/testinst', api_key: 'test-key']))
         injectField(manager, 'run', [uid: 'R456', id: 99] as Map<String, Object>)
 
-        // startRun reads the metadata first, the reference lookup second -- fail only the
-        // latter, with a linkage error, which is not an Exception and escapes a narrower catch
+        // fail the second metadata read -- the reference lookup -- with a linkage error
         int calls = 0
         def session = Stub(Session) {
             getWorkflowMetadata() >> {

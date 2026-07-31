@@ -272,9 +272,8 @@ final class LaminRunManager {
     }
 
     /**
-     * The reference is read from Nextflow internals, so it never throws: it is a convenience
-     * and must not take the status update it travels with along with it. Catches Throwable
-     * rather than Exception because reflecting into another plugin can raise a linkage error.
+     * Never throws -- the reference must not break the status update it travels with, and
+     * reflecting into another plugin can raise a linkage error rather than an exception.
      *
      * @return the `reference` / `reference_type` fields pointing at the Seqera Platform run,
      *   or an empty map if there is nothing to update

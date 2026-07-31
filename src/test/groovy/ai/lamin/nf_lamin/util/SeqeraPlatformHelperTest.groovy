@@ -143,20 +143,13 @@ class SeqeraPlatformHelperTest extends Specification {
         SeqeraPlatformHelper.readReferenceFromObservers(new Object()) == null
     }
 
-    /**
-     * Guards the field name against the real Nextflow class -- the fake above cannot catch a
-     * typo, because a wrong name and an absent one both resolve to null.
-     */
+    /** Guards the field name against the real class -- the fake above cannot catch a typo. */
     def 'the observer field it looks for exists on the real Session'() {
         expect:
         Session.getDeclaredField('observersV2') != null
     }
 
-    /**
-     * Guards the getter names against the real Nextflow classes -- the fakes above cannot catch a
-     * typo, because a wrong name and an absent one both resolve to null. Skipped until the
-     * Nextflow floor is raised to 26.04.
-     */
+    /** Guards the getter names against the real classes; skipped until the floor is 26.04. */
     @Requires({ SeqeraPlatformHelperTest.platformMetadataClass() != null })
     def 'reads the real Nextflow PlatformMetadata'() {
         given:

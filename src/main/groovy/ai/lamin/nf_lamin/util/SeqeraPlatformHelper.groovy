@@ -26,12 +26,9 @@ import java.lang.reflect.Field
  *
  * Nextflow 26.04 exposes {@code workflow.platform}
  * (<a href="https://github.com/nextflow-io/nextflow/pull/6545">nextflow-io/nextflow#6545</a>),
- * which nf-tower fills with the watch URL. Read reflectively because it does not exist on 25.10,
- * the minimum supported version.
- *
- * On 25.10 the URL is only held in a private field of the nf-tower observer, which the session
- * in turn keeps in a private field, so {@link #readReferenceFromObservers} reaches in for it.
- * That is a best-effort fallback: anything unexpected yields no reference rather than an error.
+ * which nf-tower fills with the watch URL. On 25.10, the minimum supported version, it is only
+ * held in a private field of the nf-tower observer. Both are read reflectively, and anything
+ * unexpected yields no reference rather than an error.
  */
 @Slf4j
 @CompileStatic
@@ -59,14 +56,8 @@ class SeqeraPlatformHelper {
     }
 
     /**
-     * Read the watch URL straight from the nf-tower observer, for Nextflow versions without
-     * {@code workflow.platform}.
-     *
-     * Both the observer list and the URL are private with no accessor, so this reaches in
-     * reflectively. It is deliberately forgiving: a session without observers, without nf-tower,
-     * or with a field layout this does not recognise simply yields null.
-     *
-     * Takes an Object rather than a Session so it can be tested with a stand-in.
+     * Read the watch URL from the nf-tower observer, for Nextflow versions without
+     * {@code workflow.platform}. Takes an Object so it can be tested with a stand-in.
      *
      * @param session The Nextflow session
      * @return the watch URL, or null if unavailable
