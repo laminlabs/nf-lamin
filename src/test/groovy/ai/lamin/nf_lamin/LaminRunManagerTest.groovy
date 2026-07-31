@@ -1,6 +1,7 @@
 package ai.lamin.nf_lamin
 
 import ai.lamin.nf_lamin.instance.Instance
+import ai.lamin.nf_lamin.model.ArtifactAnnotation
 import ai.lamin.nf_lamin.model.RunStatus
 import nextflow.Session
 import nextflow.exception.AbortSignalException
@@ -195,5 +196,198 @@ class LaminRunManagerTest extends Specification {
         'SIGINT from local Ctrl+C'     | false   | false     | new AbortSignalException(new Signal('INT'))    || RunStatus.ABORTED
         'task failure'                 | false   | false     | new RuntimeException('task failed')            || RunStatus.ERRORED
         'error without cause'          | false   | false     | null                                           || RunStatus.ERRORED
+    }
+
+    // ========== annotateArtifact ==========
+
+    /**
+     * A remote path, since local paths are never tracked as artifacts.
+     */
+    private Path remotePath(String uri) {
+        def path = Stub(Path)
+        path.toUri() >> new URI(uri)
+        path.toAbsolutePath() >> path
+        path.normalize() >> path
+        return path
+    }
+
+    private static LaminRunManager annotatingManager(Instance mockInstance) {
+        def manager = LaminRunManager.instance
+        manager.setCurrentInstance(mockInstance)
+        injectField(manager, 'config', new LaminConfig([instance: 'org/inst', api_key: 'key']))
+        injectField(manager, 'run', [uid: 'R1', id: 1])
+        return manager
+    }
+
+    private static Set<String> readKeys(String fieldName) {
+        def field = LaminRunManager.getDeclaredField(fieldName)
+        field.accessible = true
+        def value = field.get(LaminRunManager.instance)
+        return (value instanceof Map ? (value as Map).keySet() : value) as Set<String>
+    }
+
+    def 'applies an annotation registered before the file is published'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = annotatingManager(mockInstance)
+        def source = remotePath('s3://bucket/work/output.json')
+        def target = remotePath('s3://bucket/results/output.json')
+
+        mockInstance.getArtifactByPath(_) >> null
+        mockInstance.createArtifact(_) >> [uid: 'A1', id: 11, run: 1]
+        mockInstance.getRecord(_) >> [uid: 'ulab1234', id: 5]
+
+        when: 'the workflow annotates the file it holds, before it is published'
+        manager.registerAnnotation(source, ArtifactAnnotation.fromMap([
+            kind: 'dataset',
+            description: 'Summary',
+            ulabel_uids: ['ulab1234']
+        ]))
+        manager.createOutputArtifactOnFilePublish(source, target, null)
+
+        then:
+        1 * mockInstance.updateRecord({ Map args ->
+            args.uid == 'A1' && args.data.kind == 'dataset' && args.data.description == 'Summary'
+        })
+        1 * mockInstance.upsertRecord({ Map args ->
+            args.modelName == 'artifactulabel' && args.data.artifact_id == 11 && args.data.ulabel_id == 5
+        })
+    }
+
+    def 'applies an annotation registered after the file was published'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = annotatingManager(mockInstance)
+        def source = remotePath('s3://bucket/work/output.json')
+        def target = remotePath('s3://bucket/results/output.json')
+
+        mockInstance.getArtifactByPath(_) >> null
+        mockInstance.createArtifact(_) >> [uid: 'A1', id: 11, run: 1]
+
+        when: 'publishing wins the race with the map operator'
+        manager.createOutputArtifactOnFilePublish(source, target, null)
+        manager.registerAnnotation(source, ArtifactAnnotation.fromMap([kind: 'dataset']))
+        manager.awaitArtifactTasks()
+
+        then:
+        1 * mockInstance.updateRecord({ Map args -> args.uid == 'A1' && args.data.kind == 'dataset' })
+    }
+
+    def 'annotates an artifact under the path it was published to'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = annotatingManager(mockInstance)
+        def source = remotePath('s3://bucket/work/output.json')
+        def target = remotePath('s3://bucket/results/output.json')
+
+        mockInstance.getArtifactByPath(_) >> null
+        mockInstance.createArtifact(_) >> [uid: 'A1', id: 11, run: 1]
+
+        when:
+        manager.registerAnnotation(target, ArtifactAnnotation.fromMap([kind: 'dataset']))
+        manager.createOutputArtifactOnFilePublish(source, target, null)
+
+        then:
+        1 * mockInstance.updateRecord({ Map args -> args.uid == 'A1' })
+    }
+
+    def 'applies every annotation registered for the same file'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = annotatingManager(mockInstance)
+        def source = remotePath('s3://bucket/work/output.json')
+        def target = remotePath('s3://bucket/results/output.json')
+
+        mockInstance.getArtifactByPath(_) >> null
+        mockInstance.createArtifact(_) >> [uid: 'A1', id: 11, run: 1]
+        mockInstance.getRecord(_) >> [uid: 'ulab1234', id: 5]
+
+        when:
+        manager.registerAnnotation(source, ArtifactAnnotation.fromMap([kind: 'dataset']))
+        manager.registerAnnotation(source, ArtifactAnnotation.fromMap([ulabel_uids: ['ulab1234']]))
+        manager.createOutputArtifactOnFilePublish(source, target, null)
+
+        then:
+        1 * mockInstance.updateRecord({ Map args -> args.data.kind == 'dataset' })
+        1 * mockInstance.upsertRecord({ Map args -> args.modelName == 'artifactulabel' })
+    }
+
+    def 'annotates an input artifact'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = annotatingManager(mockInstance)
+        def input = remotePath('s3://bucket/inputs/reads.fastq')
+
+        mockInstance.getArtifactByPath(_) >> null
+        mockInstance.createArtifact(_) >> [uid: 'A2', id: 22, run: 1]
+
+        when:
+        manager.registerAnnotation(input, ArtifactAnnotation.fromMap([description: 'Raw reads']))
+        manager.createInputArtifact(input)
+
+        then:
+        1 * mockInstance.updateRecord({ Map args -> args.uid == 'A2' && args.data.description == 'Raw reads' })
+    }
+
+    def 'ignores an empty annotation'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = annotatingManager(mockInstance)
+
+        when:
+        manager.registerAnnotation(remotePath('s3://bucket/work/output.json'), ArtifactAnnotation.fromMap([:]))
+
+        then:
+        readKeys('pendingAnnotations').isEmpty()
+    }
+
+    def 'ignores an annotation when no instance is configured'() {
+        given:
+        def manager = LaminRunManager.instance
+
+        when:
+        manager.registerAnnotation(remotePath('s3://bucket/work/output.json'),
+            ArtifactAnnotation.fromMap([kind: 'dataset']))
+
+        then:
+        readKeys('pendingAnnotations').isEmpty()
+    }
+
+    def 'does not apply annotations in dry-run mode'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = LaminRunManager.instance
+        manager.setCurrentInstance(mockInstance)
+        injectField(manager, 'config', new LaminConfig([instance: 'org/inst', api_key: 'key', dry_run: true]))
+
+        when:
+        manager.registerAnnotation(remotePath('s3://bucket/work/output.json'),
+            ArtifactAnnotation.fromMap([kind: 'dataset']))
+
+        then:
+        readKeys('pendingAnnotations').isEmpty()
+        0 * mockInstance.updateRecord(_)
+    }
+
+    def 'reports annotations that never matched an artifact'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = annotatingManager(mockInstance)
+        def published = remotePath('s3://bucket/work/published.json')
+        def target = remotePath('s3://bucket/results/published.json')
+        def neverPublished = remotePath('s3://bucket/work/dropped.json')
+
+        mockInstance.getArtifactByPath(_) >> null
+        mockInstance.createArtifact(_) >> [uid: 'A1', id: 11, run: 1]
+
+        when:
+        manager.registerAnnotation(published, ArtifactAnnotation.fromMap([kind: 'dataset']))
+        manager.registerAnnotation(neverPublished, ArtifactAnnotation.fromMap([kind: 'dataset']))
+        manager.createOutputArtifactOnFilePublish(published, target, null)
+        manager.warnUnmatchedAnnotations()
+
+        then:
+        readKeys('matchedAnnotationKeys') == ['s3://bucket/work/published.json'] as Set
+        readKeys('pendingAnnotations').contains('s3://bucket/work/dropped.json')
     }
 }

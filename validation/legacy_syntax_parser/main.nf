@@ -1,4 +1,4 @@
-include { getRunUid; getTransformUid } from 'plugin/nf-lamin'
+include { getRunUid; getTransformUid; getInstanceSlug; annotateArtifact } from 'plugin/nf-lamin'
 
 /*
   Parameters
@@ -30,12 +30,13 @@ process summarizeData {
     id: id,
     runUid: runUid,
     transformUid: transformUid,
-    inputFileSize: input.size()
+    inputFileSize: input.size(),
+    datetime: new Date().toString()
   ]
   """
-  cat > output.json << EOF
-  ${groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata))}
-  EOF
+cat > output.json << EOF
+${groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(metadata))}
+EOF
   """
 }
 
@@ -62,12 +63,23 @@ workflow {
     log.error "Failed to read artifact via lamin:// path: ${e.message}"
   }
 
+  // log instance slug
+  log.info "Instance slug: ${getInstanceSlug()}"
+
   // create output channel
   ch_out = channel.fromList([
     ["artifact1", artPath1]
   ])
     | view{it -> "Before publish: $it"}
     | summarizeData
+    | map { id, result ->
+        annotateArtifact(result,
+          kind: 'dataset',
+          description: "Summarized output for sample ${id}",
+          ulabel_uids: ['+validation']
+        )
+        [id, result]
+      }
     | view{it -> "After publish: $it"}
 
   // publish:
