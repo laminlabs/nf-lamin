@@ -644,6 +644,8 @@ class Instance {
      *    - _status_code: The run status code (int, e.g. RunStatus.STARTED.code)
      *    Optional fields:
      *    - name: Run name (String — must be a plain String, not a GString)
+     *    - reference: External reference such as a Seqera Platform watch URL (String, max 255 chars)
+     *    - reference_type: Type of the reference, e.g. "Seqera" (String, max 25 chars)
      *    - space_id: Space ID (int)
      *    - branch_id: Branch ID (int)
      *

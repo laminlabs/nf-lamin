@@ -50,6 +50,7 @@ import ai.lamin.nf_lamin.model.ArtifactAnnotation
 import ai.lamin.nf_lamin.model.RunStatus
 import ai.lamin.nf_lamin.nio.LaminPath
 import ai.lamin.nf_lamin.util.PathUtils
+import ai.lamin.nf_lamin.util.SeqeraPlatformHelper
 import ai.lamin.nf_lamin.util.TransformInfoHelper
 import ai.lamin.nf_lamin.config.ArtifactConfig
 import ai.lamin.nf_lamin.config.ArtifactEvaluation
@@ -270,6 +271,29 @@ final class LaminRunManager {
         }
     }
 
+    /**
+     * Never throws -- the reference must not break the status update it travels with, and
+     * reflecting into another plugin can raise a linkage error rather than an exception.
+     *
+     * @return the `reference` / `reference_type` fields pointing at the Seqera Platform run,
+     *   or an empty map if there is nothing to update
+     */
+    private Map<String, Object> runReferenceFields() {
+        String reference
+        try {
+            reference = SeqeraPlatformHelper.resolveRunReference(session)
+        }
+        catch (Throwable e) {
+            log.debug "Could not read the Seqera Platform watch URL: ${e.message}"
+            return [:]
+        }
+        if (!reference || reference == run?.get('reference')) {
+            return [:]
+        }
+        log.debug "Setting run.reference to '${reference}'"
+        return [reference: reference, reference_type: 'Seqera'] as Map<String, Object>
+    }
+
     void startRun() {
         log.debug 'LaminRunManager.startRun'
         if (run == null || laminInstance == null || session == null || config.dryRun) {
@@ -277,14 +301,18 @@ final class LaminRunManager {
         }
 
         WorkflowMetadata wfMetadata = session.getWorkflowMetadata()
+
+        Map<String, Object> updateData = [
+            started_at: wfMetadata.start,
+            _status_code: RunStatus.STARTED.code
+        ] as Map<String, Object>
+        updateData.putAll(runReferenceFields())
+
         Map<String, Object> updatedRun = laminInstance.updateRecord(
             moduleName: 'core',
             modelName: 'run',
             uid: run.get('uid') as String,
-            data: [
-                started_at: wfMetadata.start,
-                _status_code: RunStatus.STARTED.code
-            ]
+            data: updateData
         )
         if (run.uid != updatedRun.uid) {
             log.warn "Run UID changed from ${run.uid} to ${updatedRun.uid} on start update!"
@@ -635,6 +663,8 @@ final class LaminRunManager {
         if (reportArtifactId != null) {
             updateData.put('report_id', reportArtifactId)
         }
+
+        updateData.putAll(runReferenceFields())
 
         Map<String, Object> updatedRun = laminInstance.updateRecord(
             moduleName: 'core',

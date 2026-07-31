@@ -55,6 +55,9 @@ ln.Run.get("your-run-uid")
 
 ![](guide/nf_core_scrnaseq_run.png)
 
+Runs executed with `-with-tower` or launched from Seqera Platform additionally get `run.reference` set
+to the Platform watch URL, with `run.reference_type` set to `"Seqera"`.
+
 → See {doc}`/reference` for the full `nf-lamin` configuration reference.
 
 → See {doc}`/reference/examples` for ready-to-run examples for existing pipelines.

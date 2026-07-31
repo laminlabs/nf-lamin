@@ -185,7 +185,7 @@ nextflowPlugin {
 ### Key Data Models
 
 **Transform**: Pipeline definition (key = repository path, version = git revision)
-**Run**: Single execution (linked to Transform, tracks status + timing)
+**Run**: Single execution (linked to Transform, tracks status + timing, and the Seqera Platform reference)
 **Artifact**: Input/output files (tracks storage path, linked to Run)
 
 ## Research Strategy
