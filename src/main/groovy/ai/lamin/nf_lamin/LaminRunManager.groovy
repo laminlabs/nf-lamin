@@ -272,11 +272,22 @@ final class LaminRunManager {
     }
 
     /**
+     * The reference is read from Nextflow internals, so it never throws: it is a convenience
+     * and must not take the status update it travels with along with it. Catches Throwable
+     * rather than Exception because reflecting into another plugin can raise a linkage error.
+     *
      * @return the `reference` / `reference_type` fields pointing at the Seqera Platform run,
      *   or an empty map if there is nothing to update
      */
     private Map<String, Object> runReferenceFields() {
-        String reference = SeqeraPlatformHelper.resolveRunReference(session)
+        String reference
+        try {
+            reference = SeqeraPlatformHelper.resolveRunReference(session)
+        }
+        catch (Throwable e) {
+            log.debug "Could not read the Seqera Platform watch URL: ${e.message}"
+            return [:]
+        }
         if (!reference || reference == run?.get('reference')) {
             return [:]
         }

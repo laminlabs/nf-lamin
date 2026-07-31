@@ -163,6 +163,39 @@ class LaminRunManagerTest extends Specification {
         }) >> [uid: 'R456']
     }
 
+    def 'startRun still marks the run as started when the reference cannot be read'() {
+        given:
+        def manager = LaminRunManager.instance
+        def mockInstance = Mock(Instance)
+        manager.setCurrentInstance(mockInstance)
+        injectField(manager, 'config', new LaminConfig([instance: 'testorg/testinst', api_key: 'test-key']))
+        injectField(manager, 'run', [uid: 'R456', id: 99] as Map<String, Object>)
+
+        // startRun reads the metadata first, the reference lookup second -- fail only the
+        // latter, with a linkage error, which is not an Exception and escapes a narrower catch
+        int calls = 0
+        def session = Stub(Session) {
+            getWorkflowMetadata() >> {
+                if (calls++ > 0) {
+                    throw new NoClassDefFoundError('nextflow/script/PlatformMetadata')
+                }
+                return Stub(WorkflowMetadata) { getStart() >> OffsetDateTime.now() }
+            }
+        }
+        injectField(manager, 'session', session)
+
+        when:
+        manager.startRun()
+
+        then:
+        noExceptionThrown()
+        1 * mockInstance.updateRecord({ Map args ->
+            Map data = args.data as Map
+            data.containsKey('_status_code') &&
+            !data.containsKey('reference')
+        }) >> [uid: 'R456']
+    }
+
     /** Mimics Nextflow >= 26.04, where WorkflowMetadata exposes getPlatform(). */
     static class MetadataWithPlatform extends WorkflowMetadata {
 
