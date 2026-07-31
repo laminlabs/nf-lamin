@@ -258,9 +258,8 @@ final class LaminRunManager {
     }
 
     /**
-     * Build the `reference` / `reference_type` fields pointing at the Seqera Platform run.
-     *
-     * @return a map with the reference fields, or an empty map
+     * @return the `reference` / `reference_type` fields pointing at the Seqera Platform run,
+     *   or an empty map if there is nothing to update
      */
     private Map<String, Object> runReferenceFields() {
         String reference = SeqeraPlatformHelper.resolveRunReference(session)
@@ -279,16 +278,12 @@ final class LaminRunManager {
 
         WorkflowMetadata wfMetadata = session.getWorkflowMetadata()
 
-        // Collect the fields to update on the run record
         Map<String, Object> updateData = [
             started_at: wfMetadata.start,
             _status_code: RunStatus.STARTED.code
         ] as Map<String, Object>
-
-        // Add Seqera Platform run reference
         updateData.putAll(runReferenceFields())
 
-        // Update the run record
         Map<String, Object> updatedRun = laminInstance.updateRecord(
             moduleName: 'core',
             modelName: 'run',
@@ -645,7 +640,6 @@ final class LaminRunManager {
             updateData.put('report_id', reportArtifactId)
         }
 
-        // Add Seqera Platform run reference
         updateData.putAll(runReferenceFields())
 
         Map<String, Object> updatedRun = laminInstance.updateRecord(

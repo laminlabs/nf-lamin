@@ -25,14 +25,14 @@ import nextflow.Session
  *
  * Nextflow 26.04 exposes {@code workflow.platform}
  * (<a href="https://github.com/nextflow-io/nextflow/pull/6545">nextflow-io/nextflow#6545</a>),
- * which nf-tower fills with the watch URL. It is read reflectively because neither the
- * accessor nor the {@code PlatformMetadata} class exists on 25.10, the minimum version.
+ * which nf-tower fills with the watch URL. Read reflectively because it does not exist on 25.10,
+ * the minimum supported version.
  */
 @Slf4j
 @CompileStatic
 class SeqeraPlatformHelper {
 
-    /** Value written to {@code run.reference_type}, matching existing Seqera runs on laminlabs/lamindata. */
+    /** Matches the {@code reference_type} of the existing Seqera runs on laminlabs/lamindata. */
     static final String REFERENCE_TYPE = 'Seqera'
 
     private SeqeraPlatformHelper() {
@@ -47,8 +47,7 @@ class SeqeraPlatformHelper {
     }
 
     /**
-     * Takes an Object rather than a WorkflowMetadata so it can be tested without
-     * Nextflow 26.04 on the compile classpath.
+     * Takes an Object rather than a WorkflowMetadata so it can be tested without Nextflow 26.04.
      *
      * @param metadata The Nextflow workflow metadata
      * @return the watch URL, or null if unavailable
@@ -63,11 +62,10 @@ class SeqeraPlatformHelper {
                 return null
             }
             Object url = platform.getClass().getMethod('getWorkflowUrl').invoke(platform)
-            // toString() guarantees a plain String; the API rejects GStrings
+            // the API rejects GStrings
             return url?.toString()?.trim() ?: null
         }
         catch (NoSuchMethodException e) {
-            // Nextflow < 26.04: `workflow.platform` does not exist
             log.debug 'Seqera Platform metadata is not available on this Nextflow version'
             return null
         }

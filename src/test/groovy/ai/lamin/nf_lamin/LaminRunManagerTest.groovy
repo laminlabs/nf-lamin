@@ -122,7 +122,7 @@ class LaminRunManagerTest extends Specification {
         injectField(manager, 'config', new LaminConfig([instance: 'testorg/testinst', api_key: 'test-key']))
         injectField(manager, 'run', [uid: 'R456', id: 99] as Map<String, Object>)
 
-        // Stub(WorkflowMetadata) has no getPlatform(): this is the Nextflow 25.10 shape
+        // Stub(WorkflowMetadata) has no getPlatform(), like Nextflow 25.10
         def metadata = Stub(WorkflowMetadata) {
             getStart() >> OffsetDateTime.now()
         }

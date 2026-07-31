@@ -36,7 +36,7 @@ class SeqeraPlatformHelperTest extends Specification {
 
     def 'returns null when the watch URL is #scenario, even with a workflow id'() {
         expect:
-        // the workflow id on its own is not enough to reconstruct the URL, so it is not stored
+        // the workflow id alone is not enough to reconstruct the URL
         SeqeraPlatformHelper.readReference(metadataWith(url, 'b0siCig3qoUvZ')) == null
 
         where:
@@ -48,7 +48,7 @@ class SeqeraPlatformHelperTest extends Specification {
 
     def 'returns null when the platform metadata is empty'() {
         expect:
-        // Nextflow >= 26.04 without Seqera Platform: getPlatform() lazily returns an empty object
+        // without Seqera Platform, getPlatform() returns an empty object
         SeqeraPlatformHelper.readReference(metadataWith(null, null)) == null
     }
 
@@ -74,7 +74,6 @@ class SeqeraPlatformHelperTest extends Specification {
         Object reference = SeqeraPlatformHelper.readReference(metadata)
 
         then:
-        // the Lamin API rejects GStrings
         reference.getClass() == String
     }
 
@@ -91,15 +90,13 @@ class SeqeraPlatformHelperTest extends Specification {
 
     def 'reference type is Seqera'() {
         expect:
-        // matches the reference_type of the existing Seqera runs on laminlabs/lamindata
         SeqeraPlatformHelper.REFERENCE_TYPE == 'Seqera'
     }
 
     /**
-     * Guards the getter names against the real Nextflow classes. The fakes above cannot catch a
-     * typo in 'getPlatform' / 'getWorkflowUrl' / 'getWorkflowId', because a wrong name and a
-     * genuinely absent one both resolve to null. Skipped while the plugin compiles against
-     * Nextflow 25.10; runs as soon as the floor is raised to 26.04.
+     * Guards the getter names against the real Nextflow classes -- the fakes above cannot catch a
+     * typo, because a wrong name and an absent one both resolve to null. Skipped until the
+     * Nextflow floor is raised to 26.04.
      */
     @Requires({ SeqeraPlatformHelperTest.platformMetadataClass() != null })
     def 'reads the real Nextflow PlatformMetadata'() {
