@@ -78,21 +78,12 @@ class ArtifactAnnotationTest extends Specification {
         e.message.contains('nf-lamin/issues/102')
     }
 
-    def 'rejects an invalid kind'() {
-        when:
-        ArtifactAnnotation.fromMap([kind: 'report'])
-
-        then:
-        def e = thrown(IllegalArgumentException)
-        e.message.contains("invalid kind 'report'")
-    }
-
-    def 'accepts every kind LaminDB knows'() {
+    def 'passes the kind through as given'() {
         expect:
         ArtifactAnnotation.fromMap([kind: kind]).kind == kind
 
         where:
-        kind << ArtifactAnnotation.VALID_KINDS
+        kind << ['dataset', 'model', 'plan', '__lamindb_run__', 'some-future-kind']
     }
 
     def 'is empty when only unset options are given'() {

@@ -18,6 +18,8 @@ package ai.lamin.nf_lamin.model
 
 import groovy.transform.CompileStatic
 
+import ai.lamin.nf_lamin.config.ConfigUtils
+
 /**
  * Metadata a workflow asks to be attached to the artifact of a given path.
  *
@@ -29,9 +31,6 @@ class ArtifactAnnotation {
 
     /** Option names accepted by {@code annotateArtifact()}. */
     static final List<String> ACCEPTED_KEYS = ['kind', 'description', 'ulabel_uids', 'project_uids']
-
-    /** Artifact kinds accepted by LaminDB, see {@code lamindb.base.types.ArtifactKind}. */
-    static final List<String> VALID_KINDS = ['dataset', 'model', 'plan', '__lamindb_run__', '__lamindb_config__']
 
     /** Artifact kind, or null to leave it unchanged. */
     final String kind
@@ -82,11 +81,6 @@ class ArtifactAnnotation {
         }
 
         String kind = opts.get('kind') as String
-        if (kind != null && !VALID_KINDS.contains(kind)) {
-            throw new IllegalArgumentException(
-                "annotateArtifact: invalid kind '${kind}'. Accepted kinds are: ${VALID_KINDS.join(', ')}"
-            )
-        }
 
         Object rawDescription = opts.get('description')
         String description = rawDescription != null ? rawDescription.toString() : null
@@ -94,31 +88,9 @@ class ArtifactAnnotation {
         return new ArtifactAnnotation(
             kind,
             description,
-            toUidList(opts.get('ulabel_uids'), 'ulabel_uids'),
-            toUidList(opts.get('project_uids'), 'project_uids')
+            ConfigUtils.parseStringOrList(opts.get('ulabel_uids')),
+            ConfigUtils.parseStringOrList(opts.get('project_uids'))
         )
-    }
-
-    /**
-     * Normalise a UID option to a list of strings, accepting a bare value as a single entry.
-     */
-    private static List<String> toUidList(Object value, String optionName) {
-        if (value == null) {
-            return []
-        }
-        Collection<?> items = value instanceof Collection ? (Collection) value : [value]
-        List<String> uids = []
-        for (Object item : items) {
-            if (item == null) {
-                continue
-            }
-            String uid = item.toString().trim()
-            if (!uid) {
-                continue
-            }
-            uids.add(uid)
-        }
-        return uids
     }
 
     /**
