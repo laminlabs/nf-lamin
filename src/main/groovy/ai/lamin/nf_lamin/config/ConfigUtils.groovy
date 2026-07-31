@@ -26,21 +26,23 @@ import java.util.regex.Pattern
 class ConfigUtils {
 
     /**
-     * Parse a value that can be either a String or a List of Strings into a List.
-     * Normalizes list inputs by converting each element to string and filtering null/empty values.
-     * @param value The value to parse (String, List, or null)
+     * Parse a value that can be either a String or a collection of Strings into a List.
+     * Normalizes inputs by converting each element to a trimmed string and filtering null/empty
+     * values. Accepts any {@code CharSequence}, so a GString from a workflow works as well.
+     * @param value The value to parse (String, Collection, or null)
      * @return List of strings (empty list if null or invalid type)
      */
     static List<String> parseStringOrList(Object value) {
         if (value == null) {
             return []
         }
-        if (value instanceof String) {
-            return value ? [value as String] : []
+        if (value instanceof CharSequence) {
+            String str = value.toString().trim()
+            return str ? [str] : []
         }
-        if (value instanceof List) {
-            // Normalize list: convert each element to string and filter null/empty values
-            return (value as List).collect { it?.toString() }.findAll { it } as List<String>
+        if (value instanceof Collection) {
+            // Normalize collection: convert each element to string and filter null/empty values
+            return (value as Collection).collect { it?.toString()?.trim() }.findAll { it } as List<String>
         }
         return []
     }

@@ -230,11 +230,14 @@ lamin {
 ### DSL Extension Functions
 
 ```groovy
-include { getRunUid; getTransformUid; getInstanceSlug } from 'plugin/nf-lamin'
+include { getRunUid; getTransformUid; getInstanceSlug; annotateArtifact } from 'plugin/nf-lamin'
 
 def runUid = getRunUid()                                    // Current run UID
 def transformUid = getTransformUid()                        // Current transform UID
 def slug = getInstanceSlug()                                // "org/instance"
+
+// Attach metadata to the artifact of a published file; returns the file unchanged
+ch | map { f -> annotateArtifact(f, kind: 'dataset', ulabel_uids: ['+qc-passed']) }
 
 // Use lamin:// URI to resolve artifact paths
 def path = file('lamin://org/instance/artifact/uid16chars1234')

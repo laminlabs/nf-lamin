@@ -93,6 +93,8 @@ class LaminObserver implements TraceObserverV2 {
     /**
      * Called each time a file is published to a {@code publishDir} destination.
      *
+     * {@code event.source} is the path the file was published from - the same path the workflow
+     * holds in its channels, and therefore the one {@code annotateArtifact()} keys on.
      * {@code event.target} is the final published path (local or cloud). {@code event.labels}
      * are the strings declared with the {@code label} directive on the output's publish block.
      *
@@ -110,7 +112,7 @@ class LaminObserver implements TraceObserverV2 {
     void onFilePublish(FilePublishEvent event) {
         log.debug "LaminObserver.onFilePublish: ${event.source} -> ${event.target}"
         if (!trackingEnabled) return
-        state.createOutputArtifactOnFilePublishAsync(event.target, event.labels)
+        state.createOutputArtifactOnFilePublishAsync(event.source, event.target, event.labels)
     }
 
     /**
@@ -203,6 +205,7 @@ class LaminObserver implements TraceObserverV2 {
         runFinalized = true
         state.processConfigPathsAsync('output')
         state.awaitArtifactTasks()
+        state.warnUnmatchedAnnotations()
         state.finalizeRun()
     }
 }

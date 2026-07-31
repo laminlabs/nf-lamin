@@ -25,6 +25,8 @@ import java.nio.file.Path
 import ai.lamin.nf_lamin.hub.LaminHub
 import ai.lamin.nf_lamin.instance.Instance
 import ai.lamin.nf_lamin.hub.InstanceSettings
+import ai.lamin.nf_lamin.model.ArtifactAnnotation
+import ai.lamin.nf_lamin.util.PathUtils
 
 /**
  * Implements a custom function which can be imported by
@@ -71,6 +73,45 @@ class LaminExtension extends PluginExtensionPoint {
     @Function
     String getInstanceSlug() {
         return LaminRunManager.instance.getInstanceSlug()
+    }
+
+    /**
+     * Attaches metadata to the artifact that Lamin registers for a file.
+     *
+     * The file keeps being published by Nextflow as usual; this only records what should be
+     * attached to the resulting artifact. It can therefore be called before or after the file
+     * is published, and repeated calls for the same file accumulate.
+     *
+     * <pre>
+     * ch_out | map { f -&gt; annotateArtifact(f, kind: 'dataset', ulabel_uids: ['+qc-passed']) }
+     * </pre>
+     *
+     * Does nothing when no Lamin instance is configured, so a workflow using it still runs
+     * without the plugin being connected.
+     *
+     * @param opts   Named arguments: {@code kind}, {@code description}, {@code ulabel_uids},
+     *               {@code project_uids}
+     * @param target A file, a file path as a String, or a collection of either
+     * @return {@code target}, unchanged, so the call can be the body of a {@code map} closure
+     * @throws IllegalArgumentException if an option or the target type is not supported
+     */
+    @Function
+    Object annotateArtifact(Map opts, Object target) {
+        ArtifactAnnotation annotation = ArtifactAnnotation.fromMap(opts)
+        for (Path path : PathUtils.toPaths(target, 'annotateArtifact')) {
+            LaminRunManager.instance.registerAnnotation(path, annotation)
+        }
+        return target
+    }
+
+    /**
+     * Attaches metadata to the artifact of a file, without any named arguments.
+     *
+     * @see #annotateArtifact(Map, Object)
+     */
+    @Function
+    Object annotateArtifact(Object target) {
+        return annotateArtifact([:], target)
     }
 
 }

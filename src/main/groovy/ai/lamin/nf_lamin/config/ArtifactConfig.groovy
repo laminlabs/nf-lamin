@@ -23,6 +23,7 @@ import java.util.regex.Pattern
 import nextflow.config.spec.ConfigOption
 import nextflow.config.spec.ConfigScope
 import nextflow.script.dsl.Description
+import ai.lamin.nf_lamin.util.PathUtils
 
 /**
  * Configuration for artifact tracking (input, output, or both).
@@ -248,7 +249,7 @@ class ArtifactConfig implements ConfigScope {
      * @return ArtifactEvaluation with shouldTrack flag and metadata map
      */
     ArtifactEvaluation evaluate(Path path, String artifactDirection, Map workflowParams = [:]) {
-        String pathStr = path.toUri().toString()
+        String pathStr = PathUtils.toUriKey(path)
 
         // Early exit if disabled or direction doesn't match
         if (!enabled) {

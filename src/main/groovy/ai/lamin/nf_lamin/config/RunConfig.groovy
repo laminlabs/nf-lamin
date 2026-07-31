@@ -57,26 +57,7 @@ class RunConfig {
      * @param opts Configuration map with keys: ulabel_uids
      */
     RunConfig(Map opts) {
-        this.ulabel_uids = parseUidList(opts?.ulabel_uids)
-    }
-
-    /**
-     * Parse a UID list from various input types.
-     *
-     * @param value The input value (can be null, String, or List)
-     * @return A list of UIDs
-     */
-    private static List<String> parseUidList(Object value) {
-        if (value == null) {
-            return []
-        }
-        if (value instanceof List) {
-            return value.collect { it?.toString() }.findAll { it }
-        }
-        if (value instanceof String) {
-            return [value]
-        }
-        return []
+        this.ulabel_uids = ConfigUtils.parseStringOrList(opts?.ulabel_uids)
     }
 
     /**
