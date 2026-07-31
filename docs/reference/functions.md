@@ -62,7 +62,7 @@ This function records what should be attached to the resulting artifact, which l
 | Name           | Type          | Description                                    |
 | -------------- | ------------- | ---------------------------------------------- |
 | _(positional)_ | Path/String   | The file to annotate, or a collection of files |
-| `kind`         | String        | Artifact kind: `dataset`, `model`, or `plan`   |
+| `kind`         | String        | Artifact kind, e.g. `dataset`, `model`, `plan` |
 | `description`  | String        | Artifact description                           |
 | `ulabel_uids`  | List\<String> | ULabel UIDs or named references to link        |
 | `project_uids` | List\<String> | Project UIDs or named references to link       |
