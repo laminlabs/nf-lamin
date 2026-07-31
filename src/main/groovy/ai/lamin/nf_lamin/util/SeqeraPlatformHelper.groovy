@@ -19,6 +19,7 @@ package ai.lamin.nf_lamin.util
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 import nextflow.Session
+import java.lang.reflect.Field
 
 /**
  * Reads the Seqera Platform watch URL from the Nextflow session.
@@ -27,6 +28,10 @@ import nextflow.Session
  * (<a href="https://github.com/nextflow-io/nextflow/pull/6545">nextflow-io/nextflow#6545</a>),
  * which nf-tower fills with the watch URL. Read reflectively because it does not exist on 25.10,
  * the minimum supported version.
+ *
+ * On 25.10 the URL is only held in a private field of the nf-tower observer, which the session
+ * in turn keeps in a private field, so {@link #readReferenceFromObservers} reaches in for it.
+ * That is a best-effort fallback: anything unexpected yields no reference rather than an error.
  */
 @Slf4j
 @CompileStatic
@@ -34,6 +39,12 @@ class SeqeraPlatformHelper {
 
     /** Matches the {@code reference_type} of the existing Seqera runs on laminlabs/lamindata. */
     static final String REFERENCE_TYPE = 'Seqera'
+
+    /** Session fields holding the trace observers, newest Nextflow first. */
+    private static final List<String> OBSERVER_FIELDS = ['observersV2', 'observers']
+
+    /** The nf-tower observer holding the watch URL; renamed to TowerObserver in 26.04. */
+    private static final List<String> TOWER_OBSERVERS = ['TowerClient', 'TowerObserver']
 
     private SeqeraPlatformHelper() {
     }
@@ -43,7 +54,85 @@ class SeqeraPlatformHelper {
      * @return the watch URL, or null if the run is not executing against Seqera Platform
      */
     static String resolveRunReference(Session session) {
-        return session != null ? readReference(session.getWorkflowMetadata()) : null
+        if (session == null) {
+            return null
+        }
+        String reference = readReference(session.getWorkflowMetadata())
+        return reference ?: readReferenceFromObservers(session)
+    }
+
+    /**
+     * Read the watch URL straight from the nf-tower observer, for Nextflow versions without
+     * {@code workflow.platform}.
+     *
+     * Both the observer list and the URL are private with no accessor, so this reaches in
+     * reflectively. It is deliberately forgiving: a session without observers, without nf-tower,
+     * or with a field layout this does not recognise simply yields null.
+     *
+     * Takes an Object rather than a Session so it can be tested with a stand-in.
+     *
+     * @param session The Nextflow session
+     * @return the watch URL, or null if unavailable
+     */
+    static String readReferenceFromObservers(Object session) {
+        if (session == null) {
+            return null
+        }
+        for (Object observer : findObservers(session)) {
+            if (observer == null || !TOWER_OBSERVERS.contains(observer.getClass().simpleName)) {
+                continue
+            }
+            Object url = readField(observer, 'watchUrl')
+            String reference = url?.toString()?.trim()
+            if (reference) {
+                log.debug "Read the Seqera Platform watch URL from ${observer.getClass().simpleName}"
+                return reference
+            }
+        }
+        return null
+    }
+
+    /**
+     * @param session The Nextflow session
+     * @return the trace observers, or an empty list if they cannot be read
+     */
+    private static Collection<?> findObservers(Object session) {
+        for (String fieldName : OBSERVER_FIELDS) {
+            Object observers = readField(session, fieldName)
+            if (observers instanceof Collection) {
+                return (Collection) observers
+            }
+        }
+        log.debug "Could not find the trace observers on ${session.getClass().simpleName}"
+        return []
+    }
+
+    /**
+     * Read a field by name, walking up the class hierarchy, whatever its visibility.
+     *
+     * @param target    The object to read from
+     * @param fieldName The field to read
+     * @return the value, or null if the field does not exist or cannot be read
+     */
+    private static Object readField(Object target, String fieldName) {
+        for (Class<?> type = target.getClass(); type != null; type = type.getSuperclass()) {
+            Field field
+            try {
+                field = type.getDeclaredField(fieldName)
+            }
+            catch (NoSuchFieldException e) {
+                continue
+            }
+            try {
+                field.setAccessible(true)
+                return field.get(target)
+            }
+            catch (Exception e) {
+                log.debug "Could not read ${type.simpleName}.${fieldName}: ${e.message}"
+                return null
+            }
+        }
+        return null
     }
 
     /**

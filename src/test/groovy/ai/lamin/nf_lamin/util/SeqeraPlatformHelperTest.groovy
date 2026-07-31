@@ -88,6 +88,70 @@ class SeqeraPlatformHelperTest extends Specification {
         SeqeraPlatformHelper.resolveRunReference(session) == null
     }
 
+    // ========== observer fallback (Nextflow < 26.04) ==========
+
+    /** Mimics the nf-tower observer, which keeps the watch URL in a private field. */
+    static class TowerClient {
+
+        private String watchUrl
+
+        TowerClient(String watchUrl) {
+            this.watchUrl = watchUrl
+        }
+
+    }
+
+    /** Mimics a session, which keeps its observers in a private field. */
+    static class FakeSession {
+
+        private List observersV2
+
+        FakeSession(List observersV2) {
+            this.observersV2 = observersV2
+        }
+
+    }
+
+    def 'reads the watch URL from the nf-tower observer'() {
+        given:
+        def session = new FakeSession([new Object(), new TowerClient('https://cloud.seqera.io/watch/abc')])
+
+        expect:
+        SeqeraPlatformHelper.readReferenceFromObservers(session) ==
+            'https://cloud.seqera.io/watch/abc'
+    }
+
+    def 'returns null when the watch URL on the observer is #scenario'() {
+        expect:
+        SeqeraPlatformHelper.readReferenceFromObservers(new FakeSession([new TowerClient(url)])) == null
+
+        where:
+        scenario     | url
+        'null'       | null
+        'empty'      | ''
+        'whitespace' | '   '
+    }
+
+    def 'returns null when nothing recognisable is there'() {
+        expect:
+        SeqeraPlatformHelper.readReferenceFromObservers(null) == null
+        // no nf-tower observer
+        SeqeraPlatformHelper.readReferenceFromObservers(new FakeSession([new Object()])) == null
+        // no observers at all
+        SeqeraPlatformHelper.readReferenceFromObservers(new FakeSession(null)) == null
+        // not a session
+        SeqeraPlatformHelper.readReferenceFromObservers(new Object()) == null
+    }
+
+    /**
+     * Guards the field name against the real Nextflow class -- the fake above cannot catch a
+     * typo, because a wrong name and an absent one both resolve to null.
+     */
+    def 'the observer field it looks for exists on the real Session'() {
+        expect:
+        Session.getDeclaredField('observersV2') != null
+    }
+
     def 'reference type is Seqera'() {
         expect:
         SeqeraPlatformHelper.REFERENCE_TYPE == 'Seqera'
