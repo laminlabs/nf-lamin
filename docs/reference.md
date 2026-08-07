@@ -9,7 +9,7 @@
 ```bash
 export LAMIN_CURRENT_INSTANCE="your-org/your-instance"
 export LAMIN_API_KEY="<your-lamin-api-key>"
-nextflow run -plugins nf-lamin@0.8.1 <your-pipeline>
+nextflow run -plugins nf-lamin@0.9.0 <your-pipeline>
 ```
 
 **Option B: Nextflow secrets + config file**:
@@ -43,10 +43,11 @@ nextflow run <your-pipeline> -c lamin.config
 
 | nf-lamin  | LaminDB       | Nextflow   | Status         | Key Features                                                                    |
 | --------- | ------------- | ---------- | -------------- | ------------------------------------------------------------------------------- |
+| **0.9.0** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Annotate artifacts, Seqera Platform run url, anonymous `lamin://` resolution    |
 | **0.8.3** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Make API interactions configurable and more robust, clearer permission errors   |
-| **0.8.2** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Parallellized artifact creation                                                 |
-| **0.8.1** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Improved trace logging                                                          |
-| **0.8.0** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Support for Nextflow 26.04, fix key resolution, deprecate uploading local paths |
+| 0.8.2     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Parallellized artifact creation                                                 |
+| 0.8.1     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Improved trace logging                                                          |
+| 0.8.0     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Support for Nextflow 26.04, fix key resolution, deprecate uploading local paths |
 | 0.7.0     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Automatic credential federation for `lamin://` URIs (S3)                        |
 | 0.6.2     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Fix deferred param evaluation, documentation improvements                       |
 | 0.6.1     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Fix for edge case in tracking output artifacts                                  |
