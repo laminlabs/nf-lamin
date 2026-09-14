@@ -306,7 +306,17 @@ class LaminUriParserTest extends Specification {
         '/results'        | 'results'
         'a//b/'           | 'a/b'
         'my%20results'    | 'my results'
+        'v1+hotfix'       | 'v1+hotfix'
+        'a%2Bb'           | 'a+b'
         ''                | null
+    }
+
+    def "should decode percent-escapes in the artifact sub-path"() {
+        when:
+        def parsed = LaminUriParser.parse('lamin://laminlabs/lamindata/artifact/uid123/my%20dir/a%2Bb+c.txt')
+
+        then:
+        parsed.subPath == 'my dir/a+b+c.txt'
     }
 
     def "should render storage URI canonically"() {

@@ -212,7 +212,7 @@ class LaminUriParser {
 
         String subPath = null
         if (parts.length > 4) {
-            subPath = parts[4..-1].join(SEP)
+            subPath = parts[4..-1].collect { String s -> decode(s) }.join(SEP)
         }
 
         log.trace "Parsed URI: owner=${owner}, instance=${instance}, resourceType=${resourceType}, resourceId=${resourceId}, subPath=${subPath}"
@@ -292,7 +292,8 @@ class LaminUriParser {
     }
 
     private static String decode(String value) {
-        return URLDecoder.decode(value, StandardCharsets.UTF_8)
+        // URLDecoder is for forms: it would turn a literal '+' into a space
+        return URLDecoder.decode(value.replace('+', '%2B'), StandardCharsets.UTF_8)
     }
 
     private static String encode(String value) {
