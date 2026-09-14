@@ -95,7 +95,7 @@ class LaminRunManagerTest extends Specification {
     }
 
     private LaminS3Path publishedPath(String key) {
-        def fs = new LaminS3FileSystem(Mock(LaminS3FileSystemProvider), 's3://bucket/JwMEKs04D9WJ', Mock(AwsS3Client), 'write')
+        def fs = new LaminS3FileSystem(Mock(LaminS3FileSystemProvider), 's3://bucket/JwMEKs04D9WJ', Mock(AwsS3Client))
         return new LaminS3Path(fs, key)
     }
 

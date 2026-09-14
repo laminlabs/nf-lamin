@@ -123,12 +123,11 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
                 return existing
             }
 
-            CloudAccessResponse access = credentials.get()
             AwsS3Client s3Client = createS3Client(new LaminCloudCredentialsProvider(storageRoot, credentials), region)
 
-            LaminS3FileSystem fs = new LaminS3FileSystem(this, storageRoot, s3Client, access?.role)
+            LaminS3FileSystem fs = new LaminS3FileSystem(this, storageRoot, s3Client, credentials)
             fileSystems.put(storageRoot, fs)
-            log.debug "Created LaminS3FileSystem for storageRoot '${storageRoot}' (role: ${access?.role})"
+            log.debug "Created LaminS3FileSystem for storageRoot '${storageRoot}'"
             return fs
         }
     }

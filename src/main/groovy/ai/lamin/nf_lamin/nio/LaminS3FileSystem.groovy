@@ -26,8 +26,11 @@ import java.nio.file.PathMatcher
 import java.nio.file.WatchService
 import java.nio.file.attribute.UserPrincipalLookupService
 import java.nio.file.spi.FileSystemProvider
+import java.util.function.Supplier
 
 import software.amazon.awssdk.services.s3.S3Client as AwsS3Client
+
+import ai.lamin.nf_lamin.hub.CloudAccessResponse
 
 /**
  * FileSystem for lamin-s3:// URIs.
@@ -47,17 +50,17 @@ final class LaminS3FileSystem extends FileSystem {
     private final LaminS3FileSystemProvider provider
     private final String storageRoot
     private final AwsS3Client s3Client
-    /** The role LaminHub granted on the storage root: read, write or admin */
-    final String role
+    /** The current cloud access on the storage root; null means no access was granted */
+    private final Supplier<CloudAccessResponse> credentials
 
     private volatile boolean closed = false
 
-    LaminS3FileSystem(LaminS3FileSystemProvider provider, String storageRoot, AwsS3Client s3Client, String role = null) {
+    LaminS3FileSystem(LaminS3FileSystemProvider provider, String storageRoot, AwsS3Client s3Client,
+                      Supplier<CloudAccessResponse> credentials = null) {
         this.provider = provider
         this.storageRoot = storageRoot
         this.s3Client = s3Client
-        this.role = role
-        log.debug "Created LaminS3FileSystem for storageRoot: ${storageRoot} (role: ${role})"
+        this.credentials = credentials
     }
 
     String getStorageRoot() {
@@ -89,9 +92,13 @@ final class LaminS3FileSystem extends FileSystem {
         return !closed
     }
 
+    /**
+     * Whether LaminHub currently grants less than write access. Asked of the credential source
+     * each time, so a filesystem cached across a role change answers for the new role.
+     */
     @Override
     boolean isReadOnly() {
-        return !WRITE_ROLES.contains(role)
+        return !WRITE_ROLES.contains(credentials?.get()?.role)
     }
 
     @Override

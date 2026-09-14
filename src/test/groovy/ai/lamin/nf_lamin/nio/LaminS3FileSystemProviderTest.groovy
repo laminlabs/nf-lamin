@@ -128,7 +128,7 @@ class LaminS3FileSystemProviderTest extends Specification {
         fs != null
         fs.storageRoot == 's3://bucket/prefix'
         fs.bucketName == 'bucket'
-        fs.role == 'write'
+        !fs.isReadOnly()
         fs.s3Client == s3Client
     }
 
@@ -157,16 +157,15 @@ class LaminS3FileSystemProviderTest extends Specification {
 
     def "the S3 client asks the credential source on every request"() {
         given:
-        // the first response is read when the filesystem is created, for the role
-        def responses = [access('AKID0'), access('AKID1'), access('AKID2')].iterator()
+        def responses = [access('AKID0'), access('AKID1')].iterator()
         provider.getOrCreateFileSystem('s3://bucket/prefix', { responses.next() } as Supplier<CloudAccessResponse>)
 
         when:
         def credentials = provider.credentialsSeen[0]
 
         then:
+        (credentials.resolveCredentials() as AwsSessionCredentials).accessKeyId() == 'AKID0'
         (credentials.resolveCredentials() as AwsSessionCredentials).accessKeyId() == 'AKID1'
-        (credentials.resolveCredentials() as AwsSessionCredentials).accessKeyId() == 'AKID2'
     }
 
     def "getOrCreateFileSystem() passes the storage region to the client"() {
