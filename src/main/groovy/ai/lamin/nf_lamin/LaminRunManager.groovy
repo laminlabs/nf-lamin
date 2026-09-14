@@ -48,9 +48,8 @@ import ai.lamin.nf_lamin.instance.PermissionDeniedException
 import ai.lamin.nf_lamin.hub.InstanceSettings
 import ai.lamin.nf_lamin.model.ArtifactAnnotation
 import ai.lamin.nf_lamin.model.RunStatus
+import ai.lamin.nf_lamin.nio.LaminFileSystemProvider
 import ai.lamin.nf_lamin.nio.LaminPath
-import ai.lamin.nf_lamin.nio.LaminS3FileSystem
-import ai.lamin.nf_lamin.nio.LaminS3Path
 import ai.lamin.nf_lamin.nio.LaminStorageTarget
 import ai.lamin.nf_lamin.util.PathUtils
 import ai.lamin.nf_lamin.util.SeqeraPlatformHelper
@@ -102,6 +101,16 @@ final class LaminRunManager {
     // Output names of index files announced by onWorkflowOutput before they were written
     private final Map<String, String> pendingOutputNames = new ConcurrentHashMap<String, String>()
 
+    /** The lamin:// provider, which knows the publish targets of this run. Injected by tests. */
+    private LaminFileSystemProvider laminFileSystemProvider
+
+    protected LaminFileSystemProvider getLaminFileSystemProvider() {
+        if (laminFileSystemProvider == null) {
+            laminFileSystemProvider = LaminFileSystemProvider.installed()
+        }
+        return laminFileSystemProvider
+    }
+
     // Annotations requested from the workflow via annotateArtifact(), keyed by annotation key
     private final Map<String, List<ArtifactAnnotation>> pendingAnnotations = new ConcurrentHashMap<String, List<ArtifactAnnotation>>()
 
@@ -124,6 +133,7 @@ final class LaminRunManager {
     synchronized void reset() {
         session = null
         config = null
+        laminFileSystemProvider = null
         resolvedConfig = null
         hub = null
         laminInstance = null
@@ -1713,11 +1723,9 @@ final class LaminRunManager {
         // A file published to a lamin:// target lives in the storage location the target
         // resolved to, and that location decides the space when it has one
         Integer spaceId = resolvedSpaceId
-        if (path instanceof LaminS3Path) {
-            LaminStorageTarget target = ((LaminS3FileSystem) path.fileSystem).target
-            if (target?.spaceId != null) {
-                spaceId = target.spaceId
-            }
+        LaminStorageTarget target = getLaminFileSystemProvider()?.publishTargetFor(path)
+        if (target?.spaceId != null) {
+            spaceId = target.spaceId
         }
 
         // Validate and extract optional parameters

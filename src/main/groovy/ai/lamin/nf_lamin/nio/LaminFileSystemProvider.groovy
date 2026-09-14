@@ -49,6 +49,7 @@ import ai.lamin.nf_lamin.LaminConnection
 import ai.lamin.nf_lamin.hub.CloudAccessResponse
 import ai.lamin.nf_lamin.hub.LaminHub
 import ai.lamin.nf_lamin.instance.Instance
+import ai.lamin.nf_lamin.util.PathUtils
 
 /**
  * FileSystemProvider implementation for Lamin URIs.
@@ -78,6 +79,9 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
 
     // Resolves and caches the storage location of publish targets
     private final LaminStorageResolver storageResolver = new LaminStorageResolver()
+
+    // Publish targets resolved so far, keyed by the storage URI they resolved to
+    private final Map<String, LaminStorageTarget> publishTargets = new ConcurrentHashMap<String, LaminStorageTarget>()
 
     /**
      * Get an Instance client for a specific LaminDB instance.
@@ -119,6 +123,16 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
      */
     protected Path asStoragePath(String uri) {
         return FileHelper.asPath(uri)
+    }
+
+    /**
+     * The provider Nextflow installed for {@code lamin://} URIs, or null when none is installed
+     * (as in unit tests). Unlike {@code FileHelper.getOrInstallProvider} this needs no reflection.
+     */
+    static LaminFileSystemProvider installed() {
+        return (LaminFileSystemProvider) FileSystemProvider.installedProviders().find { FileSystemProvider p ->
+            p instanceof LaminFileSystemProvider
+        }
     }
 
     /**
@@ -243,8 +257,11 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
 
         Instance instance = getInstance(uri.owner, uri.instance)
         LaminStorageTarget target = storageResolver.resolve(instance, uri)
+        String root = target.storageRoot.replaceFirst('/$', '')
+        String storageUri = uri.prefix ? "${root}/${uri.prefix}".toString() : root
+        publishTargets.put(storageUri, target)
 
-        ManagedS3 managed = resolveManagedS3(target.storageRoot, target)
+        ManagedS3 managed = resolveManagedS3(target.storageRoot, target.region)
         if (managed != null) {
             if (!LaminS3FileSystem.WRITE_ROLES.contains(managed.access.role)) {
                 throw new IllegalArgumentException(
@@ -257,11 +274,28 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
             return path
         }
 
-        String root = target.storageRoot.replaceFirst('/$', '')
-        String storageUri = uri.prefix ? "${root}/${uri.prefix}".toString() : root
         Path path = asStoragePath(storageUri)
         log.debug "Resolved publish target ${uri} to ${path} (standard provider)"
         return path
+    }
+
+    /**
+     * The publish target a path was resolved from, if any: the registered target whose storage
+     * URI is the longest prefix of the path's. Artifact paths are never publish targets.
+     */
+    LaminStorageTarget publishTargetFor(Path path) {
+        if (path == null || path instanceof LaminPath) {
+            return null
+        }
+        String uri = PathUtils.toStorageUri(path)
+        Map.Entry<String, LaminStorageTarget> best = null
+        for (Map.Entry<String, LaminStorageTarget> entry : publishTargets.entrySet()) {
+            String prefix = entry.key
+            if ((uri == prefix || uri.startsWith(prefix + '/')) && (best == null || prefix.length() > best.key.length())) {
+                best = entry
+            }
+        }
+        return best?.value
     }
 
     /** A Lamin-managed S3 file system and the access it was created from. */
@@ -274,7 +308,7 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
      * The Lamin-managed file system for a storage root, or null when the root is not S3,
      * credential management is off, or LaminHub grants no credentials for it.
      */
-    private ManagedS3 resolveManagedS3(String storageRoot, LaminStorageTarget target = null) {
+    private ManagedS3 resolveManagedS3(String storageRoot, String region = null) {
         if (!storageRoot?.startsWith('s3://') || getConfig()?.features?.manage_s3_credentials == false) {
             return null
         }
@@ -288,7 +322,7 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
             return null
         }
         LaminS3FileSystem fs = getS3Provider().getOrCreateFileSystem(
-            storageRoot, { -> getCachedCloudAccess(hub, storageRoot) } as Supplier<CloudAccessResponse>, target
+            storageRoot, { -> getCachedCloudAccess(hub, storageRoot) } as Supplier<CloudAccessResponse>, region
         )
         return new ManagedS3(fileSystem: fs, access: access)
     }

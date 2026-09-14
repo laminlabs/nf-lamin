@@ -113,23 +113,20 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
      *
      * @param storageRoot The full storage root URI (e.g. {@code s3://bucket/prefix}), used as cache key and to derive the bucket name
      * @param credentials Source of the current cloud access for this storage root
-     * @param target      The publish target being resolved, if any
+     * @param region      Region of the bucket, when known
      * @return The LaminS3FileSystem for this storageRoot
      */
-    LaminS3FileSystem getOrCreateFileSystem(String storageRoot, Supplier<CloudAccessResponse> credentials, LaminStorageTarget target = null) {
+    LaminS3FileSystem getOrCreateFileSystem(String storageRoot, Supplier<CloudAccessResponse> credentials, String region = null) {
         synchronized (fileSystems) {
             LaminS3FileSystem existing = fileSystems.get(storageRoot)
             if (existing != null) {
-                if (target != null && existing.target == null) {
-                    existing.target = target
-                }
                 return existing
             }
 
             CloudAccessResponse access = credentials.get()
-            AwsS3Client s3Client = createS3Client(new LaminCloudCredentialsProvider(storageRoot, credentials), target?.region)
+            AwsS3Client s3Client = createS3Client(new LaminCloudCredentialsProvider(storageRoot, credentials), region)
 
-            LaminS3FileSystem fs = new LaminS3FileSystem(this, storageRoot, s3Client, access?.role, target)
+            LaminS3FileSystem fs = new LaminS3FileSystem(this, storageRoot, s3Client, access?.role)
             fileSystems.put(storageRoot, fs)
             log.debug "Created LaminS3FileSystem for storageRoot '${storageRoot}' (role: ${access?.role})"
             return fs

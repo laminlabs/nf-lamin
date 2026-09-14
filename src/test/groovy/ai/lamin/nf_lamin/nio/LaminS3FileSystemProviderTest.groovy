@@ -155,19 +155,6 @@ class LaminS3FileSystemProviderTest extends Specification {
         fs2.storageRoot == 's3://bucket/prefix2'
     }
 
-    def "getOrCreateFileSystem() attaches the publish target to an existing filesystem"() {
-        given:
-        def target = new LaminStorageTarget(storageRoot: 's3://bucket/prefix', storageUid: 'St0rage00001')
-        LaminS3FileSystem fs1 = provider.getOrCreateFileSystem('s3://bucket/prefix', creds('AKID'))
-
-        when:
-        LaminS3FileSystem fs2 = provider.getOrCreateFileSystem('s3://bucket/prefix', creds('AKID'), target)
-
-        then:
-        fs2.is(fs1)
-        fs1.target.is(target)
-    }
-
     def "the S3 client asks the credential source on every request"() {
         given:
         // the first response is read when the filesystem is created, for the role
@@ -183,11 +170,8 @@ class LaminS3FileSystemProviderTest extends Specification {
     }
 
     def "getOrCreateFileSystem() passes the storage region to the client"() {
-        given:
-        def target = new LaminStorageTarget(storageRoot: 's3://bucket/prefix', region: 'eu-central-1')
-
         when:
-        provider.getOrCreateFileSystem('s3://bucket/prefix', creds('AKID'), target)
+        provider.getOrCreateFileSystem('s3://bucket/prefix', creds('AKID'), 'eu-central-1')
 
         then:
         provider.regionsSeen == ['eu-central-1']

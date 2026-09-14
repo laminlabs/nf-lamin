@@ -70,18 +70,6 @@ class LaminS3FileSystemTest extends Specification {
         !new LaminS3FileSystem(provider, 's3://b/p', s3Client, 'admin').isReadOnly()
     }
 
-    def "carries the publish target it was created for"() {
-        given:
-        def target = new LaminStorageTarget(storageRoot: 's3://b/p', storageUid: 'St0rage00001', spaceId: 5)
-
-        when:
-        def fs2 = new LaminS3FileSystem(provider, 's3://b/p', s3Client, 'write', target)
-
-        then:
-        fs2.target.is(target)
-        fs.target == null
-    }
-
     // ==================== Open / close ====================
 
     def "isOpen() returns true initially"() {

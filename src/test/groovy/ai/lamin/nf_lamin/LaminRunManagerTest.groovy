@@ -3,6 +3,7 @@ package ai.lamin.nf_lamin
 import ai.lamin.nf_lamin.instance.Instance
 import ai.lamin.nf_lamin.model.ArtifactAnnotation
 import ai.lamin.nf_lamin.model.RunStatus
+import ai.lamin.nf_lamin.nio.LaminFileSystemProvider
 import ai.lamin.nf_lamin.nio.LaminS3FileSystem
 import ai.lamin.nf_lamin.nio.LaminS3FileSystemProvider
 import ai.lamin.nf_lamin.nio.LaminS3Path
@@ -93,9 +94,17 @@ class LaminRunManagerTest extends Specification {
         result != null
     }
 
-    private LaminS3Path publishedPath(String key, LaminStorageTarget target) {
-        def fs = new LaminS3FileSystem(Mock(LaminS3FileSystemProvider), 's3://bucket/JwMEKs04D9WJ', Mock(AwsS3Client), 'write', target)
+    private LaminS3Path publishedPath(String key) {
+        def fs = new LaminS3FileSystem(Mock(LaminS3FileSystemProvider), 's3://bucket/JwMEKs04D9WJ', Mock(AwsS3Client), 'write')
         return new LaminS3Path(fs, key)
+    }
+
+    /** A lamin:// provider that answers every publish-target lookup with the same target. */
+    private static class StubLaminFileSystemProvider extends LaminFileSystemProvider {
+        LaminStorageTarget target
+
+        @Override
+        LaminStorageTarget publishTargetFor(Path path) { target }
     }
 
     def 'fetchOrCreateArtifact takes the space from the storage location a published file resolved to'() {
@@ -106,7 +115,8 @@ class LaminRunManagerTest extends Specification {
         injectField(manager, 'config', new LaminConfig([instance: 'testorg/testinst', api_key: 'test-key']))
         injectField(manager, 'resolvedSpaceId', 3)
         def target = new LaminStorageTarget(storageRoot: 's3://bucket/JwMEKs04D9WJ', storageUid: 'JwMEKs04D9WJ', spaceId: 5)
-        def path = publishedPath('JwMEKs04D9WJ/results/a.txt', target)
+        injectField(manager, 'laminFileSystemProvider', new StubLaminFileSystemProvider(target: target))
+        def path = publishedPath('JwMEKs04D9WJ/results/a.txt')
         mockInstance.getArtifactByPath(_) >> null
 
         when:
@@ -126,7 +136,8 @@ class LaminRunManagerTest extends Specification {
         injectField(manager, 'config', new LaminConfig([instance: 'testorg/testinst', api_key: 'test-key']))
         injectField(manager, 'resolvedSpaceId', 3)
         def target = new LaminStorageTarget(storageRoot: 's3://bucket/JwMEKs04D9WJ', storageUid: 'JwMEKs04D9WJ')
-        def path = publishedPath('JwMEKs04D9WJ/results/a.txt', target)
+        injectField(manager, 'laminFileSystemProvider', new StubLaminFileSystemProvider(target: target))
+        def path = publishedPath('JwMEKs04D9WJ/results/a.txt')
         mockInstance.getArtifactByPath(_) >> null
 
         when:

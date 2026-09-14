@@ -142,9 +142,39 @@ class LaminFileSystemProviderTest extends Specification {
         with((LaminS3FileSystem) path.fileSystem) {
             storageRoot == STORAGE_ROOT
             !isReadOnly()
-            target.storageUid == 'JwMEKs04D9WJ'
-            target.spaceId == 5
         }
+        with(provider.publishTargetFor(path)) {
+            storageUid == 'JwMEKs04D9WJ'
+            spaceId == 5
+        }
+    }
+
+    def "publishTargetFor matches paths on segment boundaries"() {
+        given:
+        def provider = publishProvider('write')
+        def target = provider.getPath(new URI('lamin://laminlabs/lamindata?storage=JwMEKs04D9WJ&prefix=results'))
+
+        expect:
+        provider.publishTargetFor(target).spaceId == 5
+        provider.publishTargetFor(target.resolve('nested/a.txt')).spaceId == 5
+        provider.publishTargetFor(target.parent.resolve('resultsX/c.txt')) == null
+        provider.publishTargetFor(target.parent) == null
+        provider.publishTargetFor(null) == null
+    }
+
+    def "publishTargetFor finds a target resolved through the standard provider"() {
+        given:
+        def provider = publishProvider('write', [instance: 'laminlabs/lamindata', api_key: 'key', features: [manage_s3_credentials: false]])
+        def published = Mock(Path)
+        published.toAbsolutePath() >> published
+        published.normalize() >> published
+        published.toUri() >> new URI("${STORAGE_ROOT}/results/a.txt")
+
+        when:
+        provider.getPath(new URI('lamin://laminlabs/lamindata?storage=JwMEKs04D9WJ&prefix=results'))
+
+        then:
+        provider.publishTargetFor(published).spaceId == 5
     }
 
     def "getPath accepts the admin role for publishing"() {

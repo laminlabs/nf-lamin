@@ -49,18 +49,14 @@ final class LaminS3FileSystem extends FileSystem {
     private final AwsS3Client s3Client
     /** The role LaminHub granted on the storage root: read, write or admin */
     final String role
-    /** The publish target this filesystem was resolved for, if any */
-    volatile LaminStorageTarget target
 
     private volatile boolean closed = false
 
-    LaminS3FileSystem(LaminS3FileSystemProvider provider, String storageRoot, AwsS3Client s3Client,
-                      String role = null, LaminStorageTarget target = null) {
+    LaminS3FileSystem(LaminS3FileSystemProvider provider, String storageRoot, AwsS3Client s3Client, String role = null) {
         this.provider = provider
         this.storageRoot = storageRoot
         this.s3Client = s3Client
         this.role = role
-        this.target = target
         log.debug "Created LaminS3FileSystem for storageRoot: ${storageRoot} (role: ${role})"
     }
 
