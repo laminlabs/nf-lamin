@@ -21,7 +21,6 @@ import java.util.concurrent.ConcurrentHashMap
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 
-import ai.lamin.nf_lamin.hub.StorageSettings
 import ai.lamin.nf_lamin.instance.Instance
 
 /**
@@ -108,21 +107,19 @@ class LaminStorageResolver {
             }
             storage = candidates[0]
         }
-
-        // neither selected: the instance's default storage
-        if (storage == null) {
-            StorageSettings defaults = instance.settings.storage
-            if (!defaults?.root) {
+        // neither selected: the instance's default storage, looked up like an explicit one so
+        // that its space and managing instance are checked the same way
+        else {
+            String defaultUid = instance.settings.storage?.lnid
+            if (!defaultUid) {
                 throw new IllegalArgumentException(
                     "Instance '${slug}' has no default storage location; select one with '?storage=<uid>'"
                 )
             }
-            return new LaminStorageTarget(
-                storageRoot: defaults.root,
-                storageUid: defaults.lnid,
-                type: defaults.type,
-                region: defaults.region
-            )
+            storage = instance.getRecord(moduleName: 'core', modelName: 'storage', idOrUid: defaultUid)
+            if (storage == null) {
+                throw new IllegalArgumentException("Default storage '${defaultUid}' not found in instance '${slug}'")
+            }
         }
 
         String storageUid = storage.get('uid') as String

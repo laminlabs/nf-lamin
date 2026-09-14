@@ -110,8 +110,13 @@ class LaminFileSystemProviderTest extends Specification {
     TestableLaminFileSystemProvider publishProvider(String role = 'write', Map configOpts = [instance: 'laminlabs/lamindata', api_key: 'key']) {
         def instance = Mock(Instance) {
             getSettings() >> settings()
-            getRecord(_) >> [id: 7, uid: 'JwMEKs04D9WJ', root: STORAGE_ROOT, type: 's3', region: 'eu-central-1',
-                             instance_uid: 'InstUid00001', space_id: 5]
+            getRecord(_) >> { Map args ->
+                args.idOrUid == 'DefaultSt001'
+                    ? [id: 3, uid: 'DefaultSt001', root: 's3://lamindata', type: 's3', region: 'us-east-1',
+                       instance_uid: 'InstUid00001', space_id: 1]
+                    : [id: 7, uid: 'JwMEKs04D9WJ', root: STORAGE_ROOT, type: 's3', region: 'eu-central-1',
+                       instance_uid: 'InstUid00001', space_id: 5]
+            }
         }
         new TestableLaminFileSystemProvider(
             instance: instance,

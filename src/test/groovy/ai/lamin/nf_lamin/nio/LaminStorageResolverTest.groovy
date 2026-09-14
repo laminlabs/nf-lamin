@@ -58,13 +58,25 @@ class LaminStorageResolverTest extends Specification {
         def target = resolver.resolve(instance, LaminUriParser.parse('lamin://laminlabs/lamindata?prefix=results'))
 
         then:
-        0 * instance.getRecord(_)
+        1 * instance.getRecord({ Map args -> args.modelName == 'storage' && args.idOrUid == 'DefaultSt001' }) >>
+            storageRecord(id: 3, uid: 'DefaultSt001', root: 's3://lamindata', region: 'us-east-1', space_id: 5)
         0 * instance.getRecords(_)
         target.storageRoot == 's3://lamindata'
         target.storageUid == 'DefaultSt001'
+        target.storageId == 3
         target.type == 's3'
         target.region == 'us-east-1'
-        target.spaceId == null
+        target.spaceId == 5
+    }
+
+    def "fails when the default storage record is missing"() {
+        when:
+        resolver.resolve(instance, LaminUriParser.parse('lamin://laminlabs/lamindata'))
+
+        then:
+        1 * instance.getRecord(_) >> null
+        def e = thrown(IllegalArgumentException)
+        e.message.contains("Default storage 'DefaultSt001' not found")
     }
 
     def "looks up an explicit storage by uid"() {
