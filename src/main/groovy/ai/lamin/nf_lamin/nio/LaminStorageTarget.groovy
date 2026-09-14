@@ -49,10 +49,9 @@ class LaminStorageTarget {
 
     /**
      * The key of a path under this storage root, i.e. the root's own key prefix followed by
-     * the given prefix.
+     * the given prefix. Slashes are left for {@link LaminS3Path} to normalise.
      */
     String keyFor(String prefix) {
-        String rootKey = new URI(storageRoot).path?.replaceFirst('^/', '')?.replaceFirst('/$', '') ?: ''
-        return [rootKey, prefix].findAll { String s -> s }.join('/')
+        return [new URI(storageRoot).path, prefix].findAll { String s -> s }.join('/')
     }
 }
