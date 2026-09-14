@@ -400,20 +400,8 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
         }
 
         // out of this provider
-        LaminS3Path s3Source = toLaminS3Path(source)
-        try {
-            GetObjectRequest request = GetObjectRequest.builder()
-                .bucket(s3Source.bucket)
-                .key(s3Source.key)
-                .build()
-            InputStream inputStream = ((LaminS3FileSystem) s3Source.fileSystem).s3Client.getObject(request)
-            try {
-                Files.copy(inputStream, target, options)
-            } finally {
-                inputStream.close()
-            }
-        } catch (NoSuchKeyException e) {
-            throw new NoSuchFileException(source.toString())
+        newInputStream(toLaminS3Path(source)).withCloseable { InputStream input ->
+            Files.copy(input, target, options)
         }
     }
 
@@ -509,19 +497,8 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
             Files.deleteIfExists(localDestination)
         }
 
-        try {
-            GetObjectRequest request = GetObjectRequest.builder()
-                .bucket(s3Path.bucket)
-                .key(s3Path.key)
-                .build()
-            InputStream inputStream = ((LaminS3FileSystem) s3Path.fileSystem).s3Client.getObject(request)
-            try {
-                Files.copy(inputStream, localDestination)
-            } finally {
-                inputStream.close()
-            }
-        } catch (NoSuchKeyException e) {
-            throw new NoSuchFileException(remoteFile.toString())
+        newInputStream(s3Path).withCloseable { InputStream input ->
+            Files.copy(input, localDestination)
         }
     }
 
@@ -591,17 +568,9 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
         }
     }
 
-    private static void downloadTo(LaminS3Path s3Path, Path local) throws IOException {
-        try {
-            GetObjectRequest request = GetObjectRequest.builder()
-                .bucket(s3Path.bucket)
-                .key(s3Path.key)
-                .build()
-            ((LaminS3FileSystem) s3Path.fileSystem).s3Client.getObject(request).withCloseable { InputStream input ->
-                Files.copy(input, local, StandardCopyOption.REPLACE_EXISTING)
-            }
-        } catch (NoSuchKeyException e) {
-            throw new NoSuchFileException(s3Path.toString())
+    private void downloadTo(LaminS3Path s3Path, Path local) throws IOException {
+        newInputStream(s3Path).withCloseable { InputStream input ->
+            Files.copy(input, local, StandardCopyOption.REPLACE_EXISTING)
         }
     }
 
