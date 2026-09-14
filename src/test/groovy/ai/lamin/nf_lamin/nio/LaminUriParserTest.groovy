@@ -248,7 +248,6 @@ class LaminUriParserTest extends Specification {
         def parsed = LaminUriParser.parse('lamin://laminlabs/lamindata')
 
         then:
-        parsed.kind == LaminUriKind.STORAGE
         parsed.isStorage()
         !parsed.isArtifact()
         parsed.owner == 'laminlabs'
@@ -265,7 +264,6 @@ class LaminUriParserTest extends Specification {
         def parsed = LaminUriParser.parse('lamin://laminlabs/lamindata/artifact/uid123')
 
         then:
-        parsed.kind == LaminUriKind.ARTIFACT
         parsed.isArtifact()
         !parsed.isStorage()
         parsed.spaceUid == null

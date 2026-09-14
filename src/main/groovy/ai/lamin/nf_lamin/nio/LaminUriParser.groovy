@@ -57,11 +57,6 @@ class LaminUriParser {
         "lamin://owner/instance/artifact/uid[/subpath] or lamin://owner/instance?space=<uid>&storage=<uid>&prefix=<key>"
 
     /**
-     * Whether this URI points at an artifact or at a storage location
-     */
-    final LaminUriKind kind
-
-    /**
      * The owner of the LaminDB instance (e.g., "laminlabs")
      */
     final String owner
@@ -104,28 +99,24 @@ class LaminUriParser {
     /**
      * Private constructor - use parse() factory methods instead.
      */
-    private LaminUriParser(String owner, String instance, String resourceType, String resourceId, String subPath) {
-        this.kind = LaminUriKind.ARTIFACT
+    private LaminUriParser(String owner, String instance, String resourceType, String resourceId, String subPath,
+                           String spaceUid, String storageUid, String prefix) {
         this.owner = owner
         this.instance = instance
         this.resourceType = resourceType
         this.resourceId = resourceId
         this.subPath = subPath
-        this.spaceUid = null
-        this.storageUid = null
-        this.prefix = null
-    }
-
-    private LaminUriParser(String owner, String instance, String spaceUid, String storageUid, String prefix, LaminUriKind kind) {
-        this.kind = kind
-        this.owner = owner
-        this.instance = instance
-        this.resourceType = null
-        this.resourceId = null
-        this.subPath = null
         this.spaceUid = spaceUid
         this.storageUid = storageUid
         this.prefix = prefix
+    }
+
+    private static LaminUriParser artifact(String owner, String instance, String resourceType, String resourceId, String subPath) {
+        return new LaminUriParser(owner, instance, resourceType, resourceId, subPath, null, null, null)
+    }
+
+    private static LaminUriParser storage(String owner, String instance, String spaceUid, String storageUid, String prefix) {
+        return new LaminUriParser(owner, instance, null, null, null, spaceUid, storageUid, prefix)
     }
 
     /**
@@ -226,7 +217,7 @@ class LaminUriParser {
 
         log.trace "Parsed URI: owner=${owner}, instance=${instance}, resourceType=${resourceType}, resourceId=${resourceId}, subPath=${subPath}"
 
-        return new LaminUriParser(owner, instance, resourceType, resourceId, subPath)
+        return artifact(owner, instance, resourceType, resourceId, subPath)
     }
 
     private static LaminUriParser parseStorage(String owner, String instance, String query, String original) {
@@ -238,7 +229,7 @@ class LaminUriParser {
 
         log.trace "Parsed URI: owner=${owner}, instance=${instance}, space=${spaceUid}, storage=${storageUid}, prefix=${prefix}"
 
-        return new LaminUriParser(owner, instance, spaceUid, storageUid, prefix, LaminUriKind.STORAGE)
+        return storage(owner, instance, spaceUid, storageUid, prefix)
     }
 
     private static Map<String, String> parseQuery(String query, String original) {
@@ -315,14 +306,14 @@ class LaminUriParser {
      * Whether this URI points at an artifact
      */
     boolean isArtifact() {
-        return kind == LaminUriKind.ARTIFACT
+        return resourceType != null
     }
 
     /**
      * Whether this URI points at a storage location
      */
     boolean isStorage() {
-        return kind == LaminUriKind.STORAGE
+        return resourceType == null
     }
 
     /**
@@ -380,14 +371,14 @@ class LaminUriParser {
             return this
         }
         String newSubPath = hasSubPath() ? "${subPath}/${additionalPath}" : additionalPath
-        return new LaminUriParser(owner, instance, resourceType, resourceId, newSubPath)
+        return artifact(owner, instance, resourceType, resourceId, newSubPath)
     }
 
     /**
      * Create a new LaminUriParser with the sub-path removed
      */
     LaminUriParser withoutSubPath() {
-        return new LaminUriParser(owner, instance, resourceType, resourceId, null)
+        return artifact(owner, instance, resourceType, resourceId, null)
     }
 
     /**
@@ -410,9 +401,9 @@ class LaminUriParser {
         }
         int lastSep = subPath.lastIndexOf(SEP)
         if (lastSep <= 0) {
-            return new LaminUriParser(owner, instance, resourceType, resourceId, null)
+            return artifact(owner, instance, resourceType, resourceId, null)
         }
-        return new LaminUriParser(owner, instance, resourceType, resourceId, subPath.substring(0, lastSep))
+        return artifact(owner, instance, resourceType, resourceId, subPath.substring(0, lastSep))
     }
 
     @Override
@@ -425,8 +416,7 @@ class LaminUriParser {
         if (this.is(obj)) return true
         if (!(obj instanceof LaminUriParser)) return false
         LaminUriParser other = (LaminUriParser) obj
-        return kind == other.kind &&
-               owner == other.owner &&
+        return owner == other.owner &&
                instance == other.instance &&
                resourceType == other.resourceType &&
                resourceId == other.resourceId &&
@@ -438,6 +428,6 @@ class LaminUriParser {
 
     @Override
     int hashCode() {
-        return Objects.hash(kind, owner, instance, resourceType, resourceId, subPath, spaceUid, storageUid, prefix)
+        return Objects.hash(owner, instance, resourceType, resourceId, subPath, spaceUid, storageUid, prefix)
     }
 }
