@@ -230,17 +230,11 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
     // ==================== Path Resolution ====================
 
     /**
-     * Resolve a publish target to the storage path to write to.
+     * Resolve a publish target to the storage path to write to: a {@link LaminS3Path} when
+     * LaminHub grants write access to the storage, a standard-provider path when it has no
+     * credentials for it. Read-only access is refused rather than falling back to ambient
+     * credentials, which would write under a different identity.
      *
-     * The space and storage selectors are looked up in the instance (see
-     * {@link LaminStorageResolver}). For Lamin-managed S3 storage the result is a
-     * {@link LaminS3Path} backed by the federated credentials, which is refused unless LaminHub
-     * granted write access: falling back to the ambient AWS credentials would write under a
-     * different identity than the one authorised. Storage the hub has no credentials for is
-     * resolved through the standard providers, as reads are.
-     *
-     * @param uri A parsed storage URI
-     * @return The path of the target's prefix within its storage location
      * @throws IllegalArgumentException if the target cannot be resolved or written to
      */
     Path resolvePublishTarget(LaminUriParser uri) {

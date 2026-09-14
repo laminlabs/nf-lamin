@@ -230,11 +230,8 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
     }
 
     /**
-     * Open an object as a channel backed by a local temp file.
-     *
-     * For writing, the object is downloaded first unless it is truncated anyway, and uploaded
-     * back when the channel is closed. This is what the workflow output index file needs: it
-     * is written with APPEND, one record at a time.
+     * Open an object as a channel backed by a local temp file. For writing, the object is
+     * downloaded first unless it is truncated anyway, and uploaded back on close.
      */
     @Override
     SeekableByteChannel newByteChannel(Path path, Set<? extends OpenOption> options, FileAttribute<?>... attrs) throws IOException {

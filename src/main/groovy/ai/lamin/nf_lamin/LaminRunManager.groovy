@@ -1107,14 +1107,8 @@ final class LaminRunManager {
     }
 
     /**
-     * Record the output name of an index file, to be used when it is published.
-     *
-     * Called from {@link ai.lamin.nf_lamin.LaminObserver#onWorkflowOutput}. The index file is
-     * announced before Nextflow writes it, and rewritten on a re-run, so it can only be
-     * registered from the {@code onFilePublish} that follows.
-     *
-     * @param path       The index file path ({@code WorkflowOutputEvent.index})
-     * @param outputName The workflow output block name
+     * Record the output name of an index file for the {@code onFilePublish} that follows: the
+     * file is announced before Nextflow writes it, so it cannot be registered yet.
      */
     void rememberOutputName(Path path, String outputName) {
         if (path != null && outputName != null) {

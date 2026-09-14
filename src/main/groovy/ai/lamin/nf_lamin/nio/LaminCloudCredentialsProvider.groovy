@@ -27,11 +27,8 @@ import software.amazon.awssdk.auth.credentials.AwsSessionCredentials
 import ai.lamin.nf_lamin.hub.CloudAccessResponse
 
 /**
- * Hands the AWS SDK the STS credentials LaminHub currently grants on a storage root.
- *
- * The SDK asks for credentials on every request, so backing it with the per-root cloud-access
- * cache means a transfer that outlives the token it started with picks up the refreshed one
- * instead of failing with ExpiredToken.
+ * Hands the AWS SDK the STS credentials LaminHub currently grants on a storage root. The SDK
+ * asks on every request, so a transfer that outlives its token picks up the refreshed one.
  */
 @CompileStatic
 class LaminCloudCredentialsProvider implements AwsCredentialsProvider {
