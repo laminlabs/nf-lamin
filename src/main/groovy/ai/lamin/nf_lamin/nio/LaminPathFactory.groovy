@@ -21,6 +21,7 @@ import groovy.util.logging.Slf4j
 
 import java.nio.file.Path
 
+import nextflow.exception.AbortOperationException
 import nextflow.file.FileHelper
 import nextflow.file.FileSystemPathFactory
 import org.pf4j.Extension
@@ -54,9 +55,15 @@ class LaminPathFactory extends FileSystemPathFactory {
             return null
         }
 
-        LaminUriParser parsed = LaminUriParser.parse(uriString)
-        LaminFileSystemProvider provider = FileHelper.getOrInstallProvider(LaminFileSystemProvider)
-        return provider.getPath(parsed)
+        try {
+            LaminUriParser parsed = LaminUriParser.parse(uriString)
+            LaminFileSystemProvider provider = FileHelper.getOrInstallProvider(LaminFileSystemProvider)
+            return provider.getPath(parsed)
+        }
+        catch (IllegalArgumentException e) {
+            // Nextflow prints an AbortOperationException as a one-line message, not a stack trace
+            throw new AbortOperationException(e.message, e)
+        }
     }
 
     /**

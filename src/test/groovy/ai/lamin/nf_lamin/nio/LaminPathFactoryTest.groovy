@@ -20,6 +20,8 @@ import spock.lang.Specification
 
 import java.nio.file.Paths
 
+import nextflow.exception.AbortOperationException
+
 import software.amazon.awssdk.services.s3.S3Client as AwsS3Client
 
 /**
@@ -34,6 +36,19 @@ class LaminPathFactoryTest extends Specification {
 
         expect:
         factory.toUriString(new LaminS3Path(fs, 'prefix/results/file.txt')) == 's3://my-bucket/prefix/results/file.txt'
+    }
+
+    def "parseUri reports an invalid lamin URI as an AbortOperationException"() {
+        given:
+        def factory = new LaminPathFactory()
+
+        when:
+        factory.parseUri('lamin://laminlabs/lamindata/badtype/uid123')
+
+        then:
+        def e = thrown(AbortOperationException)
+        e.message.contains('badtype')
+        e.cause instanceof IllegalArgumentException
     }
 
     def "should return null for non-lamin URIs"() {
