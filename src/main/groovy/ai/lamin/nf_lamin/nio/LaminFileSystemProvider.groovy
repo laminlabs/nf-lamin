@@ -298,6 +298,20 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
         return best?.value
     }
 
+    /**
+     * The Lamin-managed file system for a storage root, for restoring a {@link LaminS3Path}
+     * that was serialised in another process.
+     *
+     * @throws IOException if LaminHub grants no credentials for the storage root
+     */
+    LaminS3FileSystem getManagedFileSystem(String storageRoot) throws IOException {
+        ManagedS3 managed = resolveManagedS3(storageRoot)
+        if (managed == null) {
+            throw new IOException("Cannot restore a lamin-s3:// path under ${storageRoot}: no Lamin-managed credentials")
+        }
+        return managed.fileSystem
+    }
+
     /** A Lamin-managed S3 file system and the access it was created from. */
     private static class ManagedS3 {
         LaminS3FileSystem fileSystem
