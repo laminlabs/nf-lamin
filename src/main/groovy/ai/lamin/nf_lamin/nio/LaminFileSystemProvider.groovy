@@ -31,6 +31,7 @@ import java.nio.file.LinkOption
 import java.nio.file.OpenOption
 import java.nio.file.Path
 import java.nio.file.ProviderMismatchException
+import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.attribute.FileAttribute
 import java.nio.file.attribute.FileAttributeView
@@ -418,8 +419,17 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
         throw new UnsupportedOperationException("Writing to lamin:// paths is not supported")
     }
 
+    /** Open options that would modify the artifact; lamin:// paths are read-only. */
+    private static final Set<OpenOption> WRITE_OPTIONS = [
+        StandardOpenOption.WRITE, StandardOpenOption.APPEND, StandardOpenOption.CREATE,
+        StandardOpenOption.CREATE_NEW, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.DELETE_ON_CLOSE,
+    ] as Set<OpenOption>
+
     @Override
     SeekableByteChannel newByteChannel(Path path, Set<? extends OpenOption> options, FileAttribute<?>... attrs) throws IOException {
+        if (options.any { OpenOption o -> WRITE_OPTIONS.contains(o) }) {
+            throw new UnsupportedOperationException("Writing to lamin:// paths is not supported")
+        }
         LaminPath laminPath = toLaminPath(path)
         Path underlying = resolveToUnderlyingPath(laminPath)
         return Files.newByteChannel(underlying, options, attrs)

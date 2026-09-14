@@ -22,6 +22,7 @@ import java.nio.file.FileSystemNotFoundException
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.ProviderMismatchException
+import java.nio.file.StandardOpenOption
 
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.services.s3.S3Client as AwsS3Client
@@ -216,6 +217,26 @@ class LaminFileSystemProviderTest extends Specification {
         path instanceof LaminS3Path
         ((LaminS3Path) path).key == ''
         ((LaminS3FileSystem) path.fileSystem).storageRoot == 's3://lamindata'
+    }
+
+    // ==================== Read-only artifacts ====================
+
+    def "newByteChannel refuses the #option option on an artifact path"() {
+        given:
+        def path = provider.getPath(new URI('lamin://laminlabs/lamindata/artifact/uid123/file.txt'))
+
+        when:
+        provider.newByteChannel(path, [option] as Set)
+
+        then:
+        def e = thrown(UnsupportedOperationException)
+        e.message.contains('not supported')
+
+        where:
+        option << [
+            StandardOpenOption.WRITE, StandardOpenOption.APPEND, StandardOpenOption.CREATE,
+            StandardOpenOption.CREATE_NEW, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.DELETE_ON_CLOSE,
+        ]
     }
 
     // ==================== getScheme Tests ====================
