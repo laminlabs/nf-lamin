@@ -52,10 +52,15 @@ def build(session, group):
 
 @nox.session
 def docs(session):
+    # Fresh CI checkout still has the source .md files. Remove each one before
+    # recovering the executed notebook so Sphinx does not see both.
     for group in [
         "guide",
     ]:
         for path in Path(f"./docs_{group}").glob("*"):
-            path.rename(f"./docs/{path.name}")
+            md_path = Path("docs") / f"{path.stem}.md"
+            if md_path.exists():
+                md_path.unlink()
+            path.rename(Path("docs") / path.name)
     build_docs(session, strict=True)
     upload_docs_artifact()
