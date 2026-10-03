@@ -57,5 +57,5 @@ def docs(session):
     ]:
         for path in Path(f"./docs_{group}").glob("*"):
             path.rename(f"./docs/{path.name}")
-    build_docs(session, strict=False)
-    upload_docs_artifact(aws=True)
+    build_docs(session, strict=True)
+    upload_docs_artifact()
