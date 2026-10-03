@@ -16,7 +16,7 @@ This function records what should be attached to the resulting artifact, which l
 | `ulabel_uids`  | List\<String> | ULabel UIDs or named references to link        |
 | `project_uids` | List\<String> | Project UIDs or named references to link       |
 
-Like the [UID fields in the config](config.md#core-settings), `ulabel_uids` and `project_uids` accept a UID, or a named reference: `'?name'` (look up, omit if missing), `'!name'` (look up, error if missing), `'+name'` (create if missing).
+Like the [UID fields in the config](config.md#lamin-top-level-settings), `ulabel_uids` and `project_uids` accept a UID, or a named reference: `'?name'` (look up, omit if missing), `'!name'` (look up, error if missing), `'+name'` (create if missing).
 
 **Returns:** the file it was given, unchanged, so the call can be the body of a `map` closure.
 
