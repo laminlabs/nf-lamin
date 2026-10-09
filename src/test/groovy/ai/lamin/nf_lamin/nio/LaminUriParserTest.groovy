@@ -351,6 +351,30 @@ class LaminUriParserTest extends Specification {
         ]
     }
 
+    @Unroll
+    def "should round-trip artifact URI #uri"() {
+        when:
+        def parsed = LaminUriParser.parse(uri)
+
+        then:
+        LaminUriParser.parse(parsed.toUriString()) == parsed
+        parsed.toUri() instanceof URI
+
+        where:
+        uri << [
+            'lamin://o/i/artifact/uid123',
+            'lamin://o/i/artifact/uid123/plain/file.txt',
+            'lamin://o/i/artifact/uid123/my%20dir/a%2Bb.txt',
+            'lamin://o/i/artifact/uid123/100%25.txt',
+        ]
+    }
+
+    def "should render the artifact sub-path percent-encoded"() {
+        expect:
+        LaminUriParser.parse('lamin://o/i/artifact/uid123/my%20dir/a%2Bb+c.txt').toUriString() ==
+            'lamin://o/i/artifact/uid123/my%20dir/a%2Bb%2Bc.txt'
+    }
+
     def "should distinguish storage URIs in equals and hashCode"() {
         given:
         def a = LaminUriParser.parse('lamin://o/i?storage=St0rage00001&prefix=results')

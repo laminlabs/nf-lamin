@@ -335,7 +335,8 @@ class LaminUriParser {
      * Convert back to a URI string.
      *
      * Storage URIs are rendered in one canonical form (space, storage, prefix, in that order, with
-     * the prefix percent-encoded), so that {@code parse(x.toUriString()) == x}.
+     * the prefix percent-encoded), and artifact sub-paths are percent-encoded too, so that
+     * {@code parse(x.toUriString()) == x} and {@link #toUri} accepts the result.
      */
     String toUriString() {
         StringBuilder sb = new StringBuilder()
@@ -352,7 +353,7 @@ class LaminUriParser {
         }
         sb.append(SEP).append(resourceType).append(SEP).append(resourceId)
         if (hasSubPath()) {
-            sb.append(SEP).append(subPath)
+            sb.append(SEP).append(encode(subPath))
         }
         return sb.toString()
     }

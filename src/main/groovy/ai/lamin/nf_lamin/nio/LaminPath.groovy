@@ -323,6 +323,7 @@ final class LaminPath implements Path {
         return parent.resolve(other)
     }
 
+    /** The relative path is taken from the URI strings, so it is percent-encoded. */
     @Override
     Path relativize(Path other) {
         if (!(other instanceof LaminPath)) {
