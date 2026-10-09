@@ -35,6 +35,8 @@ import java.nio.file.StandardOpenOption
 
 import java.util.function.Supplier
 
+import nextflow.file.FileHelper
+
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.auth.credentials.AwsSessionCredentials
 import software.amazon.awssdk.core.ResponseInputStream
@@ -555,6 +557,37 @@ class LaminS3FileSystemProviderTest extends Specification {
         s3Client.listObjectsV2(_ as ListObjectsV2Request) >> EMPTY_LISTING
     }
 
+    /**
+     * Stub the client over a mutable set of object keys: lookups answer from the set, listings
+     * honour the prefix and an optional delimiter, and deletes remove from it.
+     */
+    private void objectsExist(Set<String> keys) {
+        s3Client.headObject(_ as HeadObjectRequest) >> { HeadObjectRequest r ->
+            if (!keys.contains(r.key())) throw NO_SUCH_KEY
+            HeadObjectResponse.builder().contentLength(1L).build()
+        }
+        s3Client.listObjectsV2(_ as ListObjectsV2Request) >> { ListObjectsV2Request r ->
+            String prefix = r.prefix() ?: ''
+            List<String> matches = keys.findAll { String k -> k.startsWith(prefix) }.sort()
+            List<String> files = matches
+            List<String> dirs = []
+            if (r.delimiter()) {
+                files = matches.findAll { String k -> !k.substring(prefix.length()).contains('/') }
+                dirs = matches.findAll { String k -> k.substring(prefix.length()).contains('/') }
+                    .collect { String k -> prefix + k.substring(prefix.length()).split('/')[0] + '/' }
+                    .unique()
+            }
+            ListObjectsV2Response.builder()
+                .contents(files.collect { String k -> S3Object.builder().key(k).size(1L).build() })
+                .commonPrefixes(dirs.collect { String d -> CommonPrefix.builder().prefix(d).build() })
+                .build()
+        }
+        s3Client.deleteObject(_ as DeleteObjectRequest) >> { DeleteObjectRequest r ->
+            keys.remove(r.key())
+            DeleteObjectResponse.builder().build()
+        }
+    }
+
     private static byte[] bytesOf(RequestBody body) {
         return body.contentStreamProvider().newStream().bytes
     }
@@ -739,7 +772,7 @@ class LaminS3FileSystemProviderTest extends Specification {
         1 * s3Client.deleteObject({ DeleteObjectRequest r -> r.key() == 'prefix/old.txt' }) >> DeleteObjectResponse.builder().build()
     }
 
-    def "delete() throws NoSuchFileException for a missing object"() {
+    def "delete() of a missing key is a no-op"() {
         given:
         def p = writablePath('prefix/missing.txt')
         nothingExists()
@@ -748,7 +781,8 @@ class LaminS3FileSystemProviderTest extends Specification {
         provider.delete(p)
 
         then:
-        thrown(NoSuchFileException)
+        noExceptionThrown()
+        0 * s3Client.deleteObject(*_)
     }
 
     def "delete() throws DirectoryNotEmptyException for a prefix with objects under it"() {
@@ -764,6 +798,19 @@ class LaminS3FileSystemProviderTest extends Specification {
         then:
         thrown(DirectoryNotEmptyException)
         0 * s3Client.deleteObject(*_)
+    }
+
+    def "a published directory can be deleted recursively"() {
+        given:
+        Set<String> keys = ['prefix/dir/a.txt', 'prefix/dir/sub/b.txt'] as Set
+        objectsExist(keys)
+
+        when:
+        FileHelper.deletePath(writablePath('prefix/dir'))
+
+        then:
+        noExceptionThrown()
+        keys.isEmpty()
     }
 
     def "delete() refuses on a read-only filesystem"() {

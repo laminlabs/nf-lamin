@@ -336,8 +336,14 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
         }
     }
 
+    /**
+     * Delete an object. A prefix with nothing under it counts as already deleted: there are no
+     * marker objects, and Nextflow's recursive delete still asks for the prefix once its last
+     * object is gone.
+     */
     @Override
     void delete(Path path) throws IOException {
+        log.debug "delete: ${path}"
         LaminS3Path s3Path = toLaminS3Path(path)
         LaminS3FileSystem fs = (LaminS3FileSystem) s3Path.fileSystem
         if (fs.isReadOnly()) {
@@ -347,7 +353,7 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
             if (hasChildren(s3Path)) {
                 throw new DirectoryNotEmptyException(path.toString())
             }
-            throw new NoSuchFileException(path.toString())
+            return
         }
         try {
             fs.s3Client.deleteObject(DeleteObjectRequest.builder().bucket(s3Path.bucket).key(s3Path.key).build())
