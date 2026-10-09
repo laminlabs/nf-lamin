@@ -858,6 +858,7 @@ class LaminS3FileSystemProviderTest extends Specification {
     def "upload() puts a local file"() {
         given:
         def p = writablePath('prefix/uploaded.txt')
+        nothingExists()
         Path tmpDir = Files.createTempDirectory('lamin-upload-test')
         Path local = tmpDir.resolve('local.txt')
         Files.write(local, 'local content'.bytes)
@@ -880,6 +881,7 @@ class LaminS3FileSystemProviderTest extends Specification {
     def "upload() of a directory puts every file under the target"() {
         given:
         def p = writablePath('prefix/dir')
+        nothingExists()
         Path tmpDir = Files.createTempDirectory('lamin-upload-test')
         Files.write(tmpDir.resolve('a.txt'), 'a'.bytes)
         Files.createDirectories(tmpDir.resolve('sub'))
@@ -898,6 +900,80 @@ class LaminS3FileSystemProviderTest extends Specification {
 
         cleanup:
         tmpDir.toFile().deleteDir()
+    }
+
+    def "upload() refuses to overwrite an existing object"() {
+        given:
+        def p = writablePath('prefix/uploaded.txt')
+        Path tmpDir = Files.createTempDirectory('lamin-upload-test')
+        Path local = Files.write(tmpDir.resolve('local.txt'), 'local content'.bytes)
+        s3Client.headObject(_ as HeadObjectRequest) >> HeadObjectResponse.builder().contentLength(1L).build()
+
+        when:
+        provider.upload(local, p)
+
+        then:
+        thrown(FileAlreadyExistsException)
+        0 * s3Client.putObject(*_)
+
+        cleanup:
+        tmpDir.toFile().deleteDir()
+    }
+
+    def "upload() refuses to overwrite a prefix with objects under it"() {
+        given:
+        def p = writablePath('prefix/dir')
+        Path tmpDir = Files.createTempDirectory('lamin-upload-test')
+        Files.write(tmpDir.resolve('a.txt'), 'a'.bytes)
+        objectsExist(['prefix/dir/old.txt'] as Set)
+
+        when:
+        provider.upload(tmpDir, p)
+
+        then:
+        thrown(FileAlreadyExistsException)
+        0 * s3Client.putObject(*_)
+
+        cleanup:
+        tmpDir.toFile().deleteDir()
+    }
+
+    def "upload() with REPLACE_EXISTING deletes the target first"() {
+        given:
+        def p = writablePath('prefix/uploaded.txt')
+        Path tmpDir = Files.createTempDirectory('lamin-upload-test')
+        Path local = Files.write(tmpDir.resolve('local.txt'), 'new content'.bytes)
+        Set<String> keys = ['prefix/uploaded.txt'] as Set
+        objectsExist(keys)
+        def puts = []
+        s3Client.putObject(_ as PutObjectRequest, _ as RequestBody) >> { PutObjectRequest r, RequestBody b ->
+            puts << r.key()
+            PutObjectResponse.builder().build()
+        }
+
+        when:
+        provider.upload(local, p, StandardCopyOption.REPLACE_EXISTING)
+
+        then:
+        keys.isEmpty()
+        puts == ['prefix/uploaded.txt']
+
+        cleanup:
+        tmpDir.toFile().deleteDir()
+    }
+
+    def "copy() refuses to overwrite a prefix with objects under it"() {
+        given:
+        def source = writablePath('prefix/a.txt')
+        def target = writablePath('prefix/dir')
+        objectsExist(['prefix/a.txt', 'prefix/dir/old.txt'] as Set)
+
+        when:
+        provider.copy(source, target)
+
+        then:
+        thrown(FileAlreadyExistsException)
+        0 * s3Client.copyObject(*_)
     }
 
     def "copy() between two lamin-s3 paths is a server-side copy"() {

@@ -48,6 +48,7 @@ import java.nio.file.attribute.FileAttributeView
 import java.nio.file.spi.FileSystemProvider
 
 import nextflow.file.CopyOptions
+import nextflow.file.FileHelper
 import nextflow.file.FileSystemTransferAware
 
 import ai.lamin.nf_lamin.hub.CloudAccessResponse
@@ -373,7 +374,7 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
             if (s3Target.fileSystem.isReadOnly()) {
                 throw new ReadOnlyFileSystemException()
             }
-            if (!opts.replaceExisting() && objectExists(s3Target)) {
+            if (!opts.replaceExisting() && exists(s3Target)) {
                 throw new FileAlreadyExistsException(target.toString())
             }
             if (source instanceof LaminS3Path && ((LaminS3Path) source).bucket == s3Target.bucket) {
@@ -514,6 +515,16 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
             throw new ReadOnlyFileSystemException()
         }
 
+        // PublishDir applies its overwrite policy by catching FileAlreadyExistsException,
+        // which nf-amazon raises the same way
+        CopyOptions opts = CopyOptions.parse(options)
+        if (opts.replaceExisting()) {
+            FileHelper.deletePath(remoteDestination)
+        }
+        else if (exists(s3Path)) {
+            throw new FileAlreadyExistsException(remoteDestination.toString())
+        }
+
         if (Files.isDirectory(localFile)) {
             Files.walk(localFile).withCloseable { Stream<Path> files ->
                 files.filter { Path p -> Files.isRegularFile(p) }.forEach { Path file ->
@@ -554,6 +565,11 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
 
     private static boolean objectExists(LaminS3Path s3Path) throws IOException {
         return headObject(s3Path) != null
+    }
+
+    /** Whether there is an object at the key or objects under it. */
+    private static boolean exists(LaminS3Path s3Path) throws IOException {
+        return objectExists(s3Path) || hasChildren(s3Path)
     }
 
     private static boolean hasChildren(LaminS3Path s3Path) throws IOException {

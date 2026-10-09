@@ -101,6 +101,8 @@ When Nextflow parses the target, the plugin looks up the space and storage in th
 
 Registering the published files as artifacts needs run tracking to be configured (`lamin.instance` and `lamin.api_key`); the same `api_key` is what authorises the writes.
 
+Publishing over existing files follows Nextflow's `overwrite` rules, as it does for `s3://` targets.
+
 The storage location a target resolves to decides the space of the artifacts published to it, whether the target names the space, names only the storage, or uses the instance's default storage. `lamin.space_uid` applies only when that location is in the default `all` space.
 
 ### Restrictions
