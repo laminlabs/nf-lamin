@@ -54,11 +54,14 @@ class LaminStorageResolver {
             throw new IllegalArgumentException("Not a storage URI: ${uri}")
         }
         String cacheKey = "${uri.instanceSlug}|${uri.spaceUid}|${uri.storageUid}"
-        return cache.computeIfAbsent(cacheKey) { String key ->
-            LaminStorageTarget target = resolve0(instance, uri)
-            log.debug "Resolved ${uri} to ${target}"
-            return target
+        LaminStorageTarget cached = cache.get(cacheKey)
+        if (cached != null) {
+            return cached
         }
+        // resolved outside the map's lock: it takes up to three API calls
+        LaminStorageTarget target = resolve0(instance, uri)
+        log.debug "Resolved ${uri} to ${target}"
+        return cache.putIfAbsent(cacheKey, target) ?: target
     }
 
     /**
