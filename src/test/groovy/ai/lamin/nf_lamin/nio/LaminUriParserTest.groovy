@@ -366,13 +366,22 @@ class LaminUriParserTest extends Specification {
             'lamin://o/i/artifact/uid123/plain/file.txt',
             'lamin://o/i/artifact/uid123/my%20dir/a%2Bb.txt',
             'lamin://o/i/artifact/uid123/100%25.txt',
+            'lamin://o/i/artifact/uid123/sample(1)/A549+DMSO,rep;2.h5ad',
         ]
     }
 
     def "should render the artifact sub-path percent-encoded"() {
         expect:
         LaminUriParser.parse('lamin://o/i/artifact/uid123/my%20dir/a%2Bb+c.txt').toUriString() ==
-            'lamin://o/i/artifact/uid123/my%20dir/a%2Bb%2Bc.txt'
+            'lamin://o/i/artifact/uid123/my%20dir/a+b+c.txt'
+    }
+
+    def "should leave URI-legal punctuation in the artifact sub-path unescaped"() {
+        given:
+        def uri = 'lamin://o/i/artifact/uid123/sample(1)/A549+DMSO,rep;2:x@y=z~!$&.h5ad'
+
+        expect:
+        LaminUriParser.parse(uri).toUriString() == uri
     }
 
     def "should distinguish storage URIs in equals and hashCode"() {

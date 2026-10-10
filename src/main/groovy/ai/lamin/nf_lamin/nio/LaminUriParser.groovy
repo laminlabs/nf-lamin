@@ -309,11 +309,17 @@ class LaminUriParser {
         return URLDecoder.decode(value.replace('+', '%2B'), StandardCharsets.UTF_8)
     }
 
+    /** Encode a query value: '&' and '=' are query syntax, so the form encoder is right here. */
     private static String encode(String value) {
         // URLEncoder is for forms: it turns spaces into '+' and escapes '/'
         return URLEncoder.encode(value, StandardCharsets.UTF_8)
             .replace('+', '%20')
             .replace('%2F', SEP)
+    }
+
+    /** Encode a path: only what a URI path rejects (space, '%', '?', '#', ...), unlike {@link #encode}. */
+    private static String encodePath(String value) {
+        return new URI(null, null, SEP + value, null, null).rawPath.substring(1)
     }
 
     /**
@@ -366,7 +372,7 @@ class LaminUriParser {
         }
         sb.append(SEP).append(resourceType).append(SEP).append(resourceId)
         if (hasSubPath()) {
-            sb.append(SEP).append(encode(subPath))
+            sb.append(SEP).append(encodePath(subPath))
         }
         return sb.toString()
     }
