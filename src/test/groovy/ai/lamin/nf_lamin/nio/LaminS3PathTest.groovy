@@ -509,6 +509,16 @@ class LaminS3PathTest extends Specification {
         path('a/b').hashCode() == path('a/b').hashCode()
     }
 
+    def "hashCode() agrees with equals() across storage roots in one bucket"() {
+        given:
+        def a = new LaminS3Path(fs, 'a/b')
+        def b = new LaminS3Path(fs2, 'a/b')
+
+        expect:
+        a == b
+        a.hashCode() == b.hashCode()
+    }
+
     // ==================== toString ====================
 
     def "toString() produces the correct lamin-s3:// URI string"() {

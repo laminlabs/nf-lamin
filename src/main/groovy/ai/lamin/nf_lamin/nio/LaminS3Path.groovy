@@ -252,7 +252,7 @@ final class LaminS3Path implements Path {
 
     @Override
     int hashCode() {
-        return Objects.hash(fs.storageRoot, key)
+        return Objects.hash(bucket, key)
     }
 
     @Override
