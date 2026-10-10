@@ -282,7 +282,7 @@ final class LaminPath implements Path {
 
         // If it's an absolute path (has scheme), parse it
         if (other.startsWith(LaminUriParser.SCHEME + ':')) {
-            return new LaminPath(fileSystem, LaminUriParser.parse(other))
+            return new LaminPath(fileSystem, LaminUriParser.parseArtifact(other))
         }
 
         // Otherwise resolve relative to this path
@@ -310,7 +310,7 @@ final class LaminPath implements Path {
 
         // If it's an absolute lamin:// URI, parse and return it directly
         if (other.startsWith(LaminUriParser.SCHEME + ':')) {
-            return new LaminPath(fileSystem, LaminUriParser.parse(other))
+            return new LaminPath(fileSystem, LaminUriParser.parseArtifact(other))
         }
 
         // Otherwise, resolve relative to parent

@@ -158,6 +158,19 @@ class LaminUriParser {
     }
 
     /**
+     * Parse an artifact URI. A storage URI is refused: it is a publish target, not a path.
+     *
+     * @throws IllegalArgumentException if the URI is invalid or a storage URI
+     */
+    static LaminUriParser parseArtifact(String uriString) {
+        LaminUriParser parsed = parse(uriString)
+        if (parsed.isStorage()) {
+            throw new IllegalArgumentException("Not an artifact URI: ${uriString}")
+        }
+        return parsed
+    }
+
+    /**
      * Parse a URI into a LaminUriParser.
      *
      * @param uri The URI to parse

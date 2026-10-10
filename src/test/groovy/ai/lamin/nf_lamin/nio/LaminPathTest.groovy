@@ -408,6 +408,18 @@ class LaminPathTest extends Specification {
         resolved.toUriString() == 'lamin://other/instance/artifact/uid456'
     }
 
+    def "resolve(String) should refuse a storage URI"() {
+        given:
+        def path = createPath('lamin://laminlabs/lamindata/artifact/uid123')
+
+        when:
+        path.resolve('lamin://laminlabs/lamindata?prefix=results')
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains('Not an artifact URI')
+    }
+
     // ==================== resolveSibling Tests ====================
 
     def "resolveSibling(Path) should return parent for null"() {
@@ -472,6 +484,18 @@ class LaminPathTest extends Specification {
 
         then:
         result.toUriString() == 'lamin://other/instance/artifact/uid456'
+    }
+
+    def "resolveSibling(String) should refuse a storage URI"() {
+        given:
+        def path = createPath('lamin://laminlabs/lamindata/artifact/uid123/file.txt')
+
+        when:
+        path.resolveSibling('lamin://laminlabs/lamindata?prefix=results')
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains('Not an artifact URI')
     }
 
     def "resolveSibling(String) should handle path without parent"() {

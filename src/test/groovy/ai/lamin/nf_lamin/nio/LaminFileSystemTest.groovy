@@ -221,6 +221,18 @@ class LaminFileSystemTest extends Specification {
         thrown(UnsupportedOperationException)
     }
 
+    def "getPath should refuse a storage URI"() {
+        given:
+        def fs = new LaminFileSystem(provider, 'laminlabs/lamindata')
+
+        when:
+        fs.getPath('lamin://laminlabs/lamindata?prefix=results')
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains('Not an artifact URI')
+    }
+
     def "getPath(LaminUriParser) should create path"() {
         given:
         def fs = new LaminFileSystem(provider, 'laminlabs/lamindata')
