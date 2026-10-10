@@ -162,7 +162,7 @@ final class LaminFileSystem extends FileSystem implements Closeable {
 
         // If it's already a full lamin:// URI, parse it
         if (fullPath.startsWith(LaminUriParser.SCHEME + ':')) {
-            LaminUriParser parsed = LaminUriParser.parse(fullPath)
+            LaminUriParser parsed = LaminUriParser.parseArtifact(fullPath)
             return new LaminPath(this, parsed)
         }
 

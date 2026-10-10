@@ -31,10 +31,14 @@ import java.nio.file.LinkOption
 import java.nio.file.OpenOption
 import java.nio.file.Path
 import java.nio.file.ProviderMismatchException
+import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.attribute.FileAttribute
 import java.nio.file.attribute.FileAttributeView
 import java.nio.file.spi.FileSystemProvider
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.locks.ReentrantLock
+import java.util.function.Supplier
 
 import nextflow.file.FileHelper
 import nextflow.file.FileSystemTransferAware
@@ -45,6 +49,7 @@ import ai.lamin.nf_lamin.LaminConnection
 import ai.lamin.nf_lamin.hub.CloudAccessResponse
 import ai.lamin.nf_lamin.hub.LaminHub
 import ai.lamin.nf_lamin.instance.Instance
+import ai.lamin.nf_lamin.util.PathUtils
 
 /**
  * FileSystemProvider implementation for Lamin URIs.
@@ -69,7 +74,14 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
 
     // Cache: storageRoot -> CloudAccessResponse
     // Avoids calling getCloudAccess() on every artifact resolution.
-    private final Map<String, CloudAccessResponse> cloudAccessCache = Collections.synchronizedMap(new LinkedHashMap<String, CloudAccessResponse>())
+    private final Map<String, CloudAccessResponse> cloudAccessCache = new ConcurrentHashMap<String, CloudAccessResponse>()
+    private final Map<String, ReentrantLock> cloudAccessLocks = new ConcurrentHashMap<String, ReentrantLock>()
+
+    // Resolves and caches the storage location of publish targets
+    private final LaminStorageResolver storageResolver = new LaminStorageResolver()
+
+    // Publish targets resolved so far, keyed by the storage URI they resolved to
+    private final Map<String, LaminStorageTarget> publishTargets = new ConcurrentHashMap<String, LaminStorageTarget>()
 
     /**
      * Get an Instance client for a specific LaminDB instance.
@@ -82,6 +94,45 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
      */
     Instance getInstance(String owner, String name) {
         return LaminConnection.getInstance().getInstance(owner, name)
+    }
+
+    /**
+     * The hub of the current connection. Protected so tests can inject one.
+     */
+    protected LaminHub getHub() {
+        return LaminConnection.getInstance().getHub()
+    }
+
+    /**
+     * The plugin config of the current connection. Protected so tests can inject one.
+     */
+    protected LaminConfig getConfig() {
+        return LaminConnection.getInstance().getConfig()
+    }
+
+    /**
+     * The lamin-s3 provider, installed on first use. Protected so tests can inject one.
+     */
+    protected LaminS3FileSystemProvider getS3Provider() {
+        return FileHelper.getOrInstallProvider(LaminS3FileSystemProvider)
+    }
+
+    /**
+     * Resolve a storage URI ({@code s3://}, {@code gs://}, ...) through the standard Nextflow
+     * providers. Protected so tests can intercept it.
+     */
+    protected Path asStoragePath(String uri) {
+        return FileHelper.asPath(uri)
+    }
+
+    /**
+     * The provider Nextflow installed for {@code lamin://} URIs, or null when none is installed
+     * (as in unit tests). Unlike {@code FileHelper.getOrInstallProvider} this needs no reflection.
+     */
+    static LaminFileSystemProvider installed() {
+        return (LaminFileSystemProvider) FileSystemProvider.installedProviders().find { FileSystemProvider p ->
+            p instanceof LaminFileSystemProvider
+        }
     }
 
     /**
@@ -158,13 +209,131 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
     @Override
     Path getPath(URI uri) {
         log.debug "getPath: uri=${uri}"
+        return getPath(LaminUriParser.parse(uri))
+    }
 
-        LaminUriParser parsed = LaminUriParser.parse(uri)
-        LaminFileSystem fs = getOrCreateFileSystem(uri)
+    /**
+     * Turn a parsed {@code lamin://} URI into a path.
+     *
+     * Artifact URIs become a {@link LaminPath}, resolved to storage on first access. Storage
+     * URIs are publish targets and are resolved right away to the path Nextflow will write to,
+     * see {@link #resolvePublishTarget}.
+     */
+    Path getPath(LaminUriParser parsed) {
+        if (parsed.isStorage()) {
+            return resolvePublishTarget(parsed)
+        }
+        LaminFileSystem fs = getOrCreateFileSystem(parsed.toUri())
         return new LaminPath(fs, parsed)
     }
 
     // ==================== Path Resolution ====================
+
+    /**
+     * Resolve a publish target to the storage path to write to: a {@link LaminS3Path} when
+     * LaminHub grants write access to the storage, a standard-provider path when it has no
+     * credentials for it. Read-only access is refused rather than falling back to ambient
+     * credentials, which would write under a different identity.
+     *
+     * @throws IllegalArgumentException if the target cannot be resolved or written to
+     */
+    Path resolvePublishTarget(LaminUriParser uri) {
+        if (!uri.isStorage()) {
+            throw new IllegalArgumentException("Not a publish target: ${uri}")
+        }
+
+        LaminConfig config = getConfig()
+        if (!config?.apiKey?.trim()) {
+            throw new IllegalArgumentException(
+                "Publishing to ${uri} needs an authenticated connection: set lamin.api_key in nextflow.config or LAMIN_API_KEY"
+            )
+        }
+
+        Instance instance = getInstance(uri.owner, uri.instance)
+        LaminStorageTarget target = storageResolver.resolve(instance, uri)
+        String root = target.storageRoot.replaceFirst('/$', '')
+        String storageUri = uri.prefix ? "${root}/${uri.prefix}".toString() : root
+        publishTargets.put(storageUri, target)
+
+        ManagedS3 managed = resolveManagedS3(target.storageRoot, target.region)
+        if (managed != null) {
+            if (!LaminS3FileSystem.WRITE_ROLES.contains(managed.access.role)) {
+                throw new IllegalArgumentException(
+                    "Cannot publish to ${uri}: LaminHub grants only '${managed.access.role}' access to ${target.storageRoot}, " +
+                    "publishing needs 'write' or 'admin'"
+                )
+            }
+            Path path = new LaminS3Path(managed.fileSystem, target.keyFor(uri.prefix))
+            log.debug "Resolved publish target ${uri} to ${path} (Lamin-managed credentials)"
+            return path
+        }
+
+        Path path = asStoragePath(storageUri)
+        log.debug "Resolved publish target ${uri} to ${path} (standard provider)"
+        return path
+    }
+
+    /**
+     * The publish target a path was resolved from, if any: the registered target whose storage
+     * URI is the longest prefix of the path's. Artifact paths are never publish targets.
+     */
+    LaminStorageTarget publishTargetFor(Path path) {
+        if (path == null || path instanceof LaminPath) {
+            return null
+        }
+        String uri = PathUtils.toStorageUri(path)
+        Map.Entry<String, LaminStorageTarget> best = null
+        for (Map.Entry<String, LaminStorageTarget> entry : publishTargets.entrySet()) {
+            String prefix = entry.key
+            if ((uri == prefix || uri.startsWith(prefix + '/')) && (best == null || prefix.length() > best.key.length())) {
+                best = entry
+            }
+        }
+        return best?.value
+    }
+
+    /**
+     * The Lamin-managed file system for a storage root, for restoring a {@link LaminS3Path}
+     * that was serialised in another process.
+     *
+     * @throws IOException if LaminHub grants no credentials for the storage root
+     */
+    LaminS3FileSystem getManagedFileSystem(String storageRoot) throws IOException {
+        ManagedS3 managed = resolveManagedS3(storageRoot)
+        if (managed == null) {
+            throw new IOException("Cannot restore a lamin-s3:// path under ${storageRoot}: no Lamin-managed credentials")
+        }
+        return managed.fileSystem
+    }
+
+    /** A Lamin-managed S3 file system and the access it was created from. */
+    private static class ManagedS3 {
+        LaminS3FileSystem fileSystem
+        CloudAccessResponse access
+    }
+
+    /**
+     * The Lamin-managed file system for a storage root, or null when the root is not S3,
+     * credential management is off, or LaminHub grants no credentials for it.
+     */
+    private ManagedS3 resolveManagedS3(String storageRoot, String region = null) {
+        if (!storageRoot?.startsWith('s3://') || getConfig()?.features?.manage_s3_credentials == false) {
+            return null
+        }
+        LaminHub hub = getHub()
+        if (hub == null) {
+            return null
+        }
+        CloudAccessResponse access = getCachedCloudAccess(hub, storageRoot)
+        if (!access.isUsable()) {
+            log.debug "No Lamin-managed credentials for ${storageRoot} (public or unsupported storage), falling back to the standard provider"
+            return null
+        }
+        LaminS3FileSystem fs = getS3Provider().getOrCreateFileSystem(
+            storageRoot, { -> getCachedCloudAccess(hub, storageRoot) } as Supplier<CloudAccessResponse>, region
+        )
+        return new ManagedS3(fileSystem: fs, access: access)
+    }
 
     /**
      * Resolve a LaminPath to its underlying storage path.
@@ -194,20 +363,14 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
         String artifactKey = artifactInfo.artifactKey as String
 
         // Attempt credential federation for Lamin-managed S3 storage
-        if (storageRoot?.startsWith('s3://')) {
-            LaminConfig config = LaminConnection.getInstance().getConfig()
-            boolean manageCredentials = config?.features?.manage_s3_credentials != false
-            if (manageCredentials) {
-                Path managed = tryResolveWithManagedS3Credentials(laminPath, storageRoot, artifactKey)
-                if (managed != null) {
-                    return managed
-                }
-            }
+        Path managed = tryResolveWithManagedS3Credentials(laminPath, storageRoot, artifactKey)
+        if (managed != null) {
+            return managed
         }
 
         // Fall back: resolve via the standard nf-amazon s3:// (or gs://, local, …) provider
         String fullPath = storageRoot.endsWith('/') ? storageRoot + artifactKey : storageRoot + '/' + artifactKey
-        Path artifactPath = FileHelper.asPath(fullPath)
+        Path artifactPath = asStoragePath(fullPath)
 
         if (laminPath.subPath) {
             artifactPath = artifactPath.resolve(laminPath.subPath)
@@ -224,21 +387,33 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
      * if no Expiration field is present). A stale entry triggers a fresh call to
      * {@code LaminHub.getCloudAccess()}.
      */
-    private CloudAccessResponse getCachedCloudAccess(LaminHub hub, String storageRoot) {
+    protected CloudAccessResponse getCachedCloudAccess(LaminHub hub, String storageRoot) {
         CloudAccessResponse cached = cloudAccessCache.get(storageRoot)
         if (cached != null && !cached.isCacheExpired()) {
-            log.debug "Using cached cloud credentials for ${storageRoot}"
+            log.trace "Using cached cloud credentials for ${storageRoot}"
             return cached
         }
-        if (cached != null) {
-            log.debug "Cached cloud credentials for ${storageRoot} expired, re-fetching"
-        }
 
-        CloudAccessResponse fresh = hub.getCloudAccess(storageRoot)
-        if (fresh.hasCredentials()) {
-            cloudAccessCache.put(storageRoot, fresh)
+        // one refresh per root at a time: the S3 client asks on every request
+        ReentrantLock lock = cloudAccessLocks.computeIfAbsent(storageRoot) { String key -> new ReentrantLock() }
+        lock.lock()
+        try {
+            cached = cloudAccessCache.get(storageRoot)
+            if (cached != null && !cached.isCacheExpired()) {
+                return cached
+            }
+            if (cached != null) {
+                log.debug "Cached cloud credentials for ${storageRoot} expired, re-fetching"
+            }
+            CloudAccessResponse fresh = hub.getCloudAccess(storageRoot)
+            if (fresh.hasCredentials()) {
+                cloudAccessCache.put(storageRoot, fresh)
+            }
+            return fresh
         }
-        return fresh
+        finally {
+            lock.unlock()
+        }
     }
 
     /**
@@ -254,14 +429,8 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
      */
     private Path tryResolveWithManagedS3Credentials(LaminPath laminPath, String storageRoot, String artifactKey) {
         try {
-            LaminHub hub = LaminConnection.getInstance().getHub()
-            if (hub == null) {
-                return null
-            }
-
-            CloudAccessResponse cloudAccess = getCachedCloudAccess(hub, storageRoot)
-            if (!cloudAccess.isUsable()) {
-                log.debug "No Lamin-managed credentials for ${storageRoot} (public or unsupported storage) — falling back to standard provider"
+            ManagedS3 managed = resolveManagedS3(storageRoot)
+            if (managed == null) {
                 return null
             }
 
@@ -274,11 +443,8 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
                 fullKey = "${fullKey}/${laminPath.subPath}"
             }
 
-            LaminS3FileSystemProvider s3Provider = FileHelper.getOrInstallProvider(LaminS3FileSystemProvider)
-            LaminS3FileSystem s3Fs = s3Provider.getOrCreateFileSystem(storageRoot, cloudAccess.accessKeyId, cloudAccess.secretAccessKey, cloudAccess.sessionToken)
-
-            log.debug "Resolved ${laminPath.toUri()} to lamin-s3://${s3Fs.bucketName}/${fullKey} (Lamin-managed credentials)"
-            return new LaminS3Path(s3Fs, fullKey)
+            log.debug "Resolved ${laminPath.toUri()} to lamin-s3://${managed.fileSystem.bucketName}/${fullKey} (Lamin-managed credentials)"
+            return new LaminS3Path(managed.fileSystem, fullKey)
         } catch (Exception e) {
             log.warn "Could not obtain cloud credentials for ${storageRoot}, falling back to standard S3 path: ${e.message}"
             log.debug "getCloudAccess failure detail", e
@@ -300,8 +466,17 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
         throw new UnsupportedOperationException("Writing to lamin:// paths is not supported")
     }
 
+    /** Open options that would modify the artifact; lamin:// paths are read-only. */
+    private static final Set<OpenOption> WRITE_OPTIONS = [
+        StandardOpenOption.WRITE, StandardOpenOption.APPEND, StandardOpenOption.CREATE,
+        StandardOpenOption.CREATE_NEW, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.DELETE_ON_CLOSE,
+    ] as Set<OpenOption>
+
     @Override
     SeekableByteChannel newByteChannel(Path path, Set<? extends OpenOption> options, FileAttribute<?>... attrs) throws IOException {
+        if (options.any { OpenOption o -> WRITE_OPTIONS.contains(o) }) {
+            throw new UnsupportedOperationException("Writing to lamin:// paths is not supported")
+        }
         LaminPath laminPath = toLaminPath(path)
         Path underlying = resolveToUnderlyingPath(laminPath)
         return Files.newByteChannel(underlying, options, attrs)

@@ -20,10 +20,54 @@ import spock.lang.Specification
 
 import java.nio.file.Paths
 
+import nextflow.exception.AbortOperationException
+
+import software.amazon.awssdk.services.s3.S3Client as AwsS3Client
+
 /**
  * Tests for LaminPathFactory
  */
 class LaminPathFactoryTest extends Specification {
+
+    def "toUriString renders a lamin-s3 path as its s3:// storage URI"() {
+        given:
+        def factory = new LaminPathFactory()
+        def fs = new LaminS3FileSystem(Mock(LaminS3FileSystemProvider), 's3://my-bucket/prefix', Mock(AwsS3Client))
+
+        expect:
+        factory.toUriString(new LaminS3Path(fs, 'prefix/results/file.txt')) == 's3://my-bucket/prefix/results/file.txt'
+    }
+
+    def "parseUri reports an invalid lamin URI as an AbortOperationException"() {
+        given:
+        def factory = new LaminPathFactory()
+
+        when:
+        factory.parseUri('lamin://laminlabs/lamindata/badtype/uid123')
+
+        then:
+        def e = thrown(AbortOperationException)
+        e.message.contains('badtype')
+        e.cause instanceof IllegalArgumentException
+    }
+
+    def "parseUri reports a failed resolution as an AbortOperationException"() {
+        given:
+        def failing = Stub(LaminFileSystemProvider) {
+            getPath(_ as LaminUriParser) >> { throw new RuntimeException('hub down') }
+        }
+        def factory = new LaminPathFactory() {
+            protected LaminFileSystemProvider getProvider() { failing }
+        }
+
+        when:
+        factory.parseUri('lamin://laminlabs/lamindata?prefix=results')
+
+        then:
+        def e = thrown(AbortOperationException)
+        e.message.contains('hub down')
+        e.cause instanceof RuntimeException
+    }
 
     def "should return null for non-lamin URIs"() {
         given:

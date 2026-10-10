@@ -18,7 +18,12 @@ package ai.lamin.nf_lamin.nio
 
 import spock.lang.Specification
 
+import java.util.concurrent.atomic.AtomicReference
+import java.util.function.Supplier
+
 import software.amazon.awssdk.services.s3.S3Client as AwsS3Client
+
+import ai.lamin.nf_lamin.hub.CloudAccessResponse
 
 class LaminS3FileSystemTest extends Specification {
 
@@ -29,7 +34,7 @@ class LaminS3FileSystemTest extends Specification {
     def setup() {
         provider = Mock(LaminS3FileSystemProvider)
         s3Client = Mock(AwsS3Client)
-        fs = new LaminS3FileSystem(provider, 's3://my-bucket/prefix', s3Client, 'AKIAIOSFODNN7EXAMPLE')
+        fs = new LaminS3FileSystem(provider, 's3://my-bucket/prefix', s3Client)
     }
 
     // ==================== Properties ====================
@@ -44,11 +49,6 @@ class LaminS3FileSystemTest extends Specification {
         fs.bucketName == 'my-bucket'
     }
 
-    def "getAccessKeyId() returns accessKeyId"() {
-        expect:
-        fs.accessKeyId == 'AKIAIOSFODNN7EXAMPLE'
-    }
-
     def "getS3Client() returns the s3Client"() {
         expect:
         fs.s3Client == s3Client
@@ -61,10 +61,38 @@ class LaminS3FileSystemTest extends Specification {
 
     def "getBucketName() works for different storageRoots"() {
         given:
-        def fs2 = new LaminS3FileSystem(provider, 's3://other-bucket/deep/prefix', s3Client, 'key')
+        def fs2 = new LaminS3FileSystem(provider, 's3://other-bucket/deep/prefix', s3Client)
 
         expect:
         fs2.bucketName == 'other-bucket'
+    }
+
+    static Supplier<CloudAccessResponse> role(String role) {
+        CloudAccessResponse access = new CloudAccessResponse([StorageAccessibility: [role: role]])
+        return { -> access } as Supplier<CloudAccessResponse>
+    }
+
+    def "isReadOnly() follows the role LaminHub granted"() {
+        expect:
+        fs.isReadOnly()
+        new LaminS3FileSystem(provider, 's3://b/p', s3Client, role('read')).isReadOnly()
+        !new LaminS3FileSystem(provider, 's3://b/p', s3Client, role('write')).isReadOnly()
+        !new LaminS3FileSystem(provider, 's3://b/p', s3Client, role('admin')).isReadOnly()
+    }
+
+    def "isReadOnly() follows role changes at the credential source"() {
+        given:
+        def current = new AtomicReference<Supplier<CloudAccessResponse>>(role('read'))
+        def fs2 = new LaminS3FileSystem(provider, 's3://b/p', s3Client, { -> current.get().get() } as Supplier<CloudAccessResponse>)
+
+        expect:
+        fs2.isReadOnly()
+
+        when:
+        current.set(role('write'))
+
+        then:
+        !fs2.isReadOnly()
     }
 
     // ==================== Open / close ====================
