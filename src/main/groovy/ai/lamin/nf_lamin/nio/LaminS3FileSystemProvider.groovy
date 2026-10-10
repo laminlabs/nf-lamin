@@ -368,7 +368,8 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
     void copy(Path source, Path target, CopyOption... options) throws IOException {
         CopyOptions opts = CopyOptions.parse(options)
 
-        // into this provider: a server-side copy within the same bucket, an upload otherwise
+        // into this provider: a server-side copy within one file system (credentials are scoped
+        // per storage root, so a copy across roots in the same bucket must stream), an upload otherwise
         if (target instanceof LaminS3Path) {
             LaminS3Path s3Target = (LaminS3Path) target
             if (s3Target.fileSystem.isReadOnly()) {
@@ -377,7 +378,7 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
             if (!opts.replaceExisting() && exists(s3Target)) {
                 throw new FileAlreadyExistsException(target.toString())
             }
-            if (source instanceof LaminS3Path && ((LaminS3Path) source).bucket == s3Target.bucket) {
+            if (source instanceof LaminS3Path && source.fileSystem.is(s3Target.fileSystem)) {
                 LaminS3Path s3Source = (LaminS3Path) source
                 try {
                     ((LaminS3FileSystem) s3Target.fileSystem).s3Client.copyObject(

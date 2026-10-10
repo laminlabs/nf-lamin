@@ -976,6 +976,27 @@ class LaminS3FileSystemProviderTest extends Specification {
         0 * s3Client.copyObject(*_)
     }
 
+    def "copy() between two storage roots in the same bucket streams the object"() {
+        given:
+        LaminS3FileSystem other = provider.getOrCreateFileSystem('s3://bucket/other', creds('AKID2', 'write'))
+        def source = new LaminS3Path(other, 'other/a.txt')
+        def target = writablePath('prefix/b.txt')
+        nothingExists()
+        s3Client.getObject(_ as GetObjectRequest) >> responseStream('across roots'.bytes)
+        def puts = []
+        s3Client.putObject(_ as PutObjectRequest, _ as RequestBody) >> { PutObjectRequest r, RequestBody b ->
+            puts << [r.key(), new String(bytesOf(b))]
+            PutObjectResponse.builder().build()
+        }
+
+        when:
+        provider.copy(source, target)
+
+        then:
+        0 * s3Client.copyObject(*_)
+        puts == [['prefix/b.txt', 'across roots']]
+    }
+
     def "copy() between two lamin-s3 paths is a server-side copy"() {
         given:
         def source = writablePath('prefix/a.txt')
