@@ -64,12 +64,17 @@ class LaminS3Uploader {
      */
     void upload(AwsS3Client client, String bucket, String key, Path file) throws IOException {
         long size = Files.size(file)
-        if (size < multipartThreshold) {
-            log.trace "Uploading ${file} to s3://${bucket}/${key} (${size} bytes)"
-            client.putObject(PutObjectRequest.builder().bucket(bucket).key(key).build(), RequestBody.fromFile(file))
+        if (size >= multipartThreshold) {
+            uploadMultipart(client, bucket, key, file, size)
             return
         }
-        uploadMultipart(client, bucket, key, file, size)
+        log.trace "Uploading ${file} to s3://${bucket}/${key} (${size} bytes)"
+        try {
+            client.putObject(PutObjectRequest.builder().bucket(bucket).key(key).build(), RequestBody.fromFile(file))
+        }
+        catch (Exception e) {
+            throw new IOException("Failed to upload ${file} to s3://${bucket}/${key}", e)
+        }
     }
 
     /**

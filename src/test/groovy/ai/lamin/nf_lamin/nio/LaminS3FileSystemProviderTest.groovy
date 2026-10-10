@@ -1060,6 +1060,25 @@ class LaminS3FileSystemProviderTest extends Specification {
         0 * s3Client.putObject(*_)
     }
 
+    def "a failed single-object upload is reported as an IOException"() {
+        given:
+        def p = writablePath('prefix/small.txt')
+        nothingExists()
+        Path tmpDir = Files.createTempDirectory('lamin-upload-test')
+        Path local = Files.write(tmpDir.resolve('local.txt'), 'small'.bytes)
+        s3Client.putObject(_ as PutObjectRequest, _ as RequestBody) >> { throw S3Exception.builder().message('boom').statusCode(500).build() }
+
+        when:
+        provider.upload(local, p)
+
+        then:
+        def e = thrown(IOException)
+        e.cause instanceof S3Exception
+
+        cleanup:
+        tmpDir.toFile().deleteDir()
+    }
+
     def "a failed multipart upload is aborted"() {
         given:
         def p = writablePath('prefix/big.bin')
