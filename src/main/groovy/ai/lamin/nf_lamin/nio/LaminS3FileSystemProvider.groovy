@@ -20,7 +20,6 @@ import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
 
 import java.nio.ByteBuffer
-import java.nio.channels.Channels
 import java.nio.channels.SeekableByteChannel
 import java.nio.file.AccessDeniedException
 import java.nio.file.AccessMode
@@ -213,26 +212,10 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
     }
 
     /**
-     * Open an object for writing.
-     *
-     * S3 has neither append nor a streaming PUT of unknown length, so the bytes are written to
-     * a temp file and uploaded when the stream is closed, see {@link #newByteChannel}.
-     */
-    @Override
-    OutputStream newOutputStream(Path path, OpenOption... options) throws IOException {
-        Set<OpenOption> opts = options ? new HashSet<OpenOption>(options.toList()) : defaultWriteOptions()
-        if (opts.contains(StandardOpenOption.READ)) {
-            throw new IllegalArgumentException("READ not allowed")
-        }
-        if (!opts.contains(StandardOpenOption.APPEND)) {
-            opts.add(StandardOpenOption.WRITE)
-        }
-        return Channels.newOutputStream(newByteChannel(path, opts))
-    }
-
-    /**
-     * Open an object as a channel backed by a local temp file. For writing, the object is
-     * downloaded first unless it is truncated anyway, and uploaded back on close.
+     * Open an object as a channel backed by a local temp file: S3 has neither append nor a
+     * streaming PUT of unknown length. For writing, the object is downloaded first unless it is
+     * truncated anyway, and uploaded back on close. {@code newOutputStream} is the JDK default
+     * over this.
      */
     @Override
     SeekableByteChannel newByteChannel(Path path, Set<? extends OpenOption> options, FileAttribute<?>... attrs) throws IOException {
@@ -540,10 +523,6 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
     }
 
     // ==================== S3 lookups ====================
-
-    private static Set<OpenOption> defaultWriteOptions() {
-        return [StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE] as Set<OpenOption>
-    }
 
     private static HeadObjectResponse headObject(LaminS3Path s3Path) throws IOException {
         try {
