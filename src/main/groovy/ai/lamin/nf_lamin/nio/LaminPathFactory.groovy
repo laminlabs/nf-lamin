@@ -46,7 +46,7 @@ class LaminPathFactory extends FileSystemPathFactory {
      *
      * @param uriString The URI string (e.g., "lamin://owner/instance/artifact/uid")
      * @return A path if the URI is a lamin:// URI, null otherwise
-     * @throws IllegalArgumentException if the URI is a lamin:// URI that cannot be parsed or resolved
+     * @throws AbortOperationException if the URI is a lamin:// URI that cannot be parsed or resolved
      */
     @Override
     protected Path parseUri(String uriString) {
@@ -57,13 +57,21 @@ class LaminPathFactory extends FileSystemPathFactory {
 
         try {
             LaminUriParser parsed = LaminUriParser.parse(uriString)
-            LaminFileSystemProvider provider = FileHelper.getOrInstallProvider(LaminFileSystemProvider)
-            return provider.getPath(parsed)
+            return getProvider().getPath(parsed)
         }
-        catch (IllegalArgumentException e) {
-            // Nextflow prints an AbortOperationException as a one-line message, not a stack trace
-            throw new AbortOperationException(e.message, e)
+        catch (AbortOperationException e) {
+            throw e
         }
+        catch (Exception e) {
+            // Nextflow prints an AbortOperationException as a one-line message and logs the
+            // cause at debug level; resolution can fail in the instance API or the hub as well
+            throw new AbortOperationException("Cannot resolve ${uriString}: ${e.message}", e)
+        }
+    }
+
+    /** The lamin:// provider of this process. Protected so tests can inject one. */
+    protected LaminFileSystemProvider getProvider() {
+        return FileHelper.getOrInstallProvider(LaminFileSystemProvider)
     }
 
     /**

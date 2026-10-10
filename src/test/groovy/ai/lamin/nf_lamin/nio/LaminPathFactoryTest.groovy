@@ -51,6 +51,24 @@ class LaminPathFactoryTest extends Specification {
         e.cause instanceof IllegalArgumentException
     }
 
+    def "parseUri reports a failed resolution as an AbortOperationException"() {
+        given:
+        def failing = Stub(LaminFileSystemProvider) {
+            getPath(_ as LaminUriParser) >> { throw new RuntimeException('hub down') }
+        }
+        def factory = new LaminPathFactory() {
+            protected LaminFileSystemProvider getProvider() { failing }
+        }
+
+        when:
+        factory.parseUri('lamin://laminlabs/lamindata?prefix=results')
+
+        then:
+        def e = thrown(AbortOperationException)
+        e.message.contains('hub down')
+        e.cause instanceof RuntimeException
+    }
+
     def "should return null for non-lamin URIs"() {
         given:
         def factory = new LaminPathFactory()
