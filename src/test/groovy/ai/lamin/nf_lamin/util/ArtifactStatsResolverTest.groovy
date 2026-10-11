@@ -29,6 +29,7 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.core.exception.SdkClientException
+import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client as AwsS3Client
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse
@@ -293,6 +294,65 @@ class ArtifactStatsResolverTest extends Specification {
         expect:
         ArtifactStatsResolver.buildCredentials([:], working).is(working)
         ArtifactStatsResolver.buildCredentials(null, broken) instanceof AnonymousCredentialsProvider
+    }
+
+    // ========== custom endpoints (aws.client scope) ==========
+
+    def 'clientSettings reads the endpoint options nextflow accepts'() {
+        when:
+        ArtifactStatsResolver.S3ClientSettings settings = ArtifactStatsResolver.clientSettings([
+            region: 'eu-west-1',
+            client: [endpoint: 'http://minio.local:9000', s3PathStyleAccess: true, anonymous: true],
+        ])
+
+        then:
+        settings.region == 'eu-west-1'
+        settings.endpoint == URI.create('http://minio.local:9000')
+        settings.pathStyle
+        settings.anonymous
+    }
+
+    def 'clientSettings defaults to plain AWS'() {
+        expect:
+        with(ArtifactStatsResolver.clientSettings(config)) {
+            region == null
+            endpoint == null
+            !pathStyle
+            !anonymous
+        }
+
+        where:
+        config << [null, [:], [client: [:]], [client: 'not a map']]
+    }
+
+    def 'buildCredentials honours aws.client.anonymous without probing the chain'() {
+        given:
+        AwsCredentialsProvider chain = Mock(AwsCredentialsProvider)
+
+        when:
+        AwsCredentialsProvider provider = ArtifactStatsResolver.buildCredentials([client: [anonymous: true]], chain)
+
+        then:
+        provider instanceof AnonymousCredentialsProvider
+        0 * chain.resolveCredentials()
+    }
+
+    def 'createDefaultClient targets the configured endpoint and region'() {
+        given:
+        ArtifactStatsResolver configured = new ArtifactStatsResolver([
+            region: 'eu-west-1',
+            client: [endpoint: 'http://minio.local:9000', s3PathStyleAccess: true, anonymous: true],
+        ])
+
+        when:
+        AwsS3Client client = configured.createDefaultClient()
+
+        then:
+        client.serviceClientConfiguration().endpointOverride().get() == URI.create('http://minio.local:9000')
+        client.serviceClientConfiguration().region() == Region.of('eu-west-1')
+
+        cleanup:
+        client?.close()
     }
 
     // ========== helpers ==========

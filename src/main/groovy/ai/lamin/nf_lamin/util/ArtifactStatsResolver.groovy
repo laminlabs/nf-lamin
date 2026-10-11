@@ -28,7 +28,6 @@ import groovy.util.logging.Slf4j
 import software.amazon.awssdk.auth.credentials.AnonymousCredentialsProvider
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider
-import software.amazon.awssdk.auth.credentials.AwsSessionCredentials
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
@@ -36,6 +35,7 @@ import software.amazon.awssdk.core.exception.SdkClientException
 import software.amazon.awssdk.http.urlconnection.UrlConnectionHttpClient
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.s3.S3Client as AwsS3Client
+import software.amazon.awssdk.services.s3.S3ClientBuilder
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request
@@ -61,8 +61,9 @@ class ArtifactStatsResolver implements Closeable {
     private AwsS3Client defaultClient
 
     /**
-     * @param awsConfig The Nextflow {@code aws} config scope (accessKey, secretKey, sessionToken,
-     *                  profile, region), used for plain {@code s3://} paths; may be null
+     * @param awsConfig The Nextflow {@code aws} config scope (accessKey, secretKey, profile, region
+     *                  and client.endpoint / s3PathStyleAccess / anonymous), used for plain
+     *                  {@code s3://} paths; may be null
      */
     ArtifactStatsResolver(Map awsConfig = null) {
         this.awsConfig = awsConfig ?: [:]
@@ -205,29 +206,65 @@ class ArtifactStatsResolver implements Closeable {
      * Client for plain {@code s3://} paths; overridable in tests.
      */
     protected AwsS3Client createDefaultClient() {
-        AwsCredentialsProvider credentials = buildCredentials(awsConfig, DefaultCredentialsProvider.create())
-        String region = awsConfig.region as String
-        return AwsS3Client.builder()
-            .crossRegionAccessEnabled(true)
-            .region(region ? Region.of(region) : Region.US_EAST_1)
-            .credentialsProvider(credentials)
-            .httpClientBuilder(UrlConnectionHttpClient.builder())
-            .build()
+        S3ClientSettings settings = clientSettings(awsConfig)
+        S3ClientBuilder builder = AwsS3Client.builder()
+        builder.credentialsProvider(buildCredentials(awsConfig, DefaultCredentialsProvider.create()))
+        builder.region(settings.region ? Region.of(settings.region) : Region.US_EAST_1)
+        builder.httpClientBuilder(UrlConnectionHttpClient.builder())
+        if (settings.endpoint != null) {
+            // an S3-compatible store (MinIO, Ceph, R2): no cross-region redirects
+            builder.endpointOverride(settings.endpoint)
+            builder.forcePathStyle(settings.pathStyle)
+        } else {
+            builder.crossRegionAccessEnabled(true)
+        }
+        return builder.build()
+    }
+
+    /** The S3 client options of the Nextflow {@code aws} scope that matter for reading stats. */
+    static final class S3ClientSettings {
+        final String region
+        final URI endpoint
+        final boolean pathStyle
+        final boolean anonymous
+
+        S3ClientSettings(String region, URI endpoint, boolean pathStyle, boolean anonymous) {
+            this.region = region
+            this.endpoint = endpoint
+            this.pathStyle = pathStyle
+            this.anonymous = anonymous
+        }
     }
 
     /**
-     * Credentials for plain {@code s3://} paths: explicit keys or a profile from the Nextflow
-     * {@code aws} scope, else the default chain, else anonymous access for public buckets.
+     * Reads {@code aws.region} and {@code aws.client.endpoint} / {@code s3PathStyleAccess} /
+     * {@code anonymous}, the options nf-amazon uses for the same purpose.
+     */
+    static S3ClientSettings clientSettings(Map awsConfig) {
+        Map config = awsConfig ?: [:]
+        Map client = config.client instanceof Map ? (Map) config.client : [:]
+        String endpoint = client.endpoint as String
+        return new S3ClientSettings(
+            config.region as String,
+            endpoint ? URI.create(endpoint) : null,
+            (client.s3PathStyleAccess as Boolean) ?: false,
+            (client.anonymous as Boolean) ?: false
+        )
+    }
+
+    /**
+     * Credentials for plain {@code s3://} paths: anonymous when asked, else explicit keys or a
+     * profile from the Nextflow {@code aws} scope, else the default chain, else anonymous
+     * access for public buckets.
      */
     static AwsCredentialsProvider buildCredentials(Map awsConfig, AwsCredentialsProvider defaultChain) {
         Map config = awsConfig ?: [:]
+        if (clientSettings(config).anonymous) {
+            return AnonymousCredentialsProvider.create()
+        }
         String accessKey = config.accessKey as String
         String secretKey = config.secretKey as String
-        String sessionToken = config.sessionToken as String
         if (accessKey && secretKey) {
-            if (sessionToken) {
-                return StaticCredentialsProvider.create(AwsSessionCredentials.create(accessKey, secretKey, sessionToken))
-            }
             return StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey))
         }
         if (config.profile) {

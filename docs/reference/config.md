@@ -216,7 +216,7 @@ LaminDB stores the size, hash and file count of an artifact. When the Lamin Hub 
 
 Other locations (`gs://`, `az://`, `https://`) are left to LaminDB.
 
-**Credentials** — `lamin-s3://` artifacts use the federated credentials of their storage location. Plain `s3://` artifacts use the `aws` scope of `nextflow.config` (`accessKey` / `secretKey` / `sessionToken`, or `profile`, and `region`), else the default AWS credential provider chain, else anonymous access for public buckets. Assumed roles and SSO logins are not supported; when the plugin cannot read an object it silently leaves the stats to LaminDB.
+**Credentials** — `lamin-s3://` artifacts use the federated credentials of their storage location. Plain `s3://` artifacts use the `aws` scope of `nextflow.config` (`accessKey` / `secretKey` or `profile`, `region`, and `client.endpoint` / `client.s3PathStyleAccess` / `client.anonymous` for S3-compatible stores such as MinIO), else the default AWS credential provider chain, else anonymous access for public buckets. Assumed roles and SSO logins are not supported; when the plugin cannot read an object it silently leaves the stats to LaminDB.
 
 **Older instances** — a LaminDB instance that predates the `stats` argument rejects the request. The plugin then warns once, retries without stats and stops sending them for the rest of the run.
 
