@@ -110,6 +110,12 @@ class ArtifactConfig implements ConfigScope {
     ''')
     final String kind
 
+    @ConfigOption
+    @Description('''
+        Whether to compute size and hash client-side for s3:// and lamin-s3:// artifacts and pass them to LaminDB: 'always' (default) or 'never'. Needed when Lamin Hub cannot read the storage location.
+    ''')
+    final String stats
+
     @ConfigOption(types=[String, Closure])
     @Description('''
         Artifact description. Can be a plain String or a Closure whose return value
@@ -165,6 +171,10 @@ class ArtifactConfig implements ConfigScope {
         this.include_pattern = safeOpts.include_pattern as String
         this.exclude_pattern = safeOpts.exclude_pattern as String
         this.kind = safeOpts.kind as String
+        this.stats = safeOpts.containsKey('stats') ? (safeOpts.stats as String) : 'always'
+        if (!['always', 'never'].contains(this.stats)) {
+            throw new IllegalArgumentException("Artifact stats must be 'always' or 'never', got '${this.stats}'")
+        }
         this.description = safeOpts.description  // keep as-is: String or Closure
 
         // Parse list fields (can be String, List, or Closure)
@@ -410,6 +420,7 @@ class ArtifactConfig implements ConfigScope {
             "exclude_pattern='${exclude_pattern}', " +
             "ulabel_uids=${ulabel_uids}, " +
             "kind='${kind}', " +
+            "stats='${stats}', " +
             "description=${description instanceof Closure ? '<closure>' : description}, " +
             "include_paths=${pathsClosure != null ? '<closure>' : include_paths}, " +
             "rules=${rules.size()} rules" +

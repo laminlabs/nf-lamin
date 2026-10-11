@@ -94,17 +94,18 @@ Control which files are tracked and what metadata is attached. Configure trackin
 
 Apply to `artifacts`, `input_artifacts`, or `output_artifacts`:
 
-| Setting              | Type                    | Default | Description                                   |
-| -------------------- | ----------------------- | ------- | --------------------------------------------- |
-| `enabled`            | Boolean                 | `true`  | Enable/disable tracking                       |
-| `exclude_work_dir`   | Boolean                 | `true`  | Ignore paths in the Nextflow work directory   |
-| `exclude_assets_dir` | Boolean                 | `true`  | Ignore paths in the Nextflow assets directory |
-| `include_pattern`    | String                  | `null`  | Regex; only matching files are tracked        |
-| `exclude_pattern`    | String                  | `null`  | Regex; matching files are skipped             |
-| `ulabel_uids`        | List                    | `null`  | ULabel UIDs for matched artifacts             |
-| `kind`               | String                  | `null`  | Artifact kind (e.g. `'dataset'`, `'report'`)  |
-| `include_paths`      | String / List / Closure | `null`  | Paths to explicitly track (see below)         |
-| `rules`              | Map                     | `{}`    | Pattern-based rules (see below)               |
+| Setting              | Type                    | Default    | Description                                                                                                 |
+| -------------------- | ----------------------- | ---------- | ----------------------------------------------------------------------------------------------------------- |
+| `enabled`            | Boolean                 | `true`     | Enable/disable tracking                                                                                     |
+| `exclude_work_dir`   | Boolean                 | `true`     | Ignore paths in the Nextflow work directory                                                                 |
+| `exclude_assets_dir` | Boolean                 | `true`     | Ignore paths in the Nextflow assets directory                                                               |
+| `include_pattern`    | String                  | `null`     | Regex; only matching files are tracked                                                                      |
+| `exclude_pattern`    | String                  | `null`     | Regex; matching files are skipped                                                                           |
+| `ulabel_uids`        | List                    | `null`     | ULabel UIDs for matched artifacts                                                                           |
+| `kind`               | String                  | `null`     | Artifact kind (e.g. `'dataset'`, `'report'`)                                                                |
+| `stats`              | String                  | `'always'` | `'always'` computes size and hash client-side for `s3://` paths; `'never'` leaves it to LaminDB (see below) |
+| `include_paths`      | String / List / Closure | `null`     | Paths to explicitly track (see below)                                                                       |
+| `rules`              | Map                     | `{}`       | Pattern-based rules (see below)                                                                             |
 
 ### Explicit paths (`include_paths`)
 
