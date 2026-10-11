@@ -75,6 +75,8 @@ For artifacts stored in LaminHub-managed **S3** storage, the plugin automaticall
 
 The plugin resolves the `lamin://` URI to the artifact's storage location (`storageRoot` and key), then calls LaminHub's cloud-access API to get short-lived `AccessKeyId` / `SecretAccessKey` / `SessionToken` credentials scoped to that storage root. Nextflow stages the file through an internal `lamin-s3://` virtual filesystem backed by those credentials.
 
+The same credentials are used to compute the size and hash of artifacts published to a `lamin-s3://` location (see [`stats`](config.md#size-and-hash-stats)).
+
 This feature can be turned off by setting `lamin.features.manage_s3_credentials = false` in `nextflow.config`, in which case the plugin will attempt to resolve `lamin://` URIs using the default credential provider chain (e.g. environment variables, AWS credentials file, EC2 instance profile, etc).
 
 ## Limitations
