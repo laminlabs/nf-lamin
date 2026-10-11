@@ -653,4 +653,56 @@ class LaminRunManagerTest extends Specification {
         1 * mockInstance.createArtifact({ Map args -> args.stats != null && args.run_id == null }) >> [uid: 'A1', id: 11]
         result.uid == 'A1'
     }
+
+    /** Records the resolver calls the manager makes, in order. */
+    static class RecordingResolver extends ArtifactStatsResolver {
+        final List<String> events = []
+
+        @Override
+        ArtifactStats resolve(Path path, boolean cache) {
+            events << 'resolve'
+            return null
+        }
+
+        @Override
+        void close() {
+            events << 'close'
+        }
+    }
+
+    def 'awaitArtifactTasks keeps the stats resolver for the report artifact'() {
+        given:
+        def resolver = new RecordingResolver()
+        def manager = statsManager(Mock(Instance), resolver)
+
+        when:
+        manager.awaitArtifactTasks()
+
+        then:
+        resolver.events == []
+    }
+
+    def 'finalizeRun closes the stats resolver after updating the run'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def resolver = new RecordingResolver()
+        def manager = statsManager(mockInstance, resolver)
+        injectField(manager, 'run', [uid: 'R456', id: 99] as Map<String, Object>)
+        def metadata = Stub(WorkflowMetadata) {
+            getStart() >> OffsetDateTime.now()
+            getComplete() >> OffsetDateTime.now()
+        }
+        injectField(manager, 'session', Stub(Session) {
+            getWorkflowMetadata() >> metadata
+            isSuccess() >> true
+            getConfig() >> [:]
+        })
+        mockInstance.updateRecord(_) >> { resolver.events << 'updateRecord'; [uid: 'R456'] }
+
+        when:
+        manager.finalizeRun()
+
+        then:
+        resolver.events == ['updateRecord', 'close']
+    }
 }

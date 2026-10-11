@@ -658,6 +658,15 @@ final class LaminRunManager {
     }
 
     void finalizeRun() {
+        try {
+            finalizeRunImpl()
+        } finally {
+            // the report artifact is the last one that may need stats
+            statsResolver.close()
+        }
+    }
+
+    private void finalizeRunImpl() {
         if (run == null || laminInstance == null || session == null || config.dryRun) {
             return
         }
@@ -976,7 +985,6 @@ final class LaminRunManager {
             Thread.currentThread().interrupt()
         } finally {
             artifactLocks.clear()
-            statsResolver.close()
         }
     }
 
