@@ -28,6 +28,7 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 
@@ -47,8 +48,10 @@ import ai.lamin.nf_lamin.instance.Instance
 import ai.lamin.nf_lamin.instance.PermissionDeniedException
 import ai.lamin.nf_lamin.hub.InstanceSettings
 import ai.lamin.nf_lamin.model.ArtifactAnnotation
+import ai.lamin.nf_lamin.model.ArtifactStats
 import ai.lamin.nf_lamin.model.RunStatus
 import ai.lamin.nf_lamin.nio.LaminPath
+import ai.lamin.nf_lamin.util.ArtifactStatsResolver
 import ai.lamin.nf_lamin.util.PathUtils
 import ai.lamin.nf_lamin.util.SeqeraPlatformHelper
 import ai.lamin.nf_lamin.util.TransformInfoHelper
@@ -108,6 +111,12 @@ final class LaminRunManager {
     // Tracks whether the one-time local file warning has been shown this session
     private volatile boolean localFileWarningShown = false
 
+    /** Computes size and hash client-side so the hub can store them without reading storage */
+    private volatile ArtifactStatsResolver statsResolver = new ArtifactStatsResolver()
+
+    /** Cleared when the instance's lamindb rejects the `stats` kwarg; stays off for the rest of the run */
+    private final AtomicBoolean statsSupported = new AtomicBoolean(true)
+
     private LaminRunManager() {
     }
 
@@ -133,6 +142,9 @@ final class LaminRunManager {
         artifactsByAnnotationKey.clear()
         matchedAnnotationKeys.clear()
         artifactExecutor = createArtifactExecutor(ApiConfig.DEFAULT_MAX_WORKERS)
+        statsResolver?.close()
+        statsResolver = new ArtifactStatsResolver()
+        statsSupported.set(true)
     }
 
     /**
@@ -222,6 +234,8 @@ final class LaminRunManager {
         log.debug 'LaminRunManager.initializeRunManager'
         reset()
         this.session = session
+        statsResolver?.close()
+        statsResolver = new ArtifactStatsResolver(awsConfigOf(session))
 
         log.debug 'Parsing Lamin configuration from session'
         this.config = LaminConfig.parseConfig(session)
@@ -962,6 +976,7 @@ final class LaminRunManager {
             Thread.currentThread().interrupt()
         } finally {
             artifactLocks.clear()
+            statsResolver.close()
         }
     }
 
@@ -1033,7 +1048,8 @@ final class LaminRunManager {
 
         Map<String, Object> params = [
             path: path,
-            description: description
+            description: description,
+            direction: 'input'
         ]
         if (evaluation.kind) {
             params.kind = evaluation.kind
@@ -1160,7 +1176,8 @@ final class LaminRunManager {
         Map<String, Object> params = [
             path: path,
             run_id: runId,
-            description: description
+            description: description,
+            direction: 'output'
         ]
         if (evaluation.kind) {
             params.kind = evaluation.kind
@@ -1368,6 +1385,39 @@ final class LaminRunManager {
             return ac
         }
         return direction == 'input' ? config.getInputArtifacts() : config.getOutputArtifacts()
+    }
+
+    /**
+     * Whether client-side stats are enabled for artifacts of the given direction.
+     */
+    private boolean statsEnabled(String direction) {
+        ArtifactConfig ac = direction != null ? resolveArtifactConfig(direction) : config?.getArtifacts()
+        String mode = ac != null ? ac.stats : 'always'
+        return mode != 'never'
+    }
+
+    /**
+     * Whether the API rejected the request because its lamindb does not know the `stats` kwarg.
+     */
+    static boolean isStatsRejected(ApiException e) {
+        if (e.code != 400) {
+            return false
+        }
+        String body = (e.responseBody ?: e.message ?: '') as String
+        return body.contains('can be passed') && body.contains('stats')
+    }
+
+    /**
+     * The Nextflow `aws` config scope, used for S3 credentials when reading stats.
+     */
+    private static Map awsConfigOf(Session session) {
+        try {
+            Object aws = session?.config?.navigate('aws')
+            return aws instanceof Map ? (Map) aws : [:]
+        } catch (Exception e) {
+            log.debug "Could not read the aws config scope: ${e.message}"
+            return [:]
+        }
     }
 
     /**
@@ -1665,6 +1715,8 @@ final class LaminRunManager {
      *   - description (String, optional): A description for the artifact
      *   - kind (String, optional): The artifact kind (e.g., 'dataset', 'model')
      *   - key (String, optional): The artifact key (a human-readable identifier). Defaults to the filename.
+     *   - direction (String, optional): 'input' or 'output'; selects the artifact config that decides
+     *     whether stats are computed, and lets input stats be cached across tasks
      * @return the artifact map if created or found, null on failure
      */
     Map<String, Object> fetchOrCreateArtifact(Map<String, Object> params) {
@@ -1715,6 +1767,15 @@ final class LaminRunManager {
             kind = kindValue as String
         }
 
+        String direction = null
+        if (params.containsKey('direction')) {
+            Object directionValue = params.get('direction')
+            if (directionValue != null && !(directionValue in ['input', 'output'])) {
+                throw new IllegalArgumentException("Parameter 'direction' must be 'input', 'output' or null")
+            }
+            direction = directionValue as String
+        }
+
         if ((path.toUri().getScheme() ?: 'file') == 'file') {
             log.debug "Skipping artifact creation for local file at ${path.toUri()} (local files are not tracked)"
             return null
@@ -1745,8 +1806,36 @@ final class LaminRunManager {
                 apiParams.put('branch_id', resolvedBranchId)
             }
 
+            // compute size and hash client-side so the hub can store them without reading storage
+            ArtifactStats stats = null
+            if (statsSupported.get() && statsEnabled(direction)) {
+                ArtifactStats resolved = statsResolver.resolve(path, direction == 'input')
+                if (resolved != null && resolved.hasHash()) {
+                    stats = resolved
+                    apiParams.put('stats', stats.toKwargs())
+                    apiParams.put('skip_check_exists', true)
+                }
+            }
+
             apiParams.put('path', pathStr)
-            artifact = laminInstance.createArtifact(apiParams)
+            try {
+                artifact = laminInstance.createArtifact(apiParams)
+            } catch (ApiException e) {
+                if (stats == null || !isStatsRejected(e)) {
+                    throw e
+                }
+                // the instance's lamindb predates Artifact(stats=...): retry once without and stop sending them
+                if (statsSupported.compareAndSet(true, false)) {
+                    log.warn "LaminDB rejected client-side artifact stats; using server-side stats for the rest of this run. Upgrade the instance or set lamin.artifacts.stats = 'never' to silence this."
+                }
+                Map<String, Object> retryParams = new LinkedHashMap<String, Object>(apiParams)
+                retryParams.remove('stats')
+                retryParams.remove('skip_check_exists')
+                artifact = laminInstance.createArtifact(retryParams)
+            }
+            if (stats != null && artifact?.get('hash') != null && artifact.get('hash') != stats.hash) {
+                log.debug "Server hash ${artifact.get('hash')} differs from client hash ${stats.hash} for ${pathStr}"
+            }
         } catch (Exception e) {
             log.error "Failed to create artifact ${logContext} at ${path.toUri()}"
             log.debug "Exception: ${e.getMessage()}", e
