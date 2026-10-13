@@ -1025,7 +1025,7 @@ class InstanceArtifactApiTest extends Specification {
     }
 
     /**
-     * Needs an instance whose lamindb accepts Artifact(stats=...); enable with NF_LAMIN_TEST_STATS=1.
+     * Needs an instance whose lamindb accepts Artifact(_stats=...); enable with NF_LAMIN_TEST_STATS=1.
      */
     @IgnoreIf({ !env.LAMIN_API_KEY || !env.NF_LAMIN_TEST_STATS })
     def "server stores client-provided stats"() {
@@ -1035,7 +1035,7 @@ class InstanceArtifactApiTest extends Specification {
         Map<String, Object> stats = new ArtifactStats(4242L, 'nflaminfakehash0000000', 'md5', null).toKwargs()
 
         when:
-        Map<String, Object> record = createAndFetch([path: objectPath, branch_id: testBranchId, stats: stats, skip_check_exists: true])
+        Map<String, Object> record = createAndFetch([path: objectPath, branch_id: testBranchId, _stats: stats, skip_check_exists: true])
 
         then:
         (record.size as Long) == 4242L

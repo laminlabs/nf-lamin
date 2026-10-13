@@ -114,7 +114,7 @@ final class LaminRunManager {
     /** Computes size and hash client-side so the hub can store them without reading storage */
     private volatile ArtifactStatsResolver statsResolver = new ArtifactStatsResolver()
 
-    /** Cleared when the instance's lamindb rejects the `stats` kwarg; stays off for the rest of the run */
+    /** Cleared when the instance's lamindb rejects the `_stats` kwarg; stays off for the rest of the run */
     private final AtomicBoolean statsSupported = new AtomicBoolean(true)
 
     private LaminRunManager() {
@@ -1405,14 +1405,14 @@ final class LaminRunManager {
     }
 
     /**
-     * Whether the API rejected the request because its lamindb does not know the `stats` kwarg.
+     * Whether the API rejected the request because its lamindb does not know the `_stats` kwarg.
      */
     static boolean isStatsRejected(ApiException e) {
         if (e.code != 400) {
             return false
         }
         String body = (e.responseBody ?: e.message ?: '') as String
-        return body.contains('can be passed') && body.contains('stats')
+        return body.contains('can be passed') && body.contains('_stats')
     }
 
     /**
@@ -1820,7 +1820,7 @@ final class LaminRunManager {
                 ArtifactStats resolved = statsResolver.resolve(path, direction == 'input')
                 if (resolved != null && resolved.hasHash()) {
                     stats = resolved
-                    apiParams.put('stats', stats.toKwargs())
+                    apiParams.put('_stats', stats.toKwargs())
                     apiParams.put('skip_check_exists', true)
                 }
             }
@@ -1832,12 +1832,12 @@ final class LaminRunManager {
                 if (stats == null || !isStatsRejected(e)) {
                     throw e
                 }
-                // the instance's lamindb predates Artifact(stats=...): retry once without and stop sending them
+                // the instance's lamindb predates Artifact(_stats=...): retry once without and stop sending them
                 if (statsSupported.compareAndSet(true, false)) {
                     log.warn "LaminDB rejected client-side artifact stats; using server-side stats for the rest of this run. Upgrade the instance or set lamin.artifacts.stats = 'never' to silence this."
                 }
                 Map<String, Object> retryParams = new LinkedHashMap<String, Object>(apiParams)
-                retryParams.remove('stats')
+                retryParams.remove('_stats')
                 retryParams.remove('skip_check_exists')
                 artifact = laminInstance.createArtifact(retryParams)
             }

@@ -29,7 +29,7 @@ class CreateArtifactStatsSerializationTest extends Specification {
     def 'stats are sent as a nested object with integer sizes'() {
         given:
         CreateArtifactRequestBody body = new CreateArtifactRequestBody(path: 's3://bucket/dir')
-        body.putKwargsItem('stats', new ArtifactStats(3L, 'YNCwyFw7rBegqZLBVEckCg', 'md5-d', 2L).toKwargs())
+        body.putKwargsItem('_stats', new ArtifactStats(3L, 'YNCwyFw7rBegqZLBVEckCg', 'md5-d', 2L).toKwargs())
         body.putKwargsItem('skip_check_exists', true)
 
         when:
@@ -39,19 +39,19 @@ class CreateArtifactStatsSerializationTest extends Specification {
         then:
         json.contains('"size":3')
         json.contains('"n_files":2')
-        parsed.kwargs.stats == [size: 3, hash: 'YNCwyFw7rBegqZLBVEckCg', hash_type: 'md5-d', n_files: 2]
+        parsed.kwargs._stats == [size: 3, hash: 'YNCwyFw7rBegqZLBVEckCg', hash_type: 'md5-d', n_files: 2]
         parsed.kwargs.skip_check_exists == true
     }
 
     def 'a null n_files is omitted from the wire, so the server must read it with .get()'() {
         given:
         CreateArtifactRequestBody body = new CreateArtifactRequestBody(path: 's3://bucket/file.txt')
-        body.putKwargsItem('stats', new ArtifactStats(3L, 'kAFQmDzST7DWlj99KOF_cg', 'md5', null).toKwargs())
+        body.putKwargsItem('_stats', new ArtifactStats(3L, 'kAFQmDzST7DWlj99KOF_cg', 'md5', null).toKwargs())
 
         when:
         Map parsed = new JsonSlurper().parseText(body.toJson()) as Map
 
         then:
-        parsed.kwargs.stats.keySet() == ['size', 'hash', 'hash_type'] as Set
+        parsed.kwargs._stats.keySet() == ['size', 'hash', 'hash_type'] as Set
     }
 }

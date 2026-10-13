@@ -468,7 +468,7 @@ class LaminRunManagerTest extends Specification {
     // ========== artifact stats ==========
 
     private static final ArtifactStats STATS = new ArtifactStats(3L, 'kAFQmDzST7DWlj99KOF_cg', 'md5', null)
-    private static final String STATS_REJECTED = '{"detail":"Only key, description, kind, run can be passed, you passed: {\'stats\': {\'size\': 3}}"}'
+    private static final String STATS_REJECTED = '{"detail":"Only key, description, kind, run can be passed, you passed: {\'_stats\': {\'size\': 3}}"}'
 
     private LaminRunManager statsManager(Instance mockInstance, ArtifactStatsResolver resolver, Map extraConfig = [:]) {
         def manager = LaminRunManager.instance
@@ -493,7 +493,7 @@ class LaminRunManagerTest extends Specification {
         then:
         1 * resolver.resolve(path, false) >> STATS
         1 * mockInstance.createArtifact({ Map args ->
-            args.stats == [size: 3L, hash: 'kAFQmDzST7DWlj99KOF_cg', hash_type: 'md5', n_files: null] &&
+            args._stats == [size: 3L, hash: 'kAFQmDzST7DWlj99KOF_cg', hash_type: 'md5', n_files: null] &&
             args.skip_check_exists == true &&
             args.path == 's3://bucket/out.txt' &&
             !args.containsKey('direction')
@@ -530,7 +530,7 @@ class LaminRunManagerTest extends Specification {
         def result = manager.fetchOrCreateArtifact([path: remotePath('s3://bucket/out.txt'), run_id: 1, direction: 'output'])
 
         then:
-        1 * mockInstance.createArtifact({ Map args -> !args.containsKey('stats') && !args.containsKey('skip_check_exists') }) >> [uid: 'A1', id: 11, run: 1]
+        1 * mockInstance.createArtifact({ Map args -> !args.containsKey('_stats') && !args.containsKey('skip_check_exists') }) >> [uid: 'A1', id: 11, run: 1]
         result.uid == 'A1'
 
         where:
@@ -549,7 +549,7 @@ class LaminRunManagerTest extends Specification {
 
         then:
         0 * resolver.resolve(*_)
-        2 * mockInstance.createArtifact({ Map args -> !args.containsKey('stats') }) >> [uid: 'A1', id: 11, run: 1]
+        2 * mockInstance.createArtifact({ Map args -> !args.containsKey('_stats') }) >> [uid: 'A1', id: 11, run: 1]
     }
 
     def 'fetchOrCreateArtifact honours the per-direction stats setting'() {
@@ -565,8 +565,8 @@ class LaminRunManagerTest extends Specification {
         then:
         0 * resolver.resolve(_, true)
         1 * resolver.resolve(_, false) >> STATS
-        1 * mockInstance.createArtifact({ Map args -> args.run_id == null && !args.containsKey('stats') }) >> [uid: 'A1', id: 11]
-        1 * mockInstance.createArtifact({ Map args -> args.run_id == 1 && args.stats != null }) >> [uid: 'A2', id: 12, run: 1]
+        1 * mockInstance.createArtifact({ Map args -> args.run_id == null && !args.containsKey('_stats') }) >> [uid: 'A1', id: 11]
+        1 * mockInstance.createArtifact({ Map args -> args.run_id == 1 && args._stats != null }) >> [uid: 'A2', id: 12, run: 1]
     }
 
     def 'fetchOrCreateArtifact retries without stats when the server rejects them'() {
@@ -581,13 +581,13 @@ class LaminRunManagerTest extends Specification {
 
         then: 'the first path is retried without stats'
         1 * resolver.resolve(_, _) >> STATS
-        1 * mockInstance.createArtifact({ Map a -> a.path == 's3://bucket/a.txt' && a.containsKey('stats') }) >> {
+        1 * mockInstance.createArtifact({ Map a -> a.path == 's3://bucket/a.txt' && a.containsKey('_stats') }) >> {
             throw new ApiException(400, 'Bad Request', null, STATS_REJECTED)
         }
-        1 * mockInstance.createArtifact({ Map a -> a.path == 's3://bucket/a.txt' && !a.containsKey('stats') && !a.containsKey('skip_check_exists') }) >> [uid: 'A1', id: 11, run: 1]
+        1 * mockInstance.createArtifact({ Map a -> a.path == 's3://bucket/a.txt' && !a.containsKey('_stats') && !a.containsKey('skip_check_exists') }) >> [uid: 'A1', id: 11, run: 1]
 
         and: 'later paths skip stats for the rest of the run'
-        1 * mockInstance.createArtifact({ Map a -> a.path == 's3://bucket/b.txt' && !a.containsKey('stats') }) >> [uid: 'A2', id: 12, run: 1]
+        1 * mockInstance.createArtifact({ Map a -> a.path == 's3://bucket/b.txt' && !a.containsKey('_stats') }) >> [uid: 'A2', id: 12, run: 1]
         first.uid == 'A1'
         second.uid == 'A2'
     }
@@ -607,7 +607,7 @@ class LaminRunManagerTest extends Specification {
         1 * mockInstance.createArtifact({ Map a -> a.path == 's3://bucket/a.txt' }) >> {
             throw new ApiException(400, 'Bad Request', null, '{"detail":"ValidationError: key must not be empty"}')
         }
-        1 * mockInstance.createArtifact({ Map a -> a.path == 's3://bucket/b.txt' && a.containsKey('stats') }) >> [uid: 'A2', id: 12, run: 1]
+        1 * mockInstance.createArtifact({ Map a -> a.path == 's3://bucket/b.txt' && a.containsKey('_stats') }) >> [uid: 'A2', id: 12, run: 1]
         first == null
         second.uid == 'A2'
     }
@@ -650,7 +650,7 @@ class LaminRunManagerTest extends Specification {
 
         then:
         1 * resolver.resolve(_, true) >> STATS
-        1 * mockInstance.createArtifact({ Map args -> args.stats != null && args.run_id == null }) >> [uid: 'A1', id: 11]
+        1 * mockInstance.createArtifact({ Map args -> args._stats != null && args.run_id == null }) >> [uid: 'A1', id: 11]
         result.uid == 'A1'
     }
 
