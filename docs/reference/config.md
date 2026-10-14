@@ -1,3 +1,8 @@
+---
+myst:
+  heading_anchors: 3
+---
+
 # Nextflow config
 
 All `nf-lamin` configuration lives in the `lamin {}` scope of your `nextflow.config`.
