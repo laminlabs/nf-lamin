@@ -549,37 +549,4 @@ class ArtifactConfigTest extends Specification {
         result[0].evaluation.shouldTrack
         result[0].evaluation.kind == 'dataset'
     }
-
-    // ========== stats option ==========
-
-    def "should compute artifact stats by default"() {
-        expect:
-        new ArtifactConfig([:], 'both').stats == 'always'
-    }
-
-    @Unroll
-    def "should accept stats = '#value' for direction '#direction'"() {
-        expect:
-        new ArtifactConfig([stats: value], direction).stats == value
-
-        where:
-        value    | direction
-        'always' | 'both'
-        'never'  | 'both'
-        'never'  | 'input'
-        'always' | 'output'
-    }
-
-    @Unroll
-    def "should reject stats = #value"() {
-        when:
-        new ArtifactConfig([stats: value], 'both')
-
-        then:
-        def e = thrown(IllegalArgumentException)
-        e.message.contains("'always' or 'never'")
-
-        where:
-        value << ['sometimes', '', null, true]
-    }
 }

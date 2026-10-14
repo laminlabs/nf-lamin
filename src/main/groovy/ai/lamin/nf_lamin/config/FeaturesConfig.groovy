@@ -57,18 +57,27 @@ class FeaturesConfig {
     ''')
     final Boolean use_output_labels
 
+    @ConfigOption
+    @Description('''
+        Compute the size and hash of s3:// and lamin-s3:// artifacts in the plugin
+        and pass them to LaminDB (default: true). Needed when Lamin Hub cannot read
+        the storage location. Disable this to skip the extra S3 calls.
+    ''')
+    final Boolean enable_artifact_hashing
+
     /**
      * Default constructor
      */
     FeaturesConfig() {
         this.manage_s3_credentials = true
         this.use_output_labels = true
+        this.enable_artifact_hashing = true
     }
 
     /**
      * Create a FeaturesConfig from a configuration map.
      *
-     * @param opts Configuration map with keys: manage_s3_credentials, publish_dir_labels
+     * @param opts Configuration map with keys: manage_s3_credentials, use_output_labels, enable_artifact_hashing
      */
     FeaturesConfig(Map opts) {
         this.manage_s3_credentials = opts?.containsKey('manage_s3_credentials')
@@ -77,10 +86,13 @@ class FeaturesConfig {
         this.use_output_labels = opts?.containsKey('use_output_labels')
             ? (opts.use_output_labels as Boolean)
             : true
+        this.enable_artifact_hashing = opts?.containsKey('enable_artifact_hashing')
+            ? (opts.enable_artifact_hashing as Boolean)
+            : true
     }
 
     @Override
     String toString() {
-        return "FeaturesConfig{manage_s3_credentials=${manage_s3_credentials}, use_output_labels=${use_output_labels}}"
+        return "FeaturesConfig{manage_s3_credentials=${manage_s3_credentials}, use_output_labels=${use_output_labels}, enable_artifact_hashing=${enable_artifact_hashing}}"
     }
 }

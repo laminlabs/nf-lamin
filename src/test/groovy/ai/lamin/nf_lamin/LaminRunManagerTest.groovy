@@ -537,36 +537,20 @@ class LaminRunManagerTest extends Specification {
         resolved << [null, new ArtifactStats(0L, null, null, 0L)]
     }
 
-    def 'fetchOrCreateArtifact skips stats when disabled in config'() {
+    def 'fetchOrCreateArtifact skips stats when artifact hashing is disabled'() {
         given:
         def mockInstance = Mock(Instance)
         def resolver = Mock(ArtifactStatsResolver)
-        def manager = statsManager(mockInstance, resolver, [artifacts: [stats: 'never']])
+        def manager = statsManager(mockInstance, resolver, [features: [enable_artifact_hashing: false]])
 
         when:
+        manager.fetchOrCreateArtifact([path: remotePath('s3://bucket/in.txt'), direction: 'input'])
         manager.fetchOrCreateArtifact([path: remotePath('s3://bucket/out.txt'), run_id: 1, direction: 'output'])
         manager.fetchOrCreateArtifact([path: remotePath('s3://bucket/other.txt'), run_id: 1])
 
         then:
         0 * resolver.resolve(*_)
-        2 * mockInstance.createArtifact({ Map args -> !args.containsKey('_stats') }) >> [uid: 'A1', id: 11, run: 1]
-    }
-
-    def 'fetchOrCreateArtifact honours the per-direction stats setting'() {
-        given:
-        def mockInstance = Mock(Instance)
-        def resolver = Mock(ArtifactStatsResolver)
-        def manager = statsManager(mockInstance, resolver, [input_artifacts: [stats: 'never']])
-
-        when:
-        manager.fetchOrCreateArtifact([path: remotePath('s3://bucket/in.txt'), direction: 'input'])
-        manager.fetchOrCreateArtifact([path: remotePath('s3://bucket/out.txt'), run_id: 1, direction: 'output'])
-
-        then:
-        0 * resolver.resolve(_, true)
-        1 * resolver.resolve(_, false) >> STATS
-        1 * mockInstance.createArtifact({ Map args -> args.run_id == null && !args.containsKey('_stats') }) >> [uid: 'A1', id: 11]
-        1 * mockInstance.createArtifact({ Map args -> args.run_id == 1 && args._stats != null }) >> [uid: 'A2', id: 12, run: 1]
+        3 * mockInstance.createArtifact({ Map args -> !args.containsKey('_stats') }) >> [uid: 'A1', id: 11, run: 1]
     }
 
     def 'fetchOrCreateArtifact retries without stats when the server rejects them'() {

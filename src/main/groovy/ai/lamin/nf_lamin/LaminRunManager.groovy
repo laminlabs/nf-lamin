@@ -1396,15 +1396,6 @@ final class LaminRunManager {
     }
 
     /**
-     * Whether client-side stats are enabled for artifacts of the given direction.
-     */
-    private boolean statsEnabled(String direction) {
-        ArtifactConfig ac = direction != null ? resolveArtifactConfig(direction) : config?.getArtifacts()
-        String mode = ac != null ? ac.stats : 'always'
-        return mode != 'never'
-    }
-
-    /**
      * Whether the API rejected the request because its lamindb does not know the `_stats` kwarg.
      */
     static boolean isStatsRejected(ApiException e) {
@@ -1723,8 +1714,7 @@ final class LaminRunManager {
      *   - description (String, optional): A description for the artifact
      *   - kind (String, optional): The artifact kind (e.g., 'dataset', 'model')
      *   - key (String, optional): The artifact key (a human-readable identifier). Defaults to the filename.
-     *   - direction (String, optional): 'input' or 'output'; selects the artifact config that decides
-     *     whether stats are computed, and lets input stats be cached across tasks
+     *   - direction (String, optional): 'input' or 'output'; lets input stats be cached across tasks
      * @return the artifact map if created or found, null on failure
      */
     Map<String, Object> fetchOrCreateArtifact(Map<String, Object> params) {
@@ -1816,7 +1806,7 @@ final class LaminRunManager {
 
             // compute size and hash client-side so the hub can store them without reading storage
             ArtifactStats stats = null
-            if (statsSupported.get() && statsEnabled(direction)) {
+            if (statsSupported.get() && config?.features?.enable_artifact_hashing != false) {
                 ArtifactStats resolved = statsResolver.resolve(path, direction == 'input')
                 if (resolved != null && resolved.hasHash()) {
                     stats = resolved
@@ -1834,7 +1824,7 @@ final class LaminRunManager {
                 }
                 // the instance's lamindb predates Artifact(_stats=...): retry once without and stop sending them
                 if (statsSupported.compareAndSet(true, false)) {
-                    log.warn "LaminDB rejected client-side artifact stats; using server-side stats for the rest of this run. Upgrade the instance or set lamin.artifacts.stats = 'never' to silence this."
+                    log.warn "LaminDB rejected client-side artifact stats; using server-side stats for the rest of this run. Upgrade the instance or set lamin.features.enable_artifact_hashing = false to silence this."
                 }
                 Map<String, Object> retryParams = new LinkedHashMap<String, Object>(apiParams)
                 retryParams.remove('_stats')
