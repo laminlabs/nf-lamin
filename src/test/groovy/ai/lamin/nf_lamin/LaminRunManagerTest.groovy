@@ -1,6 +1,9 @@
 package ai.lamin.nf_lamin
 
+import ai.lamin.lamin_api_client.ApiException
 import ai.lamin.nf_lamin.instance.Instance
+import ai.lamin.nf_lamin.model.ArtifactStats
+import ai.lamin.nf_lamin.util.ArtifactStatsResolver
 import ai.lamin.nf_lamin.model.ArtifactAnnotation
 import ai.lamin.nf_lamin.model.RunStatus
 import nextflow.Session
@@ -20,6 +23,8 @@ class LaminRunManagerTest extends Specification {
 
     def setup() {
         LaminRunManager.instance.reset()
+        // keep the mocked s3 paths of these tests away from real credentials and S3
+        injectField(LaminRunManager.instance, 'statsResolver', Stub(ArtifactStatsResolver) { resolve(_, _) >> null })
     }
 
     private static void injectField(Object target, String fieldName, Object value) {
@@ -458,5 +463,230 @@ class LaminRunManagerTest extends Specification {
         then:
         readKeys('matchedAnnotationKeys') == ['s3://bucket/work/published.json'] as Set
         readKeys('pendingAnnotations').contains('s3://bucket/work/dropped.json')
+    }
+
+    // ========== artifact stats ==========
+
+    private static final ArtifactStats STATS = new ArtifactStats(3L, 'kAFQmDzST7DWlj99KOF_cg', 'md5', null)
+    private static final String STATS_REJECTED = '{"detail":"Only key, description, kind, run can be passed, you passed: {\'_stats\': {\'size\': 3}}"}'
+
+    private LaminRunManager statsManager(Instance mockInstance, ArtifactStatsResolver resolver, Map extraConfig = [:]) {
+        def manager = LaminRunManager.instance
+        manager.setCurrentInstance(mockInstance)
+        injectField(manager, 'config', new LaminConfig([instance: 'org/inst', api_key: 'key'] + extraConfig))
+        injectField(manager, 'statsResolver', resolver)
+        mockInstance.getOwner() >> 'org'
+        mockInstance.getName() >> 'inst'
+        return manager
+    }
+
+    def 'fetchOrCreateArtifact passes client-side stats to createArtifact'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def resolver = Mock(ArtifactStatsResolver)
+        def manager = statsManager(mockInstance, resolver)
+        def path = remotePath('s3://bucket/out.txt')
+
+        when:
+        def result = manager.fetchOrCreateArtifact([path: path, run_id: 1, direction: 'output'])
+
+        then:
+        1 * resolver.resolve(path, false) >> STATS
+        1 * mockInstance.createArtifact({ Map args ->
+            args._stats == [size: 3L, hash: 'kAFQmDzST7DWlj99KOF_cg', hash_type: 'md5', n_files: null] &&
+            args.skip_check_exists == true &&
+            args.path == 's3://bucket/out.txt' &&
+            !args.containsKey('direction')
+        }) >> [uid: 'A1', id: 11, run: 1, hash: 'kAFQmDzST7DWlj99KOF_cg']
+        result.uid == 'A1'
+    }
+
+    def 'fetchOrCreateArtifact caches stats for inputs only'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def resolver = Mock(ArtifactStatsResolver)
+        def manager = statsManager(mockInstance, resolver)
+        def path = remotePath('s3://bucket/in.txt')
+
+        when:
+        manager.fetchOrCreateArtifact([path: path, direction: 'input'])
+        manager.fetchOrCreateArtifact([path: path, run_id: 1, direction: 'output'])
+        manager.fetchOrCreateArtifact([path: path, run_id: 1])
+
+        then:
+        1 * resolver.resolve(path, true) >> STATS
+        2 * resolver.resolve(path, false) >> STATS
+        3 * mockInstance.createArtifact(_) >> [uid: 'A1', id: 11, run: 1]
+    }
+
+    def 'fetchOrCreateArtifact sends no stats when the resolver has none'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def resolver = Mock(ArtifactStatsResolver)
+        def manager = statsManager(mockInstance, resolver)
+        resolver.resolve(_, _) >> resolved
+
+        when:
+        def result = manager.fetchOrCreateArtifact([path: remotePath('s3://bucket/out.txt'), run_id: 1, direction: 'output'])
+
+        then:
+        1 * mockInstance.createArtifact({ Map args -> !args.containsKey('_stats') && !args.containsKey('skip_check_exists') }) >> [uid: 'A1', id: 11, run: 1]
+        result.uid == 'A1'
+
+        where:
+        resolved << [null, new ArtifactStats(0L, null, null, 0L)]
+    }
+
+    def 'fetchOrCreateArtifact skips stats when artifact hashing is disabled'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def resolver = Mock(ArtifactStatsResolver)
+        def manager = statsManager(mockInstance, resolver, [features: [enable_artifact_hashing: false]])
+
+        when:
+        manager.fetchOrCreateArtifact([path: remotePath('s3://bucket/in.txt'), direction: 'input'])
+        manager.fetchOrCreateArtifact([path: remotePath('s3://bucket/out.txt'), run_id: 1, direction: 'output'])
+        manager.fetchOrCreateArtifact([path: remotePath('s3://bucket/other.txt'), run_id: 1])
+
+        then:
+        0 * resolver.resolve(*_)
+        3 * mockInstance.createArtifact({ Map args -> !args.containsKey('_stats') }) >> [uid: 'A1', id: 11, run: 1]
+    }
+
+    def 'fetchOrCreateArtifact retries without stats when the server rejects them'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def resolver = Mock(ArtifactStatsResolver)
+        def manager = statsManager(mockInstance, resolver)
+
+        when:
+        def first = manager.fetchOrCreateArtifact([path: remotePath('s3://bucket/a.txt'), run_id: 1, direction: 'output'])
+        def second = manager.fetchOrCreateArtifact([path: remotePath('s3://bucket/b.txt'), run_id: 1, direction: 'output'])
+
+        then: 'the first path is retried without stats'
+        1 * resolver.resolve(_, _) >> STATS
+        1 * mockInstance.createArtifact({ Map a -> a.path == 's3://bucket/a.txt' && a.containsKey('_stats') }) >> {
+            throw new ApiException(400, 'Bad Request', null, STATS_REJECTED)
+        }
+        1 * mockInstance.createArtifact({ Map a -> a.path == 's3://bucket/a.txt' && !a.containsKey('_stats') && !a.containsKey('skip_check_exists') }) >> [uid: 'A1', id: 11, run: 1]
+
+        and: 'later paths skip stats for the rest of the run'
+        1 * mockInstance.createArtifact({ Map a -> a.path == 's3://bucket/b.txt' && !a.containsKey('_stats') }) >> [uid: 'A2', id: 12, run: 1]
+        first.uid == 'A1'
+        second.uid == 'A2'
+    }
+
+    def 'fetchOrCreateArtifact does not retry other bad requests'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def resolver = Mock(ArtifactStatsResolver)
+        def manager = statsManager(mockInstance, resolver)
+
+        when:
+        def first = manager.fetchOrCreateArtifact([path: remotePath('s3://bucket/a.txt'), run_id: 1, direction: 'output'])
+        def second = manager.fetchOrCreateArtifact([path: remotePath('s3://bucket/b.txt'), run_id: 1, direction: 'output'])
+
+        then:
+        2 * resolver.resolve(_, _) >> STATS
+        1 * mockInstance.createArtifact({ Map a -> a.path == 's3://bucket/a.txt' }) >> {
+            throw new ApiException(400, 'Bad Request', null, '{"detail":"ValidationError: key must not be empty"}')
+        }
+        1 * mockInstance.createArtifact({ Map a -> a.path == 's3://bucket/b.txt' && a.containsKey('_stats') }) >> [uid: 'A2', id: 12, run: 1]
+        first == null
+        second.uid == 'A2'
+    }
+
+    def 'fetchOrCreateArtifact does not retry server errors'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def resolver = Mock(ArtifactStatsResolver)
+        def manager = statsManager(mockInstance, resolver)
+        resolver.resolve(_, _) >> STATS
+
+        when:
+        def result = manager.fetchOrCreateArtifact([path: remotePath('s3://bucket/a.txt'), run_id: 1, direction: 'output'])
+
+        then:
+        1 * mockInstance.createArtifact(_) >> { throw new ApiException(500, 'Internal Server Error', null, 'boom') }
+        result == null
+    }
+
+    def 'fetchOrCreateArtifact rejects an unknown direction'() {
+        given:
+        def manager = statsManager(Mock(Instance), Mock(ArtifactStatsResolver))
+
+        when:
+        manager.fetchOrCreateArtifact([path: remotePath('s3://bucket/a.txt'), direction: 'sideways'])
+
+        then:
+        thrown(IllegalArgumentException)
+    }
+
+    def 'createInputArtifact asks for cached stats'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def resolver = Mock(ArtifactStatsResolver)
+        def manager = statsManager(mockInstance, resolver)
+        injectField(manager, 'run', [uid: 'R1', id: 1])
+
+        when:
+        def result = manager.createInputArtifact(remotePath('s3://bucket/in.txt'))
+
+        then:
+        1 * resolver.resolve(_, true) >> STATS
+        1 * mockInstance.createArtifact({ Map args -> args._stats != null && args.run_id == null }) >> [uid: 'A1', id: 11]
+        result.uid == 'A1'
+    }
+
+    /** Records the resolver calls the manager makes, in order. */
+    static class RecordingResolver extends ArtifactStatsResolver {
+        final List<String> events = []
+
+        @Override
+        ArtifactStats resolve(Path path, boolean cache) {
+            events << 'resolve'
+            return null
+        }
+
+        @Override
+        void close() {
+            events << 'close'
+        }
+    }
+
+    def 'awaitArtifactTasks keeps the stats resolver for the report artifact'() {
+        given:
+        def resolver = new RecordingResolver()
+        def manager = statsManager(Mock(Instance), resolver)
+
+        when:
+        manager.awaitArtifactTasks()
+
+        then:
+        resolver.events == []
+    }
+
+    def 'finalizeRun closes the stats resolver after updating the run'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def resolver = new RecordingResolver()
+        def manager = statsManager(mockInstance, resolver)
+        injectField(manager, 'run', [uid: 'R456', id: 99] as Map<String, Object>)
+        def metadata = Stub(WorkflowMetadata) {
+            getStart() >> OffsetDateTime.now()
+            getComplete() >> OffsetDateTime.now()
+        }
+        injectField(manager, 'session', Stub(Session) {
+            getWorkflowMetadata() >> metadata
+            isSuccess() >> true
+            getConfig() >> [:]
+        })
+        mockInstance.updateRecord(_) >> { resolver.events << 'updateRecord'; [uid: 'R456'] }
+
+        when:
+        manager.finalizeRun()
+
+        then:
+        resolver.events == ['updateRecord', 'close']
     }
 }
