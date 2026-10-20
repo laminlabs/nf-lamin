@@ -1806,16 +1806,9 @@ final class LaminRunManager {
 
             // compute size and hash client-side so the hub can store them without reading storage
             ArtifactStats stats = null
-            if (config?.features?.enable_artifact_hashing != false) {
+            if (statsSupported.get() && config?.features?.enable_artifact_hashing != false) {
                 ArtifactStats resolved = statsResolver.resolve(path, direction == 'input')
-                boolean sendStats = statsSupported.get()
-                if (resolved?.directoryMarkersIgnored && (resolved.nFiles == 0L || !sendStats)) {
-                    log.warn "Not registering ${pathStr}: " + (resolved.nFiles == 0L
-                        ? 'only S3 directory markers remain'
-                        : 'the server does not accept filtered statistics')
-                    return null
-                }
-                if (sendStats && resolved != null && resolved.hasHash()) {
+                if (resolved != null && resolved.hasHash()) {
                     stats = resolved
                     apiParams.put('_stats', stats.toKwargs())
                     apiParams.put('skip_check_exists', true)
@@ -1828,10 +1821,6 @@ final class LaminRunManager {
             } catch (ApiException e) {
                 if (stats == null || !isStatsRejected(e)) {
                     throw e
-                }
-                if (stats.directoryMarkersIgnored) {
-                    log.error "Not registering ${pathStr}: upgrade the instance to accept filtered client-side directory stats"
-                    return null
                 }
                 // the instance's lamindb predates Artifact(_stats=...): retry once without and stop sending them
                 if (statsSupported.compareAndSet(true, false)) {

@@ -101,12 +101,11 @@ class ArtifactStatsResolverTest extends Specification {
         stats == new ArtifactStats(2L, 'YNCwyFw7rBegqZLBVEckCg', 'md5-d', 2L)
     }
 
-    def 'directory stats ignore zero-byte slash markers but preserve empty files and nonempty slash objects'() {
+    def 'directory counts exclude zero-byte slash markers without changing size or hash'() {
         given:
         s3Client.headObject(_ as HeadObjectRequest) >> { throw notFound() }
         s3Client.listObjectsV2(_ as ListObjectsV2Request) >> ListObjectsV2Response.builder().contents(
-            S3Object.builder().key('dir/').size(0L).build(),
-            S3Object.builder().key('dir/sub/').size(0L).build(),
+            obj('dir/', 0L, md5Hex('')), obj('dir/sub/', 0L, md5Hex('')),
             obj('dir/a', 1L, HEX_A), obj('dir/sub/b', 1L, HEX_B),
             obj('dir/empty.txt', 0L, md5Hex('')), obj('dir/data/', 7L, HEX_ABC)
         ).isTruncated(false).build()
@@ -115,12 +114,11 @@ class ArtifactStatsResolverTest extends Specification {
         ArtifactStats stats = resolver.resolveS3('b', 'dir')
 
         then:
-        stats.toKwargs() == LaminHashing.fromEtags(9L, [HEX_A, HEX_B, md5Hex(''), HEX_ABC]).toKwargs()
-        stats.directoryMarkersIgnored
+        stats.toKwargs() == LaminHashing.fromEtags(9L, [md5Hex(''), md5Hex(''), HEX_A, HEX_B, md5Hex(''), HEX_ABC]).toKwargs() + [n_files: 4L]
         0 * s3Client.deleteObject(*_)
     }
 
-    def 'directory stats skip markers across pages without losing real files'() {
+    def 'directory counts exclude markers across pages without changing the hash'() {
         given:
         s3Client.headObject(_ as HeadObjectRequest) >> { throw notFound() }
         s3Client.listObjectsV2(_ as ListObjectsV2Request) >> { ListObjectsV2Request request ->
@@ -133,17 +131,17 @@ class ArtifactStatsResolverTest extends Specification {
         }
 
         expect:
-        resolver.resolveS3('b', 'dir') == new ArtifactStats(2L, 'YNCwyFw7rBegqZLBVEckCg', 'md5-d', 2L, true)
+        resolver.resolveS3('b', 'dir') == new ArtifactStats(2L, LaminHashing.fromEtags(2L, [HEX_A, HEX_A, HEX_B]).hash, 'md5-d', 2L)
     }
 
-    def 'marker-only prefixes have no file stats and do not become an unknown result'() {
+    def 'marker-only prefixes retain their hash and have a zero file count'() {
         given:
         s3Client.headObject(_ as HeadObjectRequest) >> { throw notFound() }
         s3Client.listObjectsV2(_ as ListObjectsV2Request) >> ListObjectsV2Response.builder()
             .contents(obj('dir/', 0L, HEX_A), obj('dir/empty/', 0L, HEX_B)).isTruncated(false).build()
 
         expect:
-        resolver.resolveS3('b', 'dir') == new ArtifactStats(0L, null, null, 0L, true)
+        resolver.resolveS3('b', 'dir') == new ArtifactStats(0L, 'YNCwyFw7rBegqZLBVEckCg', 'md5-d', 0L)
     }
 
     def 'resolveS3 treats a generic 404 like a missing key'() {

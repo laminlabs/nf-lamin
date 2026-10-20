@@ -36,15 +36,12 @@ final class ArtifactStats {
     final String hash
     final String hashType
     final Long nFiles
-    // Filtered directory stats must not fall back to an unfiltered server scan.
-    final boolean directoryMarkersIgnored
 
-    ArtifactStats(Long size, String hash, String hashType, Long nFiles, boolean directoryMarkersIgnored = false) {
+    ArtifactStats(Long size, String hash, String hashType, Long nFiles) {
         this.size = size
         this.hash = hash
         this.hashType = hashType
         this.nFiles = nFiles
-        this.directoryMarkersIgnored = directoryMarkersIgnored
     }
 
     boolean hasHash() {

@@ -170,7 +170,7 @@ class ArtifactStatsResolver implements Closeable {
     private static ArtifactStats listPrefix(AwsS3Client client, String bucket, String prefix) {
         long size = 0
         List<String> etags = []
-        boolean ignoredMarkers = false
+        long markerCount = 0
         String token = null
         while (true) {
             ListObjectsV2Request request = ListObjectsV2Request.builder()
@@ -181,8 +181,7 @@ class ArtifactStatsResolver implements Closeable {
             ListObjectsV2Response page = client.listObjectsV2(request)
             for (S3Object object : page.contents()) {
                 if (object.size() == 0L && object.key().endsWith('/')) {
-                    ignoredMarkers = true
-                    continue
+                    markerCount++
                 }
                 size += object.size() ?: 0L
                 etags.add(object.eTag())
@@ -193,10 +192,10 @@ class ArtifactStatsResolver implements Closeable {
             token = page.nextContinuationToken()
         }
         if (etags.isEmpty()) {
-            return ignoredMarkers ? new ArtifactStats(0L, null, null, 0L, true) : null
+            return null
         }
         ArtifactStats stats = LaminHashing.fromEtags(size, etags)
-        return new ArtifactStats(stats.size, stats.hash, stats.hashType, stats.nFiles, ignoredMarkers)
+        return new ArtifactStats(stats.size, stats.hash, stats.hashType, stats.nFiles - markerCount)
     }
 
     private AwsS3Client getDefaultClient() {
