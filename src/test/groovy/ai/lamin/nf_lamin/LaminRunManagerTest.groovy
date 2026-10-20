@@ -564,7 +564,7 @@ class LaminRunManagerTest extends Specification {
         def second = manager.fetchOrCreateArtifact([path: remotePath('s3://bucket/b.txt'), run_id: 1, direction: 'output'])
 
         then: 'the first path is retried without stats'
-        1 * resolver.resolve(_, _) >> STATS
+        2 * resolver.resolve(_, _) >> STATS
         1 * mockInstance.createArtifact({ Map a -> a.path == 's3://bucket/a.txt' && a.containsKey('_stats') }) >> {
             throw new ApiException(400, 'Bad Request', null, STATS_REJECTED)
         }
@@ -574,6 +574,80 @@ class LaminRunManagerTest extends Specification {
         1 * mockInstance.createArtifact({ Map a -> a.path == 's3://bucket/b.txt' && !a.containsKey('_stats') }) >> [uid: 'A2', id: 12, run: 1]
         first.uid == 'A1'
         second.uid == 'A2'
+    }
+
+    def 'filtered directory stats are sent without marker metadata in the API payload'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def resolver = Mock(ArtifactStatsResolver)
+        def manager = statsManager(mockInstance, resolver)
+        resolver.resolve(_, _) >> new ArtifactStats(2L, 'YNCwyFw7rBegqZLBVEckCg', 'md5-d', 2L, true)
+
+        when:
+        def result = manager.fetchOrCreateArtifact([path: remotePath('s3://bucket/dir'), run_id: 1, direction: 'output'])
+
+        then:
+        1 * mockInstance.createArtifact({ Map args ->
+            args._stats == [size: 2L, hash: 'YNCwyFw7rBegqZLBVEckCg', hash_type: 'md5-d', n_files: 2L]
+        }) >> [uid: 'A1', id: 11, run: 1]
+        result.uid == 'A1'
+    }
+
+    def 'marker-only directory stats prevent registration instead of falling back to the server'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def resolver = Mock(ArtifactStatsResolver)
+        def manager = statsManager(mockInstance, resolver)
+        resolver.resolve(_, _) >> new ArtifactStats(0L, null, null, 0L, true)
+
+        when:
+        def result = manager.fetchOrCreateArtifact([path: remotePath('s3://bucket/dir'), run_id: 1, direction: 'output'])
+
+        then:
+        result == null
+        0 * mockInstance.createArtifact(_)
+    }
+
+    def 'filtered directories are not retried without stats on older servers'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def resolver = Mock(ArtifactStatsResolver)
+        def manager = statsManager(mockInstance, resolver)
+        resolver.resolve(_, _) >> new ArtifactStats(2L, 'YNCwyFw7rBegqZLBVEckCg', 'md5-d', 2L, true)
+
+        when:
+        def result = manager.fetchOrCreateArtifact([path: remotePath('s3://bucket/dir'), run_id: 1, direction: 'output'])
+
+        then:
+        1 * mockInstance.createArtifact({ Map args -> args.containsKey('_stats') }) >> {
+            throw new ApiException(400, 'Bad Request', null, STATS_REJECTED)
+        }
+        0 * mockInstance.createArtifact({ Map args -> !args.containsKey('_stats') })
+        result == null
+    }
+
+    def 'filtered directories are skipped after a different path disables client stats support'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def resolver = Mock(ArtifactStatsResolver)
+        def manager = statsManager(mockInstance, resolver)
+        def file = remotePath('s3://bucket/a.txt')
+        def directory = remotePath('s3://bucket/dir')
+
+        when:
+        def first = manager.fetchOrCreateArtifact([path: file, run_id: 1, direction: 'output'])
+        def second = manager.fetchOrCreateArtifact([path: directory, run_id: 1, direction: 'output'])
+
+        then:
+        1 * resolver.resolve(file, false) >> STATS
+        1 * mockInstance.createArtifact({ Map args -> args.path.endsWith('a.txt') && args.containsKey('_stats') }) >> {
+            throw new ApiException(400, 'Bad Request', null, STATS_REJECTED)
+        }
+        1 * mockInstance.createArtifact({ Map args -> args.path.endsWith('a.txt') && !args.containsKey('_stats') }) >> [uid: 'A1', id: 11, run: 1]
+        1 * resolver.resolve(directory, false) >> new ArtifactStats(2L, 'YNCwyFw7rBegqZLBVEckCg', 'md5-d', 2L, true)
+        0 * mockInstance.createArtifact({ Map args -> args.path.endsWith('/dir') })
+        first.uid == 'A1'
+        second == null
     }
 
     def 'fetchOrCreateArtifact does not retry other bad requests'() {
