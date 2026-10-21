@@ -48,6 +48,7 @@ class LaminFileSystemProviderTest extends Specification {
         CloudAccessResponse cloudAccess
         LaminS3FileSystemProvider s3Provider
         List<String> storagePathsRequested = []
+        Map<String, Path> storagePaths = [:]
 
         @Override
         Instance getInstance(String owner, String name) { instance }
@@ -67,7 +68,7 @@ class LaminFileSystemProviderTest extends Specification {
         @Override
         protected Path asStoragePath(String uri) {
             storagePathsRequested << uri
-            return Paths.get('/resolved', uri.replaceFirst('^s3://', ''))
+            return storagePaths[uri] ?: Paths.get('/resolved', uri.replaceFirst('^s3://', ''))
         }
     }
 
@@ -162,19 +163,31 @@ class LaminFileSystemProviderTest extends Specification {
         provider.publishTargetFor(null) == null
     }
 
-    def "publishTargetFor finds a target resolved through the standard provider"() {
+    def "publishTargetFor finds a target resolved through the standard provider for prefix '#prefix'"() {
         given:
         def provider = publishProvider('write', [instance: 'laminlabs/lamindata', api_key: 'key', features: [manage_s3_credentials: false]])
-        def published = Mock(Path)
-        published.toAbsolutePath() >> published
-        published.normalize() >> published
-        published.toUri() >> new URI("${STORAGE_ROOT}/results/a.txt")
+        // Standard providers render paths as URIs, so they come back percent-encoded
+        provider.storagePaths["${STORAGE_ROOT}/${prefix}".toString()] = storagePath("${STORAGE_ROOT}/${encoded}")
+        def published = storagePath("${STORAGE_ROOT}/${encoded}/a.txt")
 
         when:
-        provider.getPath(new URI('lamin://laminlabs/lamindata?storage=JwMEKs04D9WJ&prefix=results'))
+        provider.getPath(new URI("lamin://laminlabs/lamindata?storage=JwMEKs04D9WJ&prefix=${encoded}"))
 
         then:
         provider.publishTargetFor(published).spaceId == 5
+
+        where:
+        prefix        | encoded
+        'results'     | 'results'
+        'my results'  | 'my%20results'
+    }
+
+    private Path storagePath(String uri) {
+        def path = Mock(Path)
+        path.toAbsolutePath() >> path
+        path.normalize() >> path
+        path.toUri() >> new URI(uri)
+        return path
     }
 
     def "getPath accepts the admin role for publishing"() {

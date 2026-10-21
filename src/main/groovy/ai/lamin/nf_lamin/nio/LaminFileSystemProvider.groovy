@@ -253,8 +253,8 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
         LaminStorageTarget target = storageResolver.resolve(instance, uri)
         String root = target.storageRoot.replaceFirst('/$', '')
         String storageUri = uri.prefix ? "${root}/${uri.prefix}".toString() : root
-        publishTargets.put(storageUri, target)
 
+        Path path
         ManagedS3 managed = resolveManagedS3(target.storageRoot, target.region)
         if (managed != null) {
             if (!LaminS3FileSystem.WRITE_ROLES.contains(managed.access.role)) {
@@ -263,13 +263,16 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
                     "publishing needs 'write' or 'admin'"
                 )
             }
-            Path path = new LaminS3Path(managed.fileSystem, target.keyFor(uri.prefix))
+            path = new LaminS3Path(managed.fileSystem, target.keyFor(uri.prefix))
             log.debug "Resolved publish target ${uri} to ${path} (Lamin-managed credentials)"
-            return path
+        }
+        else {
+            path = asStoragePath(storageUri)
+            log.debug "Resolved publish target ${uri} to ${path} (standard provider)"
         }
 
-        Path path = asStoragePath(storageUri)
-        log.debug "Resolved publish target ${uri} to ${path} (standard provider)"
+        // Keyed the way publishTargetFor renders paths: standard providers percent-encode them
+        publishTargets.put(PathUtils.toStorageUri(path), target)
         return path
     }
 
