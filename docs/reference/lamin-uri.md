@@ -125,6 +125,8 @@ For LaminHub-managed **S3** storage, the plugin automatically obtains temporary 
 
 The plugin resolves the `lamin://` URI to its storage location (`storageRoot` and key), then calls LaminHub's cloud-access API to get short-lived `AccessKeyId` / `SecretAccessKey` / `SessionToken` credentials scoped to that storage root. Nextflow accesses the files through an internal `lamin-s3://` virtual filesystem backed by those credentials. The credentials are refreshed as needed, so a long-running transfer is not cut short by their expiry.
 
+The same credentials are used to compute the size and hash of artifacts published to a `lamin-s3://` location (see [artifact hashing](config.md#artifact-hashing)).
+
 This feature can be turned off by setting `lamin.features.manage_s3_credentials = false` in `nextflow.config`, in which case the plugin resolves `lamin://` URIs -- for reading and for publishing -- to plain `s3://` paths and lets Nextflow authenticate through the default credential provider chain (environment variables, AWS credentials file, EC2 instance profile, etc).
 
 Storage locations that LaminHub does not manage are always resolved that way, through the `s3://` (nf-amazon) or `gs://` (nf-google) provider and whatever credentials Nextflow is configured with.

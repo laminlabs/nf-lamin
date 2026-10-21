@@ -1,3 +1,8 @@
+---
+myst:
+  heading_anchors: 3
+---
+
 # Nextflow config
 
 All `nf-lamin` configuration lives in the `lamin {}` scope of your `nextflow.config`.
@@ -212,9 +217,10 @@ lamin {
 
 Optional toggles for plugin features.
 
-| Setting                 | Type    | Default | Description                                                                         |
-| ----------------------- | ------- | ------- | ----------------------------------------------------------------------------------- |
-| `manage_s3_credentials` | Boolean | `true`  | Enable automatic credential federation for S3 (see [`lamin://` URIs](lamin-uri.md)) |
+| Setting                   | Type    | Default | Description                                                                                              |
+| ------------------------- | ------- | ------- | -------------------------------------------------------------------------------------------------------- |
+| `manage_s3_credentials`   | Boolean | `true`  | Enable automatic credential federation for S3 (see [`lamin://` URIs](lamin-uri.md))                      |
+| `enable_artifact_hashing` | Boolean | `true`  | Compute the size and hash of `s3://` artifacts in the plugin (see [Artifact hashing](#artifact-hashing)) |
 
 **Example** — disable credential federation if it causes issues in your environment:
 
@@ -231,6 +237,29 @@ When `manage_s3_credentials = false`, the plugin resolves `lamin://` URIs to the
 ### `space_uid` and publish targets
 
 A publish target that names a space (`lamin://owner/instance?space=<uid>`) decides the space of the artifacts published to it, because the storage location it resolves to is the one LaminDB associates with that space. The same holds for a `?storage=<uid>` that sits in a space. `lamin.space_uid` applies to everything else, including publish targets whose storage location is not in a space.
+
+### Artifact hashing
+
+LaminDB stores the size, hash and file count of an artifact. When the Lamin Hub cannot read a storage location (for example a private bucket that is only registered for provenance), it cannot compute them. By default the plugin computes them itself for `s3://` and `lamin-s3://` artifacts, the same way lamindb does, and passes them along when the artifact is created:
+
+- a single object: one `HeadObject` call; the ETag gives the `md5` hash, or `md5-<N>` for a multipart upload
+- a directory-like prefix: a paginated `ListObjectsV2` call; the per-object hashes are combined into an `md5-d` hash, with the summed size and the file count
+
+Other locations (`gs://`, `az://`, `https://`) are left to LaminDB.
+
+**Credentials** — `lamin-s3://` artifacts use the federated credentials of their storage location. Plain `s3://` artifacts use the `aws` scope of `nextflow.config` (`accessKey` / `secretKey` or `profile`, `region`, and `client.endpoint` / `client.s3PathStyleAccess` / `client.anonymous` for S3-compatible stores such as MinIO), else the default AWS credential provider chain, else anonymous access for public buckets. Assumed roles and SSO logins are not supported; when the plugin cannot read an object it silently leaves the size and hash to LaminDB.
+
+**Older instances** — a LaminDB instance older than laminlabs/lamindb#3995 rejects the request. The plugin then warns once, retries without the size and hash and stops sending them for the rest of the run.
+
+Set `enable_artifact_hashing = false` to skip the extra S3 calls altogether:
+
+```groovy
+lamin {
+  features {
+    enable_artifact_hashing = false
+  }
+}
+```
 
 ---
 

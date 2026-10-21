@@ -19,7 +19,9 @@ import ai.lamin.lamin_api_client.ApiException
 import ai.lamin.nf_lamin.LaminConfig
 import ai.lamin.nf_lamin.hub.LaminHub
 import ai.lamin.nf_lamin.hub.LaminHubSettings
+import ai.lamin.nf_lamin.model.ArtifactStats
 import ai.lamin.nf_lamin.model.RunStatus
+import ai.lamin.nf_lamin.util.ArtifactStatsResolver
 import ai.lamin.nf_lamin.S3TestHelper
 import spock.lang.IgnoreIf
 import spock.lang.Specification
@@ -959,5 +961,88 @@ class InstanceArtifactApiTest extends Specification {
         cleanup:
         Files.deleteIfExists(tempFile)
         createdArtifactUids << uid
+    }
+
+    // ===================================================================
+    //  client-side stats (nf-lamin#189)
+    // ===================================================================
+
+    static final String TEST_S3_BUCKET = 'openproblems-data'
+    static final String TEST_S3_KEY = 'resources/datasets/10x_xenium/2023_10x_human_brain_xenium/dataset.zarr'
+
+    private Map<String, Object> createAndFetch(Map<String, Object> inputArgs) {
+        Map<String, Object> artifact = instance.createArtifact(inputArgs)
+        assert artifact?.uid : "createArtifact returned no uid: ${artifact}"
+        createdArtifactUids << (artifact.uid as String)
+        Map<String, Object> record = instance.getRecord(moduleName: 'core', modelName: 'artifact', idOrUid: artifact.uid as String)
+        assert record : "getRecord returned null for ${artifact.uid}"
+        record.put('__uid', artifact.uid)
+        return record
+    }
+
+    @IgnoreIf({ !env.LAMIN_API_KEY })
+    def "client-side stats of an S3 prefix match what the server computes"() {
+        given:
+        deleteArtifactIfExists(TEST_S3_PATH)
+        Map<String, Object> record = createAndFetch([path: TEST_S3_PATH, branch_id: testBranchId])
+
+        when:
+        ArtifactStats stats = new ArtifactStatsResolver().resolveS3(TEST_S3_BUCKET, TEST_S3_KEY)
+
+        then:
+        stats != null
+        stats.hashType == 'md5-d'
+        stats.hash == record.hash
+        stats.hashType == record._hash_type
+        stats.size == (record.size as Long)
+        stats.nFiles == (record.n_files as Long)
+
+        cleanup:
+        cleanupArtifacts(record?.__uid as String)
+    }
+
+    @IgnoreIf({ !env.LAMIN_API_KEY })
+    def "client-side stats of an S3 object match what the server computes"() {
+        given:
+        String objectPath = TEST_S3_PATH + '/.zgroup'
+        deleteArtifactIfExists(objectPath)
+        Map<String, Object> record = createAndFetch([path: objectPath, branch_id: testBranchId])
+
+        when:
+        ArtifactStats stats = new ArtifactStatsResolver().resolveS3(TEST_S3_BUCKET, TEST_S3_KEY + '/.zgroup')
+
+        then:
+        stats != null
+        stats.hashType == 'md5'
+        stats.hash == record.hash
+        stats.hashType == record._hash_type
+        stats.size == (record.size as Long)
+        stats.nFiles == null
+        record.n_files == null
+
+        cleanup:
+        cleanupArtifacts(record?.__uid as String)
+    }
+
+    /**
+     * Needs an instance whose lamindb accepts Artifact(_stats=...); enable with NF_LAMIN_TEST_STATS=1.
+     */
+    @IgnoreIf({ !env.LAMIN_API_KEY || !env.NF_LAMIN_TEST_STATS })
+    def "server stores client-provided stats"() {
+        given:
+        String objectPath = TEST_S3_PATH + '/.zattrs'
+        deleteArtifactIfExists(objectPath)
+        Map<String, Object> stats = new ArtifactStats(4242L, 'nflaminfakehash0000000', 'md5', null).toKwargs()
+
+        when:
+        Map<String, Object> record = createAndFetch([path: objectPath, branch_id: testBranchId, _stats: stats, skip_check_exists: true])
+
+        then:
+        (record.size as Long) == 4242L
+        record.hash == 'nflaminfakehash0000000'
+        record._hash_type == 'md5'
+
+        cleanup:
+        cleanupArtifacts(record?.__uid as String)
     }
 }
