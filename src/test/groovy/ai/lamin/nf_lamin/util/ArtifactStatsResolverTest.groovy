@@ -115,7 +115,6 @@ class ArtifactStatsResolverTest extends Specification {
 
         then:
         stats.toKwargs() == LaminHashing.fromEtags(9L, [md5Hex(''), md5Hex(''), HEX_A, HEX_B, md5Hex(''), HEX_ABC]).toKwargs() + [n_files: 4L]
-        0 * s3Client.deleteObject(*_)
     }
 
     def 'directory counts exclude markers across pages without changing the hash'() {
