@@ -228,6 +228,25 @@ class ArtifactStatsResolverTest extends Specification {
         2 * s3Client.headObject(_ as HeadObjectRequest)
     }
 
+    def 'resolve recomputes input stats after the path is overwritten as an output'() {
+        given:
+        Path path = s3Path('s3://b/x.txt')
+        List<String> etags = [HEX_A, HEX_B, HEX_B]
+        s3Client.headObject(_ as HeadObjectRequest) >> {
+            HeadObjectResponse.builder().contentLength(1L).eTag('"' + etags.remove(0) + '"').build()
+        }
+
+        when:
+        ArtifactStats before = resolver.resolve(path, true)
+        ArtifactStats overwritten = resolver.resolve(path, false)
+        ArtifactStats after = resolver.resolve(path, true)
+
+        then:
+        before.hash == 'DMF1ucDxtqgxw5niaXcmYQ'
+        overwritten.hash != before.hash
+        after == overwritten
+    }
+
     def 'resolve caches a miss as well'() {
         given:
         Path path = s3Path('s3://b/denied.txt')

@@ -90,6 +90,9 @@ class ArtifactStatsResolver implements Closeable {
         ArtifactStats stats = compute(path, uri)
         if (cache) {
             this.cache.put(uri, Optional.ofNullable(stats))
+        } else {
+            // the path may have been overwritten, so later inputs must not reuse older stats
+            this.cache.remove(uri)
         }
         return stats
     }
