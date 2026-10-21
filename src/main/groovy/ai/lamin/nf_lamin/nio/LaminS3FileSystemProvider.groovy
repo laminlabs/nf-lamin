@@ -30,6 +30,7 @@ import java.nio.file.FileAlreadyExistsException
 import java.nio.file.FileStore
 import java.nio.file.FileSystem
 import java.nio.file.FileSystemNotFoundException
+import java.nio.file.FileVisitOption
 import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.NoSuchFileException
@@ -509,8 +510,9 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
             throw new FileAlreadyExistsException(remoteDestination.toString())
         }
 
+        // Follow links like nf-amazon does: work dirs hold staged inputs as symlinks
         if (Files.isDirectory(localFile)) {
-            Files.walk(localFile).withCloseable { Stream<Path> files ->
+            Files.walk(localFile, FileVisitOption.FOLLOW_LINKS).withCloseable { Stream<Path> files ->
                 files.filter { Path p -> Files.isRegularFile(p) }.forEach { Path file ->
                     String relative = localFile.relativize(file).toString()
                     LaminS3Path target = (LaminS3Path) s3Path.resolve(relative)

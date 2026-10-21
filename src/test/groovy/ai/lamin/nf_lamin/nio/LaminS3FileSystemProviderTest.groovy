@@ -902,6 +902,34 @@ class LaminS3FileSystemProviderTest extends Specification {
         tmpDir.toFile().deleteDir()
     }
 
+    def "upload() of a directory follows symlinked directories"() {
+        given:
+        def p = writablePath('prefix/dir')
+        nothingExists()
+        Path tmpDir = Files.createTempDirectory('lamin-upload-test')
+        Path real = Files.createDirectories(tmpDir.resolve('real'))
+        Files.write(real.resolve('a.txt'), 'a'.bytes)
+        Path other = Files.createDirectories(tmpDir.resolve('other'))
+        Files.write(other.resolve('b.txt'), 'b'.bytes)
+        Files.createSymbolicLink(real.resolve('sub'), other)
+        // A task that re-emits a staged input directory hands the publisher a symlink
+        Path link = Files.createSymbolicLink(tmpDir.resolve('link'), real)
+        def keys = []
+        s3Client.putObject(_ as PutObjectRequest, _ as RequestBody) >> { PutObjectRequest r, RequestBody b ->
+            keys << r.key()
+            PutObjectResponse.builder().build()
+        }
+
+        when:
+        provider.upload(link, p)
+
+        then:
+        keys.sort() == ['prefix/dir/a.txt', 'prefix/dir/sub/b.txt']
+
+        cleanup:
+        tmpDir.toFile().deleteDir()
+    }
+
     def "upload() refuses to overwrite an existing object"() {
         given:
         def p = writablePath('prefix/uploaded.txt')
