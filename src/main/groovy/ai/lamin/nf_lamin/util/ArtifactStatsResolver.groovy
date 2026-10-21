@@ -169,8 +169,8 @@ class ArtifactStatsResolver implements Closeable {
 
     private static ArtifactStats listPrefix(AwsS3Client client, String bucket, String prefix) {
         long size = 0
+        long fileCount = 0
         List<String> etags = []
-        long markerCount = 0
         String token = null
         while (true) {
             ListObjectsV2Request request = ListObjectsV2Request.builder()
@@ -180,10 +180,12 @@ class ArtifactStatsResolver implements Closeable {
                 .build()
             ListObjectsV2Response page = client.listObjectsV2(request)
             for (S3Object object : page.contents()) {
-                if (object.size() == 0L && object.key().endsWith('/')) {
-                    markerCount++
+                long objectSize = object.size() ?: 0L
+                // zero-byte folder markers stay in the hash but are not files
+                if (objectSize != 0L || !object.key().endsWith('/')) {
+                    fileCount++
                 }
-                size += object.size() ?: 0L
+                size += objectSize
                 etags.add(object.eTag())
             }
             if (!page.isTruncated() || !page.nextContinuationToken()) {
@@ -194,8 +196,7 @@ class ArtifactStatsResolver implements Closeable {
         if (etags.isEmpty()) {
             return null
         }
-        ArtifactStats stats = LaminHashing.fromEtags(size, etags)
-        return new ArtifactStats(stats.size, stats.hash, stats.hashType, stats.nFiles - markerCount)
+        return LaminHashing.fromEtags(size, etags, fileCount)
     }
 
     private AwsS3Client getDefaultClient() {
