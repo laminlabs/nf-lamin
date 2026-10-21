@@ -109,6 +109,7 @@ The storage location a target resolves to decides the space of the artifacts pub
 
 - Publishing needs `write` or `admin` access to the storage location on LaminHub. With only `read` access the target is refused; the plugin never falls back to your own AWS credentials for a Lamin-managed location, since that would write under a different identity than the one authorised.
 - The storage location must be **managed by the instance** you are publishing to. A location managed by another instance is read-only here.
+- When the run is tracked, you can only publish to the instance set in `lamin.instance`, since that is where the published files are registered.
 - A space and a storage location that belong to different spaces cannot be combined; LaminDB requires them to match.
 - `.lamindb/` is reserved by LaminDB for the artifacts it manages itself and cannot be used as a prefix.
 - Artifact URIs are read-only.

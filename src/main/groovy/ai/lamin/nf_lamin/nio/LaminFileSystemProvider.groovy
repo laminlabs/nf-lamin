@@ -248,6 +248,14 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
                 "Publishing to ${uri} needs an authenticated connection: set lamin.api_key in nextflow.config or LAMIN_API_KEY"
             )
         }
+        // Published files are registered in the tracking instance, where another instance's
+        // space ids and storage locations do not apply
+        String slug = "${uri.owner}/${uri.instance}".toString()
+        if (config.instance?.trim() && !config.instance.trim().equalsIgnoreCase(slug)) {
+            throw new IllegalArgumentException(
+                "Cannot publish to ${uri}: the run is tracked in '${config.instance}', so its outputs can only be published to that instance"
+            )
+        }
 
         Instance instance = getInstance(uri.owner, uri.instance)
         LaminStorageTarget target = storageResolver.resolve(instance, uri)

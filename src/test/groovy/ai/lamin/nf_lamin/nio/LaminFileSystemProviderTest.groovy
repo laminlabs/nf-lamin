@@ -227,6 +227,30 @@ class LaminFileSystemProviderTest extends Specification {
         e.message.contains('lamin.api_key')
     }
 
+    def "getPath refuses a publish target in another instance than the one tracking the run"() {
+        given:
+        def provider = publishProvider('write', [instance: 'laminlabs/other', api_key: 'key'])
+
+        when:
+        provider.getPath(new URI('lamin://laminlabs/lamindata?storage=JwMEKs04D9WJ'))
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains("'laminlabs/other'")
+        provider.storagePathsRequested.isEmpty()
+    }
+
+    def "getPath accepts a publish target when no instance tracks the run"() {
+        given:
+        def provider = publishProvider('write', [instance: null, api_key: 'key'])
+
+        when:
+        def path = provider.getPath(new URI('lamin://laminlabs/lamindata?storage=JwMEKs04D9WJ'))
+
+        then:
+        path instanceof LaminS3Path
+    }
+
     def "getPath falls back to the standard provider when the hub has no credentials for the storage"() {
         given:
         def provider = publishProvider(null)
