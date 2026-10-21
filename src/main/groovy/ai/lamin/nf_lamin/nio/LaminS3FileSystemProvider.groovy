@@ -324,7 +324,7 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
     /**
      * Delete an object. A prefix with nothing under it counts as already deleted: there are no
      * marker objects, and Nextflow's recursive delete still asks for the prefix once its last
-     * object is gone.
+     * object is gone. A marker that another tool wrote is deleted with its prefix.
      */
     @Override
     void delete(Path path) throws IOException {
@@ -334,14 +334,20 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
         if (fs.isReadOnly()) {
             throw new ReadOnlyFileSystemException()
         }
+        String key = s3Path.key
         if (!objectExists(s3Path)) {
-            if (hasChildren(s3Path)) {
+            List<String> children = listKeys(s3Path, 2)
+            String marker = "${key}/".toString()
+            if (children.any { String k -> k != marker }) {
                 throw new DirectoryNotEmptyException(path.toString())
             }
-            return
+            if (children.isEmpty()) {
+                return
+            }
+            key = marker
         }
         try {
-            fs.s3Client.deleteObject(DeleteObjectRequest.builder().bucket(s3Path.bucket).key(s3Path.key).build())
+            fs.s3Client.deleteObject(DeleteObjectRequest.builder().bucket(s3Path.bucket).key(key).build())
         }
         catch (Exception e) {
             throw new IOException("Failed to delete ${path}", e)
@@ -555,15 +561,20 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
     }
 
     private static boolean hasChildren(LaminS3Path s3Path) throws IOException {
+        return !listKeys(s3Path, 1).isEmpty()
+    }
+
+    /** The first keys under the prefix, up to {@code max}. */
+    private static List<String> listKeys(LaminS3Path s3Path, int max) throws IOException {
         String prefix = s3Path.key ? "${s3Path.key}/" : ''
         try {
             ListObjectsV2Request request = ListObjectsV2Request.builder()
                 .bucket(s3Path.bucket)
                 .prefix(prefix)
-                .maxKeys(1)
+                .maxKeys(max)
                 .build()
             ListObjectsV2Response response = ((LaminS3FileSystem) s3Path.fileSystem).s3Client.listObjectsV2(request)
-            return response.hasContents() && !response.contents().isEmpty()
+            return response.hasContents() ? response.contents().collect { S3Object o -> o.key() } : []
         } catch (Exception e) {
             throw new IOException("Failed to list ${s3Path}", e)
         }

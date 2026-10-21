@@ -813,6 +813,31 @@ class LaminS3FileSystemProviderTest extends Specification {
         keys.isEmpty()
     }
 
+    def "delete() removes a directory marker that is all that is left under a prefix"() {
+        given:
+        Set<String> keys = ['prefix/dir/'] as Set
+        objectsExist(keys)
+
+        when:
+        provider.delete(writablePath('prefix/dir'))
+
+        then:
+        keys.isEmpty()
+    }
+
+    def "a directory with markers written by other tools can be deleted recursively"() {
+        given:
+        Set<String> keys = ['prefix/dir/', 'prefix/dir/a.txt', 'prefix/dir/sub/', 'prefix/dir/sub/b.txt'] as Set
+        objectsExist(keys)
+
+        when:
+        FileHelper.deletePath(writablePath('prefix/dir'))
+
+        then:
+        noExceptionThrown()
+        keys.isEmpty()
+    }
+
     def "delete() refuses on a read-only filesystem"() {
         when:
         provider.delete(s3Path('prefix/old.txt'))
