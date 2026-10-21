@@ -571,6 +571,31 @@ class LaminPathTest extends Specification {
         !(result instanceof LaminPath)
     }
 
+    def "relativize and resolve round-trip a file name that needs escaping"() {
+        given:
+        def base = createPath('lamin://laminlabs/lamindata/artifact/uid123/dir')
+        def other = base.resolve('my file.txt')
+
+        when:
+        def result = base.relativize(other)
+
+        then:
+        result.toString() == 'my file.txt'
+        base.resolve(result) == other
+    }
+
+    def "relativize should throw for a sibling that shares a name prefix"() {
+        given:
+        def base = createPath('lamin://laminlabs/lamindata/artifact/uid123/dir')
+        def other = createPath('lamin://laminlabs/lamindata/artifact/uid123/dir2/file.txt')
+
+        when:
+        base.relativize(other)
+
+        then:
+        thrown(IllegalArgumentException)
+    }
+
     // ==================== toUri Tests ====================
 
     def "toUri should return correct URI"() {

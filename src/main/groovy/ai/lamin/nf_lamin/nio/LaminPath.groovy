@@ -323,7 +323,7 @@ final class LaminPath implements Path {
         return parent.resolve(other)
     }
 
-    /** The relative path is taken from the URI strings, so it is percent-encoded. */
+    /** The relative path is taken from the decoded sub-paths, not the percent-encoded URIs. */
     @Override
     Path relativize(Path other) {
         if (!(other instanceof LaminPath)) {
@@ -331,15 +331,16 @@ final class LaminPath implements Path {
         }
 
         LaminPath otherPath = (LaminPath) other
-        String thisUri = toUriString()
-        String otherUri = otherPath.toUriString()
-
-        if (!otherUri.startsWith(thisUri)) {
-            throw new IllegalArgumentException("Cannot relativize '${otherUri}' against '${thisUri}'")
+        String thisSub = parsed.subPath ?: ''
+        String otherSub = otherPath.parsed.subPath ?: ''
+        boolean sameRoot = parsed.withoutSubPath() == otherPath.parsed.withoutSubPath()
+        boolean under = !thisSub || otherSub == thisSub || otherSub.startsWith(thisSub + LaminUriParser.SEP)
+        if (!sameRoot || !under) {
+            throw new IllegalArgumentException("Cannot relativize '${otherPath.toUriString()}' against '${toUriString()}'")
         }
 
-        String relative = otherUri.substring(thisUri.length())
-        if (relative.startsWith('/')) {
+        String relative = otherSub.substring(thisSub.length())
+        if (relative.startsWith(LaminUriParser.SEP)) {
             relative = relative.substring(1)
         }
 
