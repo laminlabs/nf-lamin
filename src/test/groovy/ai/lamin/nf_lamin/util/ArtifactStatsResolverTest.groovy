@@ -163,12 +163,34 @@ class ArtifactStatsResolverTest extends Specification {
 
     // ========== failures ==========
 
+    def 'resolveS3 lists the prefix when heading it is forbidden'() {
+        // without s3:ListBucket on the bucket (e.g. only for an s3:prefix), S3 answers 403 for a missing key
+        when:
+        ArtifactStats stats = resolver.resolveS3('b', 'dir')
+
+        then:
+        1 * s3Client.headObject(_ as HeadObjectRequest) >> { throw forbidden() }
+        1 * s3Client.listObjectsV2({ ListObjectsV2Request r -> r.prefix() == 'dir/' }) >>
+            ListObjectsV2Response.builder().contents(obj('dir/a', 1L, HEX_A), obj('dir/sub/b', 1L, HEX_B + '-2')).isTruncated(false).build()
+        stats == new ArtifactStats(2L, 'YNCwyFw7rBegqZLBVEckCg', 'md5-d', 2L)
+    }
+
     def 'resolveS3 returns null when access is denied'() {
         when:
         ArtifactStats stats = resolver.resolveS3('b', 'secret.txt')
 
         then:
-        1 * s3Client.headObject(_ as HeadObjectRequest) >> { throw S3Exception.builder().statusCode(403).message('Forbidden').build() }
+        1 * s3Client.headObject(_ as HeadObjectRequest) >> { throw forbidden() }
+        1 * s3Client.listObjectsV2(_ as ListObjectsV2Request) >> { throw forbidden() }
+        stats == null
+    }
+
+    def 'resolveS3 does not retry other head failures as a prefix'() {
+        when:
+        ArtifactStats stats = resolver.resolveS3('b', 'dir')
+
+        then:
+        1 * s3Client.headObject(_ as HeadObjectRequest) >> { throw S3Exception.builder().statusCode(500).message('Internal Error').build() }
         0 * s3Client.listObjectsV2(_)
         stats == null
     }
@@ -250,14 +272,14 @@ class ArtifactStatsResolverTest extends Specification {
     def 'resolve caches a miss as well'() {
         given:
         Path path = s3Path('s3://b/denied.txt')
-        s3Client.headObject(_ as HeadObjectRequest) >> { throw S3Exception.builder().statusCode(403).message('Forbidden').build() }
 
         when:
         ArtifactStats first = resolver.resolve(path, true)
         ArtifactStats second = resolver.resolve(path, true)
 
         then:
-        1 * s3Client.headObject(_ as HeadObjectRequest)
+        1 * s3Client.headObject(_ as HeadObjectRequest) >> { throw forbidden() }
+        1 * s3Client.listObjectsV2(_ as ListObjectsV2Request) >> { throw forbidden() }
         first == null
         second == null
     }
@@ -384,6 +406,10 @@ class ArtifactStatsResolverTest extends Specification {
 
     private static NoSuchKeyException notFound() {
         return NoSuchKeyException.builder().statusCode(404).message('not found').build()
+    }
+
+    private static S3Exception forbidden() {
+        return (S3Exception) S3Exception.builder().statusCode(403).message('Forbidden').build()
     }
 
     private static S3Object obj(String key, long size, String etagHex) {
