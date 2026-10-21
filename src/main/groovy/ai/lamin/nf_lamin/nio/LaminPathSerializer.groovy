@@ -35,5 +35,6 @@ class LaminPathSerializer implements SerializerRegistrant {
     @Override
     void register(Map<Class, Object> serializers) {
         serializers.put(LaminPath, PathSerializer)
+        serializers.put(LaminS3Path, LaminS3PathSerializer)
     }
 }
