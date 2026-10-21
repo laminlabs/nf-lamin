@@ -225,7 +225,7 @@ class LaminUriParserTest extends Specification {
 
     def "should throw on missing components"() {
         when:
-        LaminUriParser.parse('lamin://laminlabs/lamindata')
+        LaminUriParser.parse('lamin://laminlabs/lamindata/artifact')
 
         then:
         def e = thrown(IllegalArgumentException)
@@ -239,6 +239,183 @@ class LaminUriParserTest extends Specification {
         then:
         def e = thrown(IllegalArgumentException)
         e.message.contains("Unsupported resource type")
+    }
+
+    // Storage URIs (publish targets)
+
+    def "should parse bare instance URI as storage target"() {
+        when:
+        def parsed = LaminUriParser.parse('lamin://laminlabs/lamindata')
+
+        then:
+        parsed.isStorage()
+        !parsed.isArtifact()
+        parsed.owner == 'laminlabs'
+        parsed.instance == 'lamindata'
+        parsed.spaceUid == null
+        parsed.storageUid == null
+        parsed.prefix == null
+        parsed.resourceType == null
+        parsed.resourceId == null
+    }
+
+    def "should parse artifact URI as artifact kind"() {
+        when:
+        def parsed = LaminUriParser.parse('lamin://laminlabs/lamindata/artifact/uid123')
+
+        then:
+        parsed.isArtifact()
+        !parsed.isStorage()
+        parsed.spaceUid == null
+        parsed.storageUid == null
+        parsed.prefix == null
+    }
+
+    def "should parse storage URI with space, storage and prefix"() {
+        when:
+        def parsed = LaminUriParser.parse('lamin://laminlabs/lamindata?space=Sp4ceUid00001&storage=JwMEKs04D9WJ&prefix=results/run1')
+
+        then:
+        parsed.isStorage()
+        parsed.spaceUid == 'Sp4ceUid00001'
+        parsed.storageUid == 'JwMEKs04D9WJ'
+        parsed.prefix == 'results/run1'
+    }
+
+    def "should parse storage URI from a URI object"() {
+        when:
+        def parsed = LaminUriParser.parse(new URI('lamin://laminlabs/lamindata?storage=JwMEKs04D9WJ&prefix=results'))
+
+        then:
+        parsed.isStorage()
+        parsed.storageUid == 'JwMEKs04D9WJ'
+        parsed.prefix == 'results'
+    }
+
+    @Unroll
+    def "should normalise prefix '#raw' to '#expected'"() {
+        when:
+        def parsed = LaminUriParser.parse("lamin://o/i?prefix=${raw}")
+
+        then:
+        parsed.prefix == expected
+
+        where:
+        raw               | expected
+        'results/'        | 'results'
+        '/results'        | 'results'
+        'a//b/'           | 'a/b'
+        'my%20results'    | 'my results'
+        'v1+hotfix'       | 'v1+hotfix'
+        'a%2Bb'           | 'a+b'
+        ''                | null
+    }
+
+    def "should decode percent-escapes in the artifact sub-path"() {
+        when:
+        def parsed = LaminUriParser.parse('lamin://laminlabs/lamindata/artifact/uid123/my%20dir/a%2Bb+c.txt')
+
+        then:
+        parsed.subPath == 'my dir/a+b+c.txt'
+    }
+
+    def "should render storage URI canonically"() {
+        when:
+        def parsed = LaminUriParser.parse('lamin://o/i?prefix=my results/x&storage=St0rage00001&space=Sp4ce0000001')
+
+        then:
+        parsed.toUriString() == 'lamin://o/i?space=Sp4ce0000001&storage=St0rage00001&prefix=my%20results/x'
+    }
+
+    def "should render bare storage URI without a query"() {
+        expect:
+        LaminUriParser.parse('lamin://o/i').toUriString() == 'lamin://o/i'
+        LaminUriParser.parse('lamin://o/i?').toUriString() == 'lamin://o/i'
+    }
+
+    @Unroll
+    def "should round-trip storage URI #uri"() {
+        when:
+        def parsed = LaminUriParser.parse(uri)
+
+        then:
+        LaminUriParser.parse(parsed.toUriString()) == parsed
+
+        where:
+        uri << [
+            'lamin://o/i',
+            'lamin://o/i?prefix=results',
+            'lamin://o/i?storage=St0rage00001',
+            'lamin://o/i?space=Sp4ce0000001&prefix=a%20b/c',
+            'lamin://o/i?space=Sp4ce0000001&storage=St0rage00001&prefix=results/run1',
+        ]
+    }
+
+    @Unroll
+    def "should round-trip artifact URI #uri"() {
+        when:
+        def parsed = LaminUriParser.parse(uri)
+
+        then:
+        LaminUriParser.parse(parsed.toUriString()) == parsed
+        parsed.toUri() instanceof URI
+
+        where:
+        uri << [
+            'lamin://o/i/artifact/uid123',
+            'lamin://o/i/artifact/uid123/plain/file.txt',
+            'lamin://o/i/artifact/uid123/my%20dir/a%2Bb.txt',
+            'lamin://o/i/artifact/uid123/100%25.txt',
+            'lamin://o/i/artifact/uid123/sample(1)/A549+DMSO,rep;2.h5ad',
+        ]
+    }
+
+    def "should render the artifact sub-path percent-encoded"() {
+        expect:
+        LaminUriParser.parse('lamin://o/i/artifact/uid123/my%20dir/a%2Bb+c.txt').toUriString() ==
+            'lamin://o/i/artifact/uid123/my%20dir/a+b+c.txt'
+    }
+
+    def "should leave URI-legal punctuation in the artifact sub-path unescaped"() {
+        given:
+        def uri = 'lamin://o/i/artifact/uid123/sample(1)/A549+DMSO,rep;2:x@y=z~!$&.h5ad'
+
+        expect:
+        LaminUriParser.parse(uri).toUriString() == uri
+    }
+
+    def "should distinguish storage URIs in equals and hashCode"() {
+        given:
+        def a = LaminUriParser.parse('lamin://o/i?storage=St0rage00001&prefix=results')
+        def b = LaminUriParser.parse('lamin://o/i?storage=St0rage00001&prefix=results')
+        def c = LaminUriParser.parse('lamin://o/i?storage=St0rage00002&prefix=results')
+        def d = LaminUriParser.parse('lamin://o/i?storage=St0rage00001')
+
+        expect:
+        a == b
+        a.hashCode() == b.hashCode()
+        a != c
+        a != d
+    }
+
+    @Unroll
+    def "should reject invalid storage URI #uri (#reason)"() {
+        when:
+        LaminUriParser.parse(uri)
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains(expectedMessage)
+
+        where:
+        uri                                                   | reason                 | expectedMessage
+        'lamin://o/i?foo=bar'                                 | 'unknown parameter'    | "Unknown query parameter 'foo'"
+        'lamin://o/i?prefix=a&prefix=b'                       | 'duplicate parameter'  | "Duplicate query parameter 'prefix'"
+        'lamin://o/i?space='                                  | 'empty uid'            | "'space' cannot be empty"
+        'lamin://o/i?prefix=.lamindb/x'                       | 'reserved prefix'      | ".lamindb"
+        'lamin://o/i?prefix=a/../b'                           | 'parent segment'       | "'..'"
+        'lamin://o/i/artifact/uid123?prefix=results'          | 'query on artifact'    | "Query parameters are not supported"
+        'lamin://o/i/results'                                 | 'stray path segment'   | "Invalid URI format"
     }
 
     @Unroll

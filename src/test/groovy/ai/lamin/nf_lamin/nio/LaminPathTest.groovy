@@ -408,6 +408,18 @@ class LaminPathTest extends Specification {
         resolved.toUriString() == 'lamin://other/instance/artifact/uid456'
     }
 
+    def "resolve(String) should refuse a storage URI"() {
+        given:
+        def path = createPath('lamin://laminlabs/lamindata/artifact/uid123')
+
+        when:
+        path.resolve('lamin://laminlabs/lamindata?prefix=results')
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains('Not an artifact URI')
+    }
+
     // ==================== resolveSibling Tests ====================
 
     def "resolveSibling(Path) should return parent for null"() {
@@ -472,6 +484,18 @@ class LaminPathTest extends Specification {
 
         then:
         result.toUriString() == 'lamin://other/instance/artifact/uid456'
+    }
+
+    def "resolveSibling(String) should refuse a storage URI"() {
+        given:
+        def path = createPath('lamin://laminlabs/lamindata/artifact/uid123/file.txt')
+
+        when:
+        path.resolveSibling('lamin://laminlabs/lamindata?prefix=results')
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains('Not an artifact URI')
     }
 
     def "resolveSibling(String) should handle path without parent"() {
@@ -545,6 +569,31 @@ class LaminPathTest extends Specification {
 
         then:
         !(result instanceof LaminPath)
+    }
+
+    def "relativize and resolve round-trip a file name that needs escaping"() {
+        given:
+        def base = createPath('lamin://laminlabs/lamindata/artifact/uid123/dir')
+        def other = base.resolve('my file.txt')
+
+        when:
+        def result = base.relativize(other)
+
+        then:
+        result.toString() == 'my file.txt'
+        base.resolve(result) == other
+    }
+
+    def "relativize should throw for a sibling that shares a name prefix"() {
+        given:
+        def base = createPath('lamin://laminlabs/lamindata/artifact/uid123/dir')
+        def other = createPath('lamin://laminlabs/lamindata/artifact/uid123/dir2/file.txt')
+
+        when:
+        base.relativize(other)
+
+        then:
+        thrown(IllegalArgumentException)
     }
 
     // ==================== toUri Tests ====================

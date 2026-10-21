@@ -222,7 +222,7 @@ class ArtifactStatsResolverTest extends Specification {
     def 'resolve uses the federated client of a lamin-s3 path'() {
         given:
         AwsS3Client federated = Mock(AwsS3Client)
-        LaminS3FileSystem fs = new LaminS3FileSystem(Mock(LaminS3FileSystemProvider), 's3://my-bucket/prefix', federated, 'key1')
+        LaminS3FileSystem fs = new LaminS3FileSystem(Mock(LaminS3FileSystemProvider), 's3://my-bucket/prefix', federated)
         Path path = new LaminS3Path(fs, 'prefix/file.txt')
 
         when:
