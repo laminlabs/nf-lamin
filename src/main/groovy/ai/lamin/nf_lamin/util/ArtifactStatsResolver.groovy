@@ -90,6 +90,9 @@ class ArtifactStatsResolver implements Closeable {
         ArtifactStats stats = compute(path, uri)
         if (cache) {
             this.cache.put(uri, Optional.ofNullable(stats))
+        } else {
+            // the path may have been overwritten, so later inputs must not reuse older stats
+            this.cache.remove(uri)
         }
         return stats
     }
@@ -155,11 +158,12 @@ class ArtifactStatsResolver implements Closeable {
                 HeadObjectResponse head = client.headObject(request)
                 return LaminHashing.fromEtag(head.contentLength() ?: 0L, head.eTag())
             } catch (S3Exception e) {
-                if (e.statusCode() != 404) {
+                // without s3:ListBucket on the whole bucket, S3 answers 403 instead of 404 for a missing key
+                if (e.statusCode() != 404 && e.statusCode() != 403) {
                     throw e
                 }
             }
-            // not an object, so treat the key as a prefix
+            // not a (readable) object, so treat the key as a prefix
             return listPrefix(client, bucket, key + '/')
         } catch (Exception e) {
             log.debug "Could not read stats of s3://${bucket}/${key}: ${e.message}"

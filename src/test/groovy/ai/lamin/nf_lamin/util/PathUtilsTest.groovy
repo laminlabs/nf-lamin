@@ -127,9 +127,7 @@ class PathUtilsTest extends Specification {
     }
 
     private LaminS3Path laminS3Path(String key) {
-        def fs = new LaminS3FileSystem(
-            Mock(LaminS3FileSystemProvider), 's3://my-bucket/prefix', Mock(AwsS3Client), 'key1'
-        )
+        def fs = new LaminS3FileSystem(Mock(LaminS3FileSystemProvider), 's3://my-bucket/prefix', Mock(AwsS3Client))
         return new LaminS3Path(fs, key)
     }
 }

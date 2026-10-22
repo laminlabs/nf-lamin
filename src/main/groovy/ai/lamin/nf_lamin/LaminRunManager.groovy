@@ -50,7 +50,9 @@ import ai.lamin.nf_lamin.hub.InstanceSettings
 import ai.lamin.nf_lamin.model.ArtifactAnnotation
 import ai.lamin.nf_lamin.model.ArtifactStats
 import ai.lamin.nf_lamin.model.RunStatus
+import ai.lamin.nf_lamin.nio.LaminFileSystemProvider
 import ai.lamin.nf_lamin.nio.LaminPath
+import ai.lamin.nf_lamin.nio.LaminStorageTarget
 import ai.lamin.nf_lamin.util.ArtifactStatsResolver
 import ai.lamin.nf_lamin.util.PathUtils
 import ai.lamin.nf_lamin.util.SeqeraPlatformHelper
@@ -99,6 +101,19 @@ final class LaminRunManager {
     // Written by createOutputArtifact; read by createOutputArtifact(labels) and trackWorkflowOutput
     private final Map<String, Map> publishedArtifactsByPath = Collections.synchronizedMap(new LinkedHashMap<String, Map>())
 
+    // Output names of index files announced by onWorkflowOutput before they were written
+    private final Map<String, String> pendingOutputNames = new ConcurrentHashMap<String, String>()
+
+    /** The lamin:// provider, which knows the publish targets of this run. Injected by tests. */
+    private LaminFileSystemProvider laminFileSystemProvider
+
+    protected LaminFileSystemProvider getLaminFileSystemProvider() {
+        if (laminFileSystemProvider == null) {
+            laminFileSystemProvider = LaminFileSystemProvider.installed()
+        }
+        return laminFileSystemProvider
+    }
+
     // Annotations requested from the workflow via annotateArtifact(), keyed by annotation key
     private final Map<String, List<ArtifactAnnotation>> pendingAnnotations = new ConcurrentHashMap<String, List<ArtifactAnnotation>>()
 
@@ -127,6 +142,7 @@ final class LaminRunManager {
     synchronized void reset() {
         session = null
         config = null
+        laminFileSystemProvider = null
         resolvedConfig = null
         hub = null
         laminInstance = null
@@ -138,6 +154,7 @@ final class LaminRunManager {
         LaminConnection.getInstance().reset()
         recordResolutionCache.clear()
         publishedArtifactsByPath.clear()
+        pendingOutputNames.clear()
         pendingAnnotations.clear()
         artifactsByAnnotationKey.clear()
         matchedAnnotationKeys.clear()
@@ -1110,7 +1127,17 @@ final class LaminRunManager {
             recordArtifactForAnnotation(cachedArtifact, source)
             return cachedArtifact
         }
-        return createOutputArtifact(path, null, labels, null, source)
+        return createOutputArtifact(path, null, labels, pendingOutputNames.remove(pathKey), source)
+    }
+
+    /**
+     * Record the output name of an index file for the {@code onFilePublish} that follows: the
+     * file is announced before Nextflow writes it, so it cannot be registered yet.
+     */
+    void rememberOutputName(Path path, String outputName) {
+        if (path != null && outputName != null) {
+            pendingOutputNames.put(PathUtils.toUriKey(path), outputName)
+        }
     }
 
     /**
@@ -1737,6 +1764,14 @@ final class LaminRunManager {
             path = ((LaminPath) path).resolveToStorage()
         }
 
+        // A file published to a lamin:// target lives in the storage location the target
+        // resolved to, and that location decides the space when it has one
+        Integer spaceId = resolvedSpaceId
+        LaminStorageTarget target = getLaminFileSystemProvider()?.publishTargetFor(path)
+        if (target?.spaceId != null) {
+            spaceId = target.spaceId
+        }
+
         // Validate and extract optional parameters
         Integer runId = null
         if (params.containsKey('run_id')) {
@@ -1797,8 +1832,8 @@ final class LaminRunManager {
             if (kind != null) {
                 apiParams.put('kind', kind)
             }
-            if (resolvedSpaceId != null) {
-                apiParams.put('space_id', resolvedSpaceId)
+            if (spaceId != null) {
+                apiParams.put('space_id', spaceId)
             }
             if (resolvedBranchId != null) {
                 apiParams.put('branch_id', resolvedBranchId)
