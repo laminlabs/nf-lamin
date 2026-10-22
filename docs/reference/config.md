@@ -245,11 +245,13 @@ LaminDB stores the size, hash and file count of an artifact. When the Lamin Hub 
 - a single object: one `HeadObject` call; the ETag gives the `md5` hash, or `md5-<N>` for a multipart upload
 - a directory-like prefix: a paginated `ListObjectsV2` call; the per-object hashes are combined into an `md5-d` hash, with the summed size and the file count
 
+Zero-byte S3 objects whose keys end in `/` (the folder markers Nextflow leaves behind when publishing) are excluded from the file count. The size and hash are unchanged, the markers stay in storage, and ordinary empty files still count.
+
 Other locations (`gs://`, `az://`, `https://`) are left to LaminDB.
 
 **Credentials** — `lamin-s3://` artifacts use the federated credentials of their storage location. Plain `s3://` artifacts use the `aws` scope of `nextflow.config` (`accessKey` / `secretKey` or `profile`, `region`, and `client.endpoint` / `client.s3PathStyleAccess` / `client.anonymous` for S3-compatible stores such as MinIO), else the default AWS credential provider chain, else anonymous access for public buckets. Assumed roles and SSO logins are not supported; when the plugin cannot read an object it silently leaves the size and hash to LaminDB.
 
-**Older instances** — a LaminDB instance older than laminlabs/lamindb#3995 rejects the request. The plugin then warns once, retries without the size and hash and stops sending them for the rest of the run.
+**Older instances** — a LaminDB instance older than laminlabs/lamindb#3995 rejects the request. The plugin then warns once, retries without the size and hash and stops sending them for the rest of the run. An instance older than laminlabs/lamindb-setup#1429 still counts folder markers itself, so a folder it scans server-side reports a higher file count than one scanned by the plugin.
 
 Set `enable_artifact_hashing = false` to skip the extra S3 calls altogether:
 
