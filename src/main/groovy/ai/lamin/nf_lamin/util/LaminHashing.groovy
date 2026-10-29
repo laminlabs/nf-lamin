@@ -126,10 +126,10 @@ class LaminHashing {
         return new ArtifactStats(size, etagHash(clean), hashType, null)
     }
 
-    /** Stats of an S3 prefix, combined like a local directory ({@code md5-d}); {@code nFiles} defaults to the etag count. */
-    static ArtifactStats fromEtags(long totalSize, Collection<String> etags, long nFiles = etags.size()) {
+    /** Stats of an S3 prefix, combined like a local directory ({@code md5-d}). */
+    static ArtifactStats fromEtags(long totalSize, Collection<String> etags) {
         List<String> hashes = etags.collect { String etag -> etagHash(etag) }
-        return new ArtifactStats(totalSize, hashFromHashes(hashes), 'md5-d', nFiles)
+        return new ArtifactStats(totalSize, hashFromHashes(hashes), 'md5-d', etags.size() as Long)
     }
 
     private static String stripEtag(String etag) {
