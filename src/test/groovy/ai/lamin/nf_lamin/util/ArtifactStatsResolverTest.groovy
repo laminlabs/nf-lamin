@@ -101,7 +101,7 @@ class ArtifactStatsResolverTest extends Specification {
         stats == new ArtifactStats(2L, 'YNCwyFw7rBegqZLBVEckCg', 'md5-d', 2L)
     }
 
-    def 'directory counts exclude zero-byte slash markers without changing size or hash'() {
+    def 'zero-byte slash markers are excluded from the size, hash and file count'() {
         given:
         s3Client.headObject(_ as HeadObjectRequest) >> { throw notFound() }
         s3Client.listObjectsV2(_ as ListObjectsV2Request) >> ListObjectsV2Response.builder().contents(
@@ -114,10 +114,12 @@ class ArtifactStatsResolverTest extends Specification {
         ArtifactStats stats = resolver.resolveS3('b', 'dir')
 
         then:
-        stats.toKwargs() == LaminHashing.fromEtags(9L, [md5Hex(''), md5Hex(''), HEX_A, HEX_B, md5Hex(''), HEX_ABC]).toKwargs() + [n_files: 4L]
+        // only dir/ and dir/sub/ are markers: empty.txt is a file, data/ has content
+        stats == LaminHashing.fromEtags(9L, [HEX_A, HEX_B, md5Hex(''), HEX_ABC])
+        stats.nFiles == 4L
     }
 
-    def 'directory counts exclude markers across pages without changing the hash'() {
+    def 'markers are excluded across pages'() {
         given:
         s3Client.headObject(_ as HeadObjectRequest) >> { throw notFound() }
         s3Client.listObjectsV2(_ as ListObjectsV2Request) >> { ListObjectsV2Request request ->
@@ -130,17 +132,17 @@ class ArtifactStatsResolverTest extends Specification {
         }
 
         expect:
-        resolver.resolveS3('b', 'dir') == new ArtifactStats(2L, LaminHashing.fromEtags(2L, [HEX_A, HEX_A, HEX_B]).hash, 'md5-d', 2L)
+        resolver.resolveS3('b', 'dir') == LaminHashing.fromEtags(2L, [HEX_A, HEX_B])
     }
 
-    def 'marker-only prefixes retain their hash and have a zero file count'() {
+    def 'marker-only prefixes are left to the server'() {
         given:
         s3Client.headObject(_ as HeadObjectRequest) >> { throw notFound() }
         s3Client.listObjectsV2(_ as ListObjectsV2Request) >> ListObjectsV2Response.builder()
             .contents(obj('dir/', 0L, HEX_A), obj('dir/empty/', 0L, HEX_B)).isTruncated(false).build()
 
         expect:
-        resolver.resolveS3('b', 'dir') == new ArtifactStats(0L, 'YNCwyFw7rBegqZLBVEckCg', 'md5-d', 0L)
+        resolver.resolveS3('b', 'dir') == null
     }
 
     def 'resolveS3 treats a generic 404 like a missing key'() {
