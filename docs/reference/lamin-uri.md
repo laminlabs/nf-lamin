@@ -99,7 +99,7 @@ process myProcess {
 
 When Nextflow parses the target, the plugin looks up the space and storage in the instance and resolves the target to a path in that storage location. Everything Nextflow publishes there is written through the federated credentials LaminHub grants for the location, and each published file is registered as an Artifact **in place**: its `key` is the path relative to the storage root, LaminDB does not copy it, and it is addressed as `lamin://<owner>/<instance>/artifact/<uid>` from then on.
 
-Registering the published files as artifacts needs run tracking to be configured (`lamin.instance` and `lamin.api_key`); the same `api_key` is what authorises the writes.
+Registering the published files as artifacts needs run tracking to be configured; the `api_key` is also what authorises the writes. A `lamin://` output directory configures the instance by itself, taking precedence over `lamin.instance` and `LAMIN_CURRENT_INSTANCE` (see {doc}`/reference/config`), so `LAMIN_API_KEY` is all you need. `publishDir` targets do not configure the instance: they need `lamin.instance` or `LAMIN_CURRENT_INSTANCE`.
 
 Publishing over existing files follows Nextflow's `overwrite` rules, as it does for `s3://` targets.
 
@@ -109,7 +109,7 @@ The storage location a target resolves to decides the space of the artifacts pub
 
 - Publishing needs `write` or `admin` access to the storage location on LaminHub. With only `read` access the target is refused; the plugin never falls back to your own AWS credentials for a Lamin-managed location, since that would write under a different identity than the one authorised.
 - The storage location must be **managed by the instance** you are publishing to. A location managed by another instance is read-only here.
-- When the run is tracked, you can only publish to the instance set in `lamin.instance`, since that is where the published files are registered.
+- When the run is tracked, you can only publish to the instance the run is tracked in, since that is where the published files are registered.
 - A space and a storage location that belong to different spaces cannot be combined; LaminDB requires them to match.
 - `.lamindb/` is reserved by LaminDB for the artifacts it manages itself and cannot be used as a prefix.
 - Artifact URIs are read-only.
