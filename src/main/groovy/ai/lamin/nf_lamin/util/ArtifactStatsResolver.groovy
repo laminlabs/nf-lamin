@@ -173,6 +173,7 @@ class ArtifactStatsResolver implements Closeable {
 
     private static ArtifactStats listPrefix(AwsS3Client client, String bucket, String prefix) {
         long size = 0
+        boolean hasObjects = false
         List<String> etags = []
         String token = null
         while (true) {
@@ -183,6 +184,10 @@ class ArtifactStatsResolver implements Closeable {
                 .build()
             ListObjectsV2Response page = client.listObjectsV2(request)
             for (S3Object object : page.contents()) {
+                hasObjects = true
+                if (object.size() == 0L && object.key()?.endsWith('/')) {
+                    continue
+                }
                 size += object.size() ?: 0L
                 etags.add(object.eTag())
             }
@@ -191,7 +196,7 @@ class ArtifactStatsResolver implements Closeable {
             }
             token = page.nextContinuationToken()
         }
-        if (etags.isEmpty()) {
+        if (!hasObjects) {
             return null
         }
         return LaminHashing.fromEtags(size, etags)
