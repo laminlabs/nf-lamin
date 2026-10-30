@@ -30,6 +30,7 @@ import ai.lamin.nf_lamin.config.ApiConfig
 import ai.lamin.nf_lamin.config.FeaturesConfig
 import ai.lamin.nf_lamin.config.RunConfig
 import ai.lamin.nf_lamin.config.TransformConfig
+import ai.lamin.nf_lamin.nio.LaminUriParser
 
 /**
  * Handle the configuration of the Lamin plugin
@@ -83,7 +84,7 @@ class LaminConfig implements ConfigScope {
 
     @ConfigOption
     @Description('''
-        The instance for the Lamin API (format: 'owner/repo').
+        The instance for the Lamin API (format: 'owner/repo'). A lamin:// output directory takes precedence over this option, which takes precedence over the LAMIN_CURRENT_INSTANCE environment variable.
     ''')
     final String instance
 
@@ -438,18 +439,26 @@ class LaminConfig implements ConfigScope {
     }
 
     /**
-     * Parse configuration from a Nextflow session
+     * Parse configuration from a Nextflow session.
+     *
+     * The instance is resolved with {@link #instanceSources(Session)}; when the sources name
+     * different instances, a warning is logged for each one that is overridden.
+     *
      * @param session the Nextflow session
      * @return the parsed LaminConfig
      */
     static LaminConfig parseConfig(Session session) {
         Map configMap = session?.config?.lamin as Map ?: [:]
 
-        if (!configMap.instance && !System.getenv('LAMIN_CURRENT_INSTANCE')) {
+        Map<String, String> sources = instanceSources(session)
+        if (sources.isEmpty()) {
             throw new IllegalArgumentException('Lamin instance is not set. Please set the "lamin.instance" in your nextflow.config file.')
         }
+        for (String warning : instanceMismatches(sources)) {
+            log.warn warning
+        }
 
-        return new LaminConfig(configMap)
+        return new LaminConfig(configMap + [instance: sources.values().first()])
     }
 
     /**
@@ -464,16 +473,82 @@ class LaminConfig implements ConfigScope {
     /**
      * Whether run tracking is configured for this session.
      *
-     * Tracking requires a target instance, either from the {@code lamin.instance} config
-     * option or the {@code LAMIN_CURRENT_INSTANCE} environment variable. When absent, the
-     * plugin still resolves lamin:// URIs but does not create Transform/Run records.
+     * Tracking requires a target instance, from any of the sources in
+     * {@link #instanceSources(Session)}. When absent, the plugin still resolves lamin://
+     * URIs but does not create Transform/Run records.
      *
      * @param session the Nextflow session
      * @return true if an instance is configured
      */
     static boolean isTrackingConfigured(Session session) {
+        return !instanceSources(session).isEmpty()
+    }
+
+    /**
+     * The sources that name a Lamin instance for this session, highest precedence first.
+     *
+     * @param session the Nextflow session, or {@code null} if unavailable
+     * @return a map of source description to instance slug, see {@link #instanceSources(Object, Object, String)}
+     */
+    static Map<String, String> instanceSources(Session session) {
         Map configMap = session?.config?.lamin as Map ?: [:]
-        return (configMap.instance ?: System.getenv('LAMIN_CURRENT_INSTANCE')) as boolean
+        return instanceSources(session?.config?.outputDir, configMap.instance, System.getenv('LAMIN_CURRENT_INSTANCE'))
+    }
+
+    /**
+     * The sources that name a Lamin instance, highest precedence first:
+     *
+     * <ol>
+     *   <li>the output directory ({@code -output-dir} / {@code outputDir}), when it is a
+     *       {@code lamin://} storage URI</li>
+     *   <li>the {@code lamin.instance} config option</li>
+     *   <li>the {@code LAMIN_CURRENT_INSTANCE} environment variable</li>
+     * </ol>
+     *
+     * Sources that are not set are left out.
+     *
+     * @param outputDir the configured output directory
+     * @param configInstance the {@code lamin.instance} config option
+     * @param envInstance the {@code LAMIN_CURRENT_INSTANCE} environment variable
+     * @return a map of source description to instance slug
+     */
+    static Map<String, String> instanceSources(Object outputDir, Object configInstance, String envInstance) {
+        Map<String, String> sources = new LinkedHashMap<String, String>()
+        String outputDirStr = outputDir?.toString()?.trim()
+        if (outputDirStr?.toLowerCase()?.startsWith("${LaminUriParser.SCHEME}:")) {
+            LaminUriParser parsed = LaminUriParser.parse(outputDirStr)
+            if (parsed.isStorage()) {
+                sources.put('the output directory', parsed.instanceSlug)
+            }
+        }
+        if (configInstance?.toString()?.trim()) {
+            sources.put('lamin.instance', configInstance.toString().trim())
+        }
+        if (envInstance?.trim()) {
+            sources.put('LAMIN_CURRENT_INSTANCE', envInstance.trim())
+        }
+        return sources
+    }
+
+    /**
+     * A warning for each source that names a different instance than the source with the
+     * highest precedence, which is the one used.
+     *
+     * @param sources the instance sources, see {@link #instanceSources(Object, Object, String)}
+     * @return the warnings, empty when all sources agree
+     */
+    static List<String> instanceMismatches(Map<String, String> sources) {
+        List<String> warnings = []
+        if (sources.isEmpty()) {
+            return warnings
+        }
+        Map.Entry<String, String> used = sources.entrySet().first()
+        for (Map.Entry<String, String> source : sources.entrySet()) {
+            if (!source.value.equalsIgnoreCase(used.value)) {
+                warnings.add("Lamin instance '${source.value}' from ${source.key} differs from '${used.value}' from ${used.key}; using '${used.value}'".toString())
+            }
+        }
+        return warnings
     }
 
     /**
@@ -487,6 +562,12 @@ class LaminConfig implements ConfigScope {
      */
     static LaminConfig parseConfigForResolution(Session session) {
         Map configMap = session?.config?.lamin as Map ?: [:]
+        // Resolved the same way as for run tracking, so that a lamin:// output directory is
+        // checked against the instance the run will be tracked in
+        Map<String, String> sources = instanceSources(session)
+        if (!sources.isEmpty()) {
+            configMap = configMap + [instance: sources.values().first()]
+        }
         return new LaminConfig(configMap, false)
     }
 
