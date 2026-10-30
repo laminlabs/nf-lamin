@@ -518,4 +518,72 @@ class LaminConfigTest extends Specification {
         expect:
         LaminConfig.isTrackingConfigured(session)
     }
+
+    def "isTrackingConfigured is true when the output directory is a lamin:// storage URI"() {
+        given:
+        def session = Stub(nextflow.Session) {
+            getConfig() >> [outputDir: 'lamin://laminlabs/lamindata?prefix=results']
+        }
+
+        expect:
+        LaminConfig.isTrackingConfigured(session)
+    }
+
+    def "instanceSources lists the set sources in order of precedence"() {
+        expect:
+        LaminConfig.instanceSources(outputDir, configInstance, envInstance) == expected
+
+        where:
+        outputDir                                    | configInstance | envInstance | expected
+        null                                         | null           | null        | [:]
+        'results'                                    | null           | null        | [:]
+        's3://bucket/results'                        | 'a/b'          | null        | ['lamin.instance': 'a/b']
+        'lamin://laminlabs/lamindata/artifact/abcd'  | null           | null        | [:]
+        null                                         | ''             | 'c/d'       | ['LAMIN_CURRENT_INSTANCE': 'c/d']
+        'lamin://laminlabs/lamindata?prefix=res'     | 'a/b'          | 'c/d'       | ['the output directory': 'laminlabs/lamindata', 'lamin.instance': 'a/b', 'LAMIN_CURRENT_INSTANCE': 'c/d']
+    }
+
+    def "instanceMismatches is empty when the sources agree"() {
+        expect:
+        LaminConfig.instanceMismatches([:]).isEmpty()
+        LaminConfig.instanceMismatches(['the output directory': 'laminlabs/lamindata', 'lamin.instance': 'LaminLabs/LaminData']).isEmpty()
+    }
+
+    def "instanceMismatches warns about each overridden source"() {
+        when:
+        def warnings = LaminConfig.instanceMismatches([
+            'the output directory': 'laminlabs/lamindata',
+            'lamin.instance': 'a/b',
+            'LAMIN_CURRENT_INSTANCE': 'laminlabs/lamindata'
+        ])
+
+        then:
+        warnings == ["Lamin instance 'a/b' from lamin.instance differs from 'laminlabs/lamindata' from the output directory; using 'laminlabs/lamindata'"]
+    }
+
+    def "parseConfig uses the instance of a lamin:// output directory over lamin.instance"() {
+        given:
+        def session = Stub(nextflow.Session) {
+            getConfig() >> [
+                outputDir: 'lamin://laminlabs/lamindata?prefix=results',
+                lamin: [instance: 'a/b', api_key: 'k']
+            ]
+        }
+
+        when:
+        def config = LaminConfig.parseConfig(session)
+
+        then:
+        config.instance == 'laminlabs/lamindata'
+    }
+
+    def "parseConfigForResolution uses the instance of a lamin:// output directory"() {
+        given:
+        def session = Stub(nextflow.Session) {
+            getConfig() >> [outputDir: 'lamin://laminlabs/lamindata', lamin: [instance: 'a/b']]
+        }
+
+        expect:
+        LaminConfig.parseConfigForResolution(session).instance == 'laminlabs/lamindata'
+    }
 }
