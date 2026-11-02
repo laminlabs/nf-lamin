@@ -291,6 +291,99 @@ class LaminFileSystemProviderTest extends Specification {
         ((LaminS3FileSystem) path.fileSystem).storageRoot == 's3://lamindata'
     }
 
+    // ==================== lamin-s3:// URIs ====================
+
+    TestableLaminFileSystemProvider laminS3Provider(List<String> roots, Map configOpts = [instance: 'laminlabs/lamindata', api_key: 'key']) {
+        def instance = Mock(Instance) {
+            getRecords(_) >> roots.collect { [root: it] }
+        }
+        new TestableLaminFileSystemProvider(
+            instance: instance,
+            hub: Mock(LaminHub),
+            config: new LaminConfig(configOpts, false),
+            cloudAccess: cloudAccess('read'),
+            s3Provider: new TestableLaminS3FileSystemProvider(injectedClient: Mock(AwsS3Client)),
+        )
+    }
+
+    def "resolveLaminS3Uri reads a path with the credentials of the storage location that covers it"() {
+        given:
+        def provider = laminS3Provider(['s3://lamin-eu', STORAGE_ROOT, 's3://lamin-eu-other/JwMEKs04D9WJ'])
+
+        when:
+        def path = provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJ/.lamindb/abc.zarr/.zgroup')
+
+        then:
+        path instanceof LaminS3Path
+        ((LaminS3Path) path).key == 'JwMEKs04D9WJ/.lamindb/abc.zarr/.zgroup'
+        ((LaminS3FileSystem) path.fileSystem).storageRoot == STORAGE_ROOT
+    }
+
+    def "resolveLaminS3Uri matches storage roots on segment boundaries"() {
+        given:
+        def provider = laminS3Provider([STORAGE_ROOT])
+
+        when:
+        provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJX/file.txt')
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains("No storage location in instance 'laminlabs/lamindata' covers s3://lamin-eu/JwMEKs04D9WJX/file.txt")
+    }
+
+    def "resolveLaminS3Uri looks up the storage locations of a bucket once"() {
+        given:
+        def instance = Mock(Instance)
+        def provider = laminS3Provider([])
+        provider.instance = instance
+
+        when:
+        provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJ/a.txt')
+        provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJ/b.txt')
+
+        then:
+        1 * instance.getRecords({ it.filter == [root: [startswith: 's3://lamin-eu']] }) >> [[root: STORAGE_ROOT]]
+    }
+
+    def "resolveLaminS3Uri falls back to the standard provider when the hub has no credentials for the storage"() {
+        given:
+        def provider = laminS3Provider([STORAGE_ROOT])
+        provider.cloudAccess = new CloudAccessResponse([:])
+
+        when:
+        def path = provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJ/file.txt')
+
+        then:
+        provider.storagePathsRequested == ["${STORAGE_ROOT}/file.txt".toString()]
+        path == Paths.get('/resolved/lamin-eu/JwMEKs04D9WJ/file.txt')
+    }
+
+    def "resolveLaminS3Uri resolves to an s3:// path without an instance lookup when credential management is off"() {
+        given:
+        def instance = Mock(Instance)
+        def provider = laminS3Provider([], [instance: null, api_key: 'key', features: [manage_s3_credentials: false]])
+        provider.instance = instance
+
+        when:
+        provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJ/file.txt')
+
+        then:
+        0 * instance.getRecords(_)
+        provider.storagePathsRequested == ["${STORAGE_ROOT}/file.txt".toString()]
+    }
+
+    def "resolveLaminS3Uri needs a configured instance"() {
+        given:
+        def provider = laminS3Provider([STORAGE_ROOT], [instance: null, api_key: 'key'])
+
+        when:
+        provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJ/file.txt')
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains('lamin.instance')
+    }
+
     // ==================== Read-only artifacts ====================
 
     def "newByteChannel refuses the #option option on an artifact path"() {

@@ -69,6 +69,39 @@ class LaminPathFactoryTest extends Specification {
         e.cause instanceof RuntimeException
     }
 
+    def "parseUri hands a lamin-s3 URI to the provider"() {
+        given:
+        def resolved = Paths.get('/resolved/file.txt')
+        def provider = Mock(LaminFileSystemProvider)
+        def factory = new LaminPathFactory() {
+            protected LaminFileSystemProvider getProvider() { provider }
+        }
+
+        when:
+        def path = factory.parseUri('lamin-s3://lamindata/.lamindb/abc.zarr/.zgroup')
+
+        then:
+        1 * provider.resolveLaminS3Uri('lamin-s3://lamindata/.lamindb/abc.zarr/.zgroup') >> resolved
+        path == resolved
+    }
+
+    def "parseUri reports an unresolvable lamin-s3 URI as an AbortOperationException"() {
+        given:
+        def failing = Stub(LaminFileSystemProvider) {
+            resolveLaminS3Uri(_) >> { throw new IllegalArgumentException('no storage location') }
+        }
+        def factory = new LaminPathFactory() {
+            protected LaminFileSystemProvider getProvider() { failing }
+        }
+
+        when:
+        factory.parseUri('lamin-s3://lamindata/file.txt')
+
+        then:
+        def e = thrown(AbortOperationException)
+        e.message.contains('no storage location')
+    }
+
     def "should return null for non-lamin URIs"() {
         given:
         def factory = new LaminPathFactory()
