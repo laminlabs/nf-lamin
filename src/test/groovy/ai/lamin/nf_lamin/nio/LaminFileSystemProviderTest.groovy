@@ -293,62 +293,83 @@ class LaminFileSystemProviderTest extends Specification {
 
     // ==================== lamin-s3:// URIs ====================
 
-    TestableLaminFileSystemProvider laminS3Provider(List<String> roots, Map configOpts = [instance: 'laminlabs/lamindata', api_key: 'key']) {
-        def instance = Mock(Instance) {
-            getRecords(_) >> roots.collect { [root: it] }
-        }
+    TestableLaminFileSystemProvider laminS3Provider(LaminHub hub, Map configOpts = [instance: null, api_key: 'key']) {
         new TestableLaminFileSystemProvider(
-            instance: instance,
-            hub: Mock(LaminHub),
+            instance: Mock(Instance),
+            hub: hub,
             config: new LaminConfig(configOpts, false),
             cloudAccess: cloudAccess('read'),
             s3Provider: new TestableLaminS3FileSystemProvider(injectedClient: Mock(AwsS3Client)),
         )
     }
 
-    def "resolveLaminS3Uri reads a path with the credentials of the storage location that covers it"() {
+    def "resolveLaminS3Uri reads a path with the credentials of the storage location the hub matches it to"() {
         given:
-        def provider = laminS3Provider(['s3://lamin-eu', STORAGE_ROOT, 's3://lamin-eu-other/JwMEKs04D9WJ'])
+        def hub = Mock(LaminHub)
+        def provider = laminS3Provider(hub)
 
         when:
         def path = provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJ/.lamindb/abc.zarr/.zgroup')
 
         then:
+        // the hub is asked about the path itself and answers with the longest storage root covering it
+        1 * hub.getCloudAccess('s3://lamin-eu/JwMEKs04D9WJ/.lamindb/abc.zarr/.zgroup') >> cloudAccess('read')
         path instanceof LaminS3Path
         ((LaminS3Path) path).key == 'JwMEKs04D9WJ/.lamindb/abc.zarr/.zgroup'
         ((LaminS3FileSystem) path.fileSystem).storageRoot == STORAGE_ROOT
     }
 
-    def "resolveLaminS3Uri matches storage roots on segment boundaries"() {
+    def "resolveLaminS3Uri drops a trailing slash from the key"() {
         given:
-        def provider = laminS3Provider([STORAGE_ROOT])
+        def hub = Mock(LaminHub)
+        def provider = laminS3Provider(hub)
 
         when:
-        provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJX/file.txt')
+        def path = provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJ/dir/')
+
+        then:
+        1 * hub.getCloudAccess('s3://lamin-eu/JwMEKs04D9WJ/dir') >> cloudAccess('read')
+        ((LaminS3Path) path).key == 'JwMEKs04D9WJ/dir'
+    }
+
+    def "resolveLaminS3Uri refuses a path that no accessible storage location covers"() {
+        given:
+        // the hub answers such a path with an empty body
+        def hub = Stub(LaminHub) {
+            getCloudAccess(_) >> new CloudAccessResponse([:])
+        }
+        def provider = laminS3Provider(hub)
+
+        when:
+        provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJ/file.txt')
 
         then:
         def e = thrown(IllegalArgumentException)
-        e.message.contains("No storage location in instance 'laminlabs/lamindata' covers s3://lamin-eu/JwMEKs04D9WJX/file.txt")
+        e.message.contains('s3://lamin-eu/JwMEKs04D9WJ/file.txt')
+        provider.storagePathsRequested.isEmpty()
     }
 
-    def "resolveLaminS3Uri looks up the storage locations of a bucket once"() {
+    def "resolveLaminS3Uri propagates other hub failures"() {
         given:
-        def instance = Mock(Instance)
-        def provider = laminS3Provider([])
-        provider.instance = instance
+        def hub = Stub(LaminHub) {
+            getCloudAccess(_) >> { throw new RuntimeException('hub down') }
+        }
+        def provider = laminS3Provider(hub)
 
         when:
-        provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJ/a.txt')
-        provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJ/b.txt')
+        provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJ/file.txt')
 
         then:
-        1 * instance.getRecords({ it.filter == [root: [startswith: 's3://lamin-eu']] }) >> [[root: STORAGE_ROOT]]
+        def e = thrown(RuntimeException)
+        e.message == 'hub down'
     }
 
     def "resolveLaminS3Uri falls back to the standard provider when the hub has no credentials for the storage"() {
         given:
-        def provider = laminS3Provider([STORAGE_ROOT])
-        provider.cloudAccess = new CloudAccessResponse([:])
+        def hub = Stub(LaminHub) {
+            getCloudAccess(_) >> new CloudAccessResponse([StorageAccessibility: [storageRoot: STORAGE_ROOT, role: 'read', isPublic: true]])
+        }
+        def provider = laminS3Provider(hub)
 
         when:
         def path = provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJ/file.txt')
@@ -358,30 +379,17 @@ class LaminFileSystemProviderTest extends Specification {
         path == Paths.get('/resolved/lamin-eu/JwMEKs04D9WJ/file.txt')
     }
 
-    def "resolveLaminS3Uri resolves to an s3:// path without an instance lookup when credential management is off"() {
+    def "resolveLaminS3Uri resolves to an s3:// path without asking the hub when credential management is off"() {
         given:
-        def instance = Mock(Instance)
-        def provider = laminS3Provider([], [instance: null, api_key: 'key', features: [manage_s3_credentials: false]])
-        provider.instance = instance
+        def hub = Mock(LaminHub)
+        def provider = laminS3Provider(hub, [instance: null, api_key: 'key', features: [manage_s3_credentials: false]])
 
         when:
         provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJ/file.txt')
 
         then:
-        0 * instance.getRecords(_)
+        0 * hub.getCloudAccess(_)
         provider.storagePathsRequested == ["${STORAGE_ROOT}/file.txt".toString()]
-    }
-
-    def "resolveLaminS3Uri needs a configured instance"() {
-        given:
-        def provider = laminS3Provider([STORAGE_ROOT], [instance: null, api_key: 'key'])
-
-        when:
-        provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJ/file.txt')
-
-        then:
-        def e = thrown(IllegalArgumentException)
-        e.message.contains('lamin.instance')
     }
 
     // ==================== Read-only artifacts ====================

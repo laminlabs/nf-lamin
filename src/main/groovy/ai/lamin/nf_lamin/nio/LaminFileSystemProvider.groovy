@@ -83,9 +83,6 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
     // Publish targets resolved so far, keyed by the storage URI they resolved to
     private final Map<String, LaminStorageTarget> publishTargets = new ConcurrentHashMap<String, LaminStorageTarget>()
 
-    // Storage roots registered in an instance, keyed by "owner/name|bucket", for lamin-s3:// paths
-    private final Map<String, List<String>> storageRoots = new ConcurrentHashMap<String, List<String>>()
-
     /**
      * Get an Instance client for a specific LaminDB instance.
      * Delegates to {@link LaminConnection}, which shares the hub and instance cache with
@@ -308,14 +305,15 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
 
     /**
      * Resolve a {@code lamin-s3://<bucket>/<key>} URI to a path that is read with the federated
-     * credentials of the storage location it lives in: the one registered in the configured
-     * instance whose root is the longest prefix of {@code s3://<bucket>/<key>}.
+     * credentials of the storage location it lives in. LaminHub matches the path to the longest
+     * storage root the caller can access, in whichever instance, so no instance needs to be
+     * configured.
      *
      * Falls back to the standard {@code s3://} provider, like {@link #resolveToUnderlyingPath},
      * when credential management is off or LaminHub grants no credentials for the location.
      *
-     * @throws IllegalArgumentException if the URI is invalid, no instance is configured, or no
-     *         storage location in the instance covers the path
+     * @throws IllegalArgumentException if the URI is invalid or no accessible storage location
+     *         covers the path
      */
     Path resolveLaminS3Uri(String uriString) {
         String schemePrefix = LaminS3FileSystemProvider.SCHEME + '://'
@@ -335,64 +333,31 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
             return asStoragePath(s3Uri)
         }
 
-        String slug = getConfig()?.instance?.trim()
-        if (!slug) {
-            throw new IllegalArgumentException(
-                "${LaminS3FileSystemProvider.SCHEME}:// paths are looked up in the configured instance: set lamin.instance or LAMIN_CURRENT_INSTANCE"
-            )
-        }
-        String root = coveringStorageRoot(slug, bucket, s3Uri)
-        if (root == null) {
-            throw new IllegalArgumentException("No storage location in instance '${slug}' covers ${s3Uri}")
+        LaminHub hub = getHub()
+        if (hub == null) {
+            return asStoragePath(s3Uri)
         }
 
-        try {
-            ManagedS3 managed = resolveManagedS3(root)
-            if (managed != null) {
-                log.debug "Resolved ${uriString} in storage location ${root} (Lamin-managed credentials)"
-                return new LaminS3Path(managed.fileSystem, key)
-            }
-        } catch (Exception e) {
-            log.warn "Could not obtain cloud credentials for ${root}, falling back to standard S3 path: ${e.message}"
-            log.debug "getCloudAccess failure detail", e
+        // the hub answers with the longest storage root covering the path and credentials scoped
+        // to it; a path outside every storage location the caller can access gets an empty answer
+        CloudAccessResponse access = hub.getCloudAccess(s3Uri)
+        String root = access.storageRoot
+        if (!root) {
+            throw new IllegalArgumentException("No storage location you have access to covers ${s3Uri}")
         }
-        return asStoragePath(s3Uri)
-    }
+        if (!access.isUsable()) {
+            log.debug "No Lamin-managed credentials for ${s3Uri} (public or unsupported storage), falling back to the standard provider"
+            return asStoragePath(s3Uri)
+        }
 
-    /**
-     * The root of the storage location in an instance that covers an {@code s3://} URI, or null
-     * when none does. When roots are nested, the longest one wins.
-     */
-    private String coveringStorageRoot(String slug, String bucket, String s3Uri) {
-        String cacheKey = "${slug}|${bucket}".toString()
-        List<String> roots = storageRoots.get(cacheKey)
-        if (roots == null) {
-            // fetched outside the map's lock: it is an API call
-            roots = storageRoots.putIfAbsent(cacheKey, fetchStorageRoots(slug, bucket)) ?: storageRoots.get(cacheKey)
+        // the same credentials would come back for the root itself, so skip that call
+        cloudAccessCache.put(root, access)
+        ManagedS3 managed = resolveManagedS3(root)
+        if (managed == null) {
+            return asStoragePath(s3Uri)
         }
-        String best = null
-        int bestLength = -1
-        for (String root : roots) {
-            String trimmed = root.replaceFirst('/+$', '')
-            if ((s3Uri == trimmed || s3Uri.startsWith(trimmed + '/')) && trimmed.length() > bestLength) {
-                best = root
-                bestLength = trimmed.length()
-            }
-        }
-        return best
-    }
-
-    /** The roots of the storage locations registered in an instance under an S3 bucket. */
-    private List<String> fetchStorageRoots(String slug, String bucket) {
-        String[] parts = slug.split('/', 2)
-        Instance instance = getInstance(parts[0], parts[1])
-        // a prefix match also returns other buckets that start with this name; coveringStorageRoot filters them
-        List<Map> storages = instance.getRecords(
-            moduleName: 'core',
-            modelName: 'storage',
-            filter: [root: [startswith: "s3://${bucket}".toString()]]
-        )
-        return storages.collect { Map storage -> storage.get('root') as String }.findAll { String root -> root } as List<String>
+        log.debug "Resolved ${uriString} in storage location ${root} (Lamin-managed credentials)"
+        return new LaminS3Path(managed.fileSystem, key)
     }
 
     /**
