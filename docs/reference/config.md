@@ -70,6 +70,14 @@ The sections below document each setting in detail.
 | `transform_uid` | String  | `null`   | `LAMIN_TRANSFORM_UID`    | Override the auto-generated transform UID |
 | `run_uid`       | String  | `null`   | `LAMIN_RUN_UID`          | Override the auto-generated run UID       |
 
+**Instance resolution**: the instance is taken from the first of these that is set:
+
+1. the output directory (`-output-dir` / `outputDir`), when it is a `lamin://` storage URI
+2. `lamin.instance`
+3. `LAMIN_CURRENT_INSTANCE`
+
+If they name different instances, the plugin logs a warning and uses the one highest in this list.
+
 **Experimental**: UID fields (`project_uids`, `ulabel_uids`, `space_uid`, `branch_uid`) also accept named references: `'?name'` (lookup by name, omit if missing), `'!name'` (lookup, error if missing), `'+name'` (create if missing). This is an experimental feature and may be removed in a future release.
 
 ---

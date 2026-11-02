@@ -66,6 +66,8 @@ Point the output directory at a `lamin://` URI to write the outputs straight int
 nextflow run <your-pipeline> -c lamin.config -output-dir 'lamin://your-org/your-instance?prefix=results'
 ```
 
+The run is then tracked in the instance the URI names, so `lamin.instance` can be left out.
+
 Or per process, with `publishDir`:
 
 ```groovy tags=["skip-execution"]
