@@ -291,6 +291,107 @@ class LaminFileSystemProviderTest extends Specification {
         ((LaminS3FileSystem) path.fileSystem).storageRoot == 's3://lamindata'
     }
 
+    // ==================== lamin-s3:// URIs ====================
+
+    TestableLaminFileSystemProvider laminS3Provider(LaminHub hub, Map configOpts = [instance: null, api_key: 'key']) {
+        new TestableLaminFileSystemProvider(
+            instance: Mock(Instance),
+            hub: hub,
+            config: new LaminConfig(configOpts, false),
+            cloudAccess: cloudAccess('read'),
+            s3Provider: new TestableLaminS3FileSystemProvider(injectedClient: Mock(AwsS3Client)),
+        )
+    }
+
+    def "resolveLaminS3Uri reads a path with the credentials of the storage location the hub matches it to"() {
+        given:
+        def hub = Mock(LaminHub)
+        def provider = laminS3Provider(hub)
+
+        when:
+        def path = provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJ/.lamindb/abc.zarr/.zgroup')
+
+        then:
+        // the hub is asked about the path itself and answers with the longest storage root covering it
+        1 * hub.getCloudAccess('s3://lamin-eu/JwMEKs04D9WJ/.lamindb/abc.zarr/.zgroup') >> cloudAccess('read')
+        path instanceof LaminS3Path
+        ((LaminS3Path) path).key == 'JwMEKs04D9WJ/.lamindb/abc.zarr/.zgroup'
+        ((LaminS3FileSystem) path.fileSystem).storageRoot == STORAGE_ROOT
+    }
+
+    def "resolveLaminS3Uri drops a trailing slash from the key"() {
+        given:
+        def hub = Mock(LaminHub)
+        def provider = laminS3Provider(hub)
+
+        when:
+        def path = provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJ/dir/')
+
+        then:
+        1 * hub.getCloudAccess('s3://lamin-eu/JwMEKs04D9WJ/dir') >> cloudAccess('read')
+        ((LaminS3Path) path).key == 'JwMEKs04D9WJ/dir'
+    }
+
+    def "resolveLaminS3Uri refuses a path that no accessible storage location covers"() {
+        given:
+        // the hub answers such a path with an empty body
+        def hub = Stub(LaminHub) {
+            getCloudAccess(_) >> new CloudAccessResponse([:])
+        }
+        def provider = laminS3Provider(hub)
+
+        when:
+        provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJ/file.txt')
+
+        then:
+        def e = thrown(IllegalArgumentException)
+        e.message.contains('s3://lamin-eu/JwMEKs04D9WJ/file.txt')
+        provider.storagePathsRequested.isEmpty()
+    }
+
+    def "resolveLaminS3Uri propagates other hub failures"() {
+        given:
+        def hub = Stub(LaminHub) {
+            getCloudAccess(_) >> { throw new RuntimeException('hub down') }
+        }
+        def provider = laminS3Provider(hub)
+
+        when:
+        provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJ/file.txt')
+
+        then:
+        def e = thrown(RuntimeException)
+        e.message == 'hub down'
+    }
+
+    def "resolveLaminS3Uri falls back to the standard provider when the hub has no credentials for the storage"() {
+        given:
+        def hub = Stub(LaminHub) {
+            getCloudAccess(_) >> new CloudAccessResponse([StorageAccessibility: [storageRoot: STORAGE_ROOT, role: 'read', isPublic: true]])
+        }
+        def provider = laminS3Provider(hub)
+
+        when:
+        def path = provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJ/file.txt')
+
+        then:
+        provider.storagePathsRequested == ["${STORAGE_ROOT}/file.txt".toString()]
+        path == Paths.get('/resolved/lamin-eu/JwMEKs04D9WJ/file.txt')
+    }
+
+    def "resolveLaminS3Uri resolves to an s3:// path without asking the hub when credential management is off"() {
+        given:
+        def hub = Mock(LaminHub)
+        def provider = laminS3Provider(hub, [instance: null, api_key: 'key', features: [manage_s3_credentials: false]])
+
+        when:
+        provider.resolveLaminS3Uri('lamin-s3://lamin-eu/JwMEKs04D9WJ/file.txt')
+
+        then:
+        0 * hub.getCloudAccess(_)
+        provider.storagePathsRequested == ["${STORAGE_ROOT}/file.txt".toString()]
+    }
+
     // ==================== Read-only artifacts ====================
 
     def "newByteChannel refuses the #option option on an artifact path"() {

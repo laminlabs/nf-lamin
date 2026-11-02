@@ -129,6 +129,26 @@ For LaminHub-managed **S3** storage, the plugin automatically obtains temporary 
 
 The plugin resolves the `lamin://` URI to its storage location (`storageRoot` and key), then calls LaminHub's cloud-access API to get short-lived `AccessKeyId` / `SecretAccessKey` / `SessionToken` credentials scoped to that storage root. Nextflow accesses the files through an internal `lamin-s3://` virtual filesystem backed by those credentials. The credentials are refreshed as needed, so a long-running transfer is not cut short by their expiry.
 
+:::{note}
+**Advanced: addressing a storage path directly**
+
+Inputs should normally be referenced as `lamin://` artifact URIs.
+
+For example, a pipeline published its STARsolo output folder `Sample_X.Solo.out` as a folder artifact. The filtered count matrix sits in the subdirectory `Gene/filtered` of that folder. With the artifact uid at hand, you reference it like any other sub-path:
+
+```bash
+nextflow run my-pipeline.nf --input 'lamin://laminlabs/lamindata/artifact/3xJthewGRbTTA5PU/Gene/filtered'
+```
+
+Behind the scenes, nf-lamin resolves this URI to the path of the folder in S3 and reads it through Lamin-managed federated credentials. You can use such a path directly as well: take a storage path, e.g. one listed in a samplesheet or a log written by the pipeline, and swap `s3://` for `lamin-s3://`. For the folder above, that is:
+
+```bash
+nextflow run my-pipeline.nf \
+  --input 'lamin-s3://seqera-test-eu/profile-submit/1S6fQH0sbVjs9hMDF7vs/star/Sample_X/Sample_X.Solo.out/Gene/filtered'
+```
+
+:::
+
 The same credentials are used to compute the size and hash of artifacts published to a `lamin-s3://` location (see [artifact hashing](config.md#artifact-hashing)).
 
 This feature can be turned off by setting `lamin.features.manage_s3_credentials = false` in `nextflow.config`, in which case the plugin resolves `lamin://` URIs -- for reading and for publishing -- to plain `s3://` paths and lets Nextflow authenticate through the default credential provider chain (environment variables, AWS credentials file, EC2 instance profile, etc).

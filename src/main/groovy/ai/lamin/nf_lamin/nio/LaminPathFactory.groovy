@@ -30,7 +30,8 @@ import org.pf4j.Extension
  * FileSystemPathFactory implementation for Lamin URIs.
  *
  * This factory allows Nextflow to parse lamin:// URI strings into
- * LaminPath objects, and convert LaminPath objects back to URI strings.
+ * LaminPath objects, and convert LaminPath objects back to URI strings. It also parses
+ * lamin-s3:// URIs, which address a storage path read with Lamin-managed credentials.
  */
 @Slf4j
 @Extension
@@ -44,18 +45,21 @@ class LaminPathFactory extends FileSystemPathFactory {
      * target's query string is guaranteed to arrive intact: Nextflow's own fallback folds it
      * into the path.
      *
-     * @param uriString The URI string (e.g., "lamin://owner/instance/artifact/uid")
-     * @return A path if the URI is a lamin:// URI, null otherwise
-     * @throws AbortOperationException if the URI is a lamin:// URI that cannot be parsed or resolved
+     * @param uriString The URI string (e.g., "lamin://owner/instance/artifact/uid" or "lamin-s3://bucket/key")
+     * @return A path if the URI is a lamin:// or lamin-s3:// URI, null otherwise
+     * @throws AbortOperationException if the URI is a lamin:// or lamin-s3:// URI that cannot be parsed or resolved
      */
     @Override
     protected Path parseUri(String uriString) {
-        // Only handle lamin:// URIs
-        if (!uriString?.startsWith(LaminUriParser.SCHEME + ':')) {
+        boolean laminS3 = uriString?.startsWith(LaminS3FileSystemProvider.SCHEME + '://')
+        if (!laminS3 && !uriString?.startsWith(LaminUriParser.SCHEME + ':')) {
             return null
         }
 
         try {
+            if (laminS3) {
+                return getProvider().resolveLaminS3Uri(uriString)
+            }
             LaminUriParser parsed = LaminUriParser.parse(uriString)
             return getProvider().getPath(parsed)
         }

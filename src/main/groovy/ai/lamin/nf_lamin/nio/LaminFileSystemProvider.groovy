@@ -304,6 +304,63 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
     }
 
     /**
+     * Resolve a {@code lamin-s3://<bucket>/<key>} URI to a path that is read with the federated
+     * credentials of the storage location it lives in. LaminHub matches the path to the longest
+     * storage root the caller can access, in whichever instance, so no instance needs to be
+     * configured.
+     *
+     * Falls back to the standard {@code s3://} provider, like {@link #resolveToUnderlyingPath},
+     * when credential management is off or LaminHub grants no credentials for the location.
+     *
+     * @throws IllegalArgumentException if the URI is invalid or no accessible storage location
+     *         covers the path
+     */
+    Path resolveLaminS3Uri(String uriString) {
+        String schemePrefix = LaminS3FileSystemProvider.SCHEME + '://'
+        if (!uriString?.startsWith(schemePrefix)) {
+            throw new IllegalArgumentException("Not a ${LaminS3FileSystemProvider.SCHEME}:// URI: ${uriString}")
+        }
+        String rest = uriString.substring(schemePrefix.length())
+        int slash = rest.indexOf('/')
+        String bucket = slash >= 0 ? rest.substring(0, slash) : rest
+        String key = slash >= 0 ? rest.substring(slash + 1).replaceFirst('/+$', '') : ''
+        if (!bucket) {
+            throw new IllegalArgumentException("No bucket in ${uriString}")
+        }
+        String s3Uri = key ? "s3://${bucket}/${key}".toString() : "s3://${bucket}".toString()
+
+        if (getConfig()?.features?.manage_s3_credentials == false) {
+            return asStoragePath(s3Uri)
+        }
+
+        LaminHub hub = getHub()
+        if (hub == null) {
+            return asStoragePath(s3Uri)
+        }
+
+        // the hub answers with the longest storage root covering the path and credentials scoped
+        // to it; a path outside every storage location the caller can access gets an empty answer
+        CloudAccessResponse access = hub.getCloudAccess(s3Uri)
+        String root = access.storageRoot
+        if (!root) {
+            throw new IllegalArgumentException("No storage location you have access to covers ${s3Uri}")
+        }
+        if (!access.isUsable()) {
+            log.debug "No Lamin-managed credentials for ${s3Uri} (public or unsupported storage), falling back to the standard provider"
+            return asStoragePath(s3Uri)
+        }
+
+        // the same credentials would come back for the root itself, so skip that call
+        cloudAccessCache.put(root, access)
+        ManagedS3 managed = resolveManagedS3(root)
+        if (managed == null) {
+            return asStoragePath(s3Uri)
+        }
+        log.debug "Resolved ${uriString} in storage location ${root} (Lamin-managed credentials)"
+        return new LaminS3Path(managed.fileSystem, key)
+    }
+
+    /**
      * The Lamin-managed file system for a storage root, for restoring a {@link LaminS3Path}
      * that was serialised in another process.
      *
