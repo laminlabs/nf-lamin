@@ -99,7 +99,11 @@ process myProcess {
 
 When Nextflow parses the target, the plugin looks up the space and storage in the instance and resolves the target to a path in that storage location. Everything Nextflow publishes there is written through the federated credentials LaminHub grants for the location, and each published file is registered as an Artifact **in place**: its `key` is the path relative to the storage root, LaminDB does not copy it, and it is addressed as `lamin://<owner>/<instance>/artifact/<uid>` from then on.
 
-Registering the published files as artifacts needs run tracking to be configured; the `api_key` is also what authorises the writes. A `lamin://` output directory configures the instance by itself, taking precedence over `lamin.instance` and `LAMIN_CURRENT_INSTANCE` (see {doc}`/reference/config`), so `LAMIN_API_KEY` is all you need. `publishDir` targets do not configure the instance: they need `lamin.instance` or `LAMIN_CURRENT_INSTANCE`.
+Registering the published files as artifacts needs run tracking to be configured, which takes two things.
+
+First, a LaminHub API key, which is also what authorises the writes: set `lamin.api_key` in `nextflow.config`, or the `LAMIN_API_KEY` environment variable.
+
+Second, the LaminDB instance to track the run in. A `lamin://` output directory names it already, so for pipelines that use workflow outputs, `-output-dir 'lamin://<owner>/<instance>?prefix=results'` is all it takes. Pipelines that publish with `publishDir` need `lamin.instance` in `nextflow.config` or the `LAMIN_CURRENT_INSTANCE` environment variable instead, since their targets are only known once a task publishes. When several of these are set and disagree, the output directory wins over `lamin.instance`, which wins over the environment variable, and the plugin logs a warning (see {doc}`/reference/config`).
 
 Publishing over existing files follows Nextflow's `overwrite` rules, as it does for `s3://` targets.
 
