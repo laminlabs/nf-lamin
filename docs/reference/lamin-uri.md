@@ -128,13 +128,21 @@ The plugin resolves the `lamin://` URI to its storage location (`storageRoot` an
 :::{note}
 **Advanced: addressing a storage path directly**
 
-Inputs should normally be referenced as `lamin://` artifact URIs. In the rare case where you need a file by its storage path instead (e.g. a file deep inside a folder artifact), `lamin-s3://` accepts the same path as `s3://` and reads it with the federated credentials:
+Inputs should normally be referenced as `lamin://` artifact URIs.
+
+For example, a pipeline published its STARsolo output folder `Sample_X.Solo.out` as a folder artifact. The filtered count matrix sits in the subdirectory `Gene/filtered` of that folder. With the artifact uid at hand, you reference it like any other sub-path:
 
 ```bash
-nextflow run my-pipeline.nf --input 'lamin-s3://lamindata/.lamindb/xj10tM8SmVfZLpMD.zarr/.zgroup'
+nextflow run my-pipeline.nf --input 'lamin://laminlabs/lamindata/artifact/3xJthewGRbTTA5PU/Gene/filtered'
 ```
 
-The storage location that covers the path is looked up in the instance the run is tracked in (`lamin.instance` or `LAMIN_CURRENT_INSTANCE`); when locations are nested, the longest root wins. A path that no storage location of the instance covers is refused.
+Behind the scenes, nf-lamin resolves this URI to the path of the folder in S3 and reads it through Lamin-managed federated credentials. You can use such a path directly as well: take a storage path, e.g. one listed in a samplesheet or a log written by the pipeline, and swap `s3://` for `lamin-s3://`. For the folder above, that is:
+
+```bash
+nextflow run my-pipeline.nf \
+  --input 'lamin-s3://seqera-test-eu/profile-submit/1S6fQH0sbVjs9hMDF7vs/star/Sample_X/Sample_X.Solo.out/Gene/filtered'
+```
+
 :::
 
 The same credentials are used to compute the size and hash of artifacts published to a `lamin-s3://` location (see [artifact hashing](config.md#artifact-hashing)).
