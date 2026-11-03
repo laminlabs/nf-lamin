@@ -486,10 +486,16 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
     void download(Path remoteFile, Path localDestination, CopyOption... options) throws IOException {
         log.debug "download: ${remoteFile} -> ${localDestination}"
         LaminS3Path s3Path = toLaminS3Path(remoteFile)
+        boolean isDirectory = readAttributes(s3Path, BasicFileAttributes).isDirectory()
 
         CopyOptions opts = CopyOptions.parse(options)
         if (opts.replaceExisting()) {
-            Files.deleteIfExists(localDestination)
+            FileHelper.deletePath(localDestination)
+        }
+
+        if (isDirectory) {
+            downloadDirectory(s3Path, localDestination)
+            return
         }
 
         newInputStream(s3Path).withCloseable { InputStream input ->
@@ -583,6 +589,50 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
     private void downloadTo(LaminS3Path s3Path, Path local) throws IOException {
         newInputStream(s3Path).withCloseable { InputStream input ->
             Files.copy(input, local, StandardCopyOption.REPLACE_EXISTING)
+        }
+    }
+
+    /**
+     * Download every object under a prefix, skipping folder markers since they aren't files.
+     */
+    private void downloadDirectory(LaminS3Path dir, Path localDir) throws IOException {
+        if (Files.exists(localDir)) {
+            throw new FileAlreadyExistsException(localDir.toString())
+        }
+        Files.createDirectories(localDir)
+
+        LaminS3FileSystem fs = (LaminS3FileSystem) dir.fileSystem
+        String prefix = dir.key ? "${dir.key}/" : ''
+        Path root = localDir.toAbsolutePath().normalize()
+        String continuationToken = null
+        while (true) {
+            ListObjectsV2Response response
+            try {
+                ListObjectsV2Request request = ListObjectsV2Request.builder()
+                    .bucket(dir.bucket)
+                    .prefix(prefix)
+                    .continuationToken(continuationToken)
+                    .build()
+                response = fs.s3Client.listObjectsV2(request)
+            } catch (Exception e) {
+                throw new IOException("Failed to list ${dir}", e)
+            }
+            for (S3Object object : response.contents()) {
+                if (object.key().endsWith('/')) {
+                    continue
+                }
+                // S3 keys may contain "..", which must not write outside the destination
+                Path target = root.resolve(object.key().substring(prefix.length())).normalize()
+                if (!target.startsWith(root)) {
+                    throw new IOException("Cannot download '${object.key()}': it resolves outside ${localDir}")
+                }
+                Files.createDirectories(target.parent)
+                downloadTo(new LaminS3Path(fs, object.key()), target)
+            }
+            if (!response.isTruncated()) {
+                break
+            }
+            continuationToken = response.nextContinuationToken()
         }
     }
 
