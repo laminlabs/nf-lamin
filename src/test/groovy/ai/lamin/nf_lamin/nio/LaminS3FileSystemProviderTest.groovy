@@ -548,7 +548,7 @@ class LaminS3FileSystemProviderTest extends Specification {
     private void stubDirectory(List<String> keys) {
         s3Client.headObject(_ as HeadObjectRequest) >> { throw NO_SUCH_KEY }
         s3Client.listObjectsV2(_ as ListObjectsV2Request) >> ListObjectsV2Response.builder()
-            .contents(keys.collect { String key -> S3Object.builder().key(key).size(1L).build() })
+            .contents(keys.collect { String key -> S3Object.builder().key(key).size(key.endsWith('/') ? 0L : 1L).build() })
             .build()
         s3Client.getObject(_ as GetObjectRequest) >> { GetObjectRequest r -> responseStream(r.key().bytes) }
     }
@@ -632,6 +632,57 @@ class LaminS3FileSystemProviderTest extends Specification {
         then:
         thrown(IOException)
         !Files.exists(tmpDir.resolve('escaped.txt'))
+
+        cleanup:
+        tmpDir.toFile().deleteDir()
+    }
+
+    def "download() of a prefix refuses a non-empty object whose key ends in a slash"() {
+        given:
+        s3Client.headObject(_ as HeadObjectRequest) >> { throw NO_SUCH_KEY }
+        s3Client.listObjectsV2(_ as ListObjectsV2Request) >> ListObjectsV2Response.builder()
+            .contents(S3Object.builder().key('prefix/dir/data/').size(5L).build())
+            .build()
+        Path tmpDir = Files.createTempDirectory('lamin-download-test')
+
+        when:
+        provider.download(s3Path('prefix/dir'), tmpDir.resolve('dir'))
+
+        then:
+        thrown(IOException)
+
+        cleanup:
+        tmpDir.toFile().deleteDir()
+    }
+
+    def "download() of a prefix refuses keys that collide at the destination"() {
+        given:
+        stubDirectory(['prefix/dir/a.txt', 'prefix/dir/sub/../a.txt'])
+        Path tmpDir = Files.createTempDirectory('lamin-download-test')
+        Path dest = tmpDir.resolve('dir')
+
+        when:
+        provider.download(s3Path('prefix/dir'), dest)
+
+        then:
+        thrown(FileAlreadyExistsException)
+        new String(Files.readAllBytes(dest.resolve('a.txt'))) == 'prefix/dir/a.txt'
+
+        cleanup:
+        tmpDir.toFile().deleteDir()
+    }
+
+    def "download() of a prefix requests each object by its literal key"() {
+        given:
+        stubDirectory(['prefix/dir/sub//b.txt'])
+        Path tmpDir = Files.createTempDirectory('lamin-download-test')
+        Path dest = tmpDir.resolve('dir')
+
+        when:
+        provider.download(s3Path('prefix/dir'), dest)
+
+        then:
+        new String(Files.readAllBytes(dest.resolve('sub/b.txt'))) == 'prefix/dir/sub//b.txt'
 
         cleanup:
         tmpDir.toFile().deleteDir()
