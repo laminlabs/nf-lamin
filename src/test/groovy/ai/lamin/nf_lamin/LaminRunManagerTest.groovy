@@ -24,6 +24,8 @@ import java.time.OffsetDateTime
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
+import java.util.function.LongSupplier
 import sun.misc.Signal
 
 class LaminRunManagerTest extends Specification {
@@ -992,12 +994,40 @@ class LaminRunManagerTest extends Specification {
 
         when:
         long before = System.nanoTime()
-        manager.awaitArtifactTasks(1)
+        manager.awaitArtifactTasks({ 1L } as LongSupplier)
         long elapsedSeconds = (System.nanoTime() - before) / 1_000_000_000L
 
         then:
         elapsedSeconds < 10
         manager.trackingFailures >= 1
+
+        cleanup:
+        release.countDown()
+    }
+
+    def 'awaitArtifactTasks stops early when its limit drops during the wait'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = trackingManager(mockInstance)
+        def release = new CountDownLatch(1)
+        mockInstance.createArtifact(_) >> {
+            release.await(30, TimeUnit.SECONDS)
+            [uid: 'A1', id: 11, run: 1]
+        }
+        manager.createInputArtifactsAsync('blocked', [s3MockPath()])
+        def limit = new AtomicLong(3600)
+
+        when: 'a cancel arrives while the wait is already under way'
+        Thread.start {
+            sleep(1500)
+            limit.set(0)
+        }
+        long before = System.nanoTime()
+        manager.awaitArtifactTasks({ limit.get() } as LongSupplier)
+        long elapsedSeconds = (System.nanoTime() - before) / 1_000_000_000L
+
+        then:
+        elapsedSeconds < 20
 
         cleanup:
         release.countDown()

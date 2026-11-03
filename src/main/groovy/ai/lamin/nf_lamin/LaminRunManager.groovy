@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
+import java.util.function.LongSupplier
 
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
@@ -1018,18 +1019,24 @@ final class LaminRunManager {
     }
 
     void awaitArtifactTasks() {
-        awaitArtifactTasks(artifactDrainTimeoutSeconds())
+        awaitArtifactTasks({ artifactDrainTimeoutSeconds() } as LongSupplier)
     }
 
-    void awaitArtifactTasks(long timeoutSeconds) {
+    /** @param timeoutSeconds re-read during the wait, since a cancel can arrive while it's under way */
+    void awaitArtifactTasks(LongSupplier timeoutSeconds) {
         artifactExecutor.shutdown()
+        long start = System.nanoTime()
         try {
-            if (!artifactExecutor.awaitTermination(timeoutSeconds, TimeUnit.SECONDS)) {
-                int abandoned = artifactExecutor.shutdownNow().size()
-                trackingFailures.addAndGet(abandoned)
-                log.warn "Lamin artifact tasks did not complete within ${timeoutSeconds}s; abandoned ${abandoned} queued task(s), so some artifacts may not have been registered"
-                // let the interrupted tasks stop, so they are counted and don't race the final run update
-                artifactExecutor.awaitTermination(5, TimeUnit.SECONDS)
+            while (!artifactExecutor.awaitTermination(1, TimeUnit.SECONDS)) {
+                long elapsedSeconds = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - start)
+                if (elapsedSeconds >= timeoutSeconds.getAsLong()) {
+                    int abandoned = artifactExecutor.shutdownNow().size()
+                    trackingFailures.addAndGet(abandoned)
+                    log.warn "Lamin artifact tasks did not complete within ${elapsedSeconds}s; abandoned ${abandoned} queued task(s), so some artifacts may not have been registered"
+                    // let the interrupted tasks stop, so they are counted and don't race the final run update
+                    artifactExecutor.awaitTermination(5, TimeUnit.SECONDS)
+                    break
+                }
             }
         } catch (InterruptedException e) {
             trackingFailures.incrementAndGet()
