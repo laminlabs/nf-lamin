@@ -793,6 +793,76 @@ class LaminRunManagerTest extends Specification {
         manager.trackingFailures == 1
     }
 
+    private LaminRunManager finishedManager(Instance mockInstance, Closure config) {
+        def manager = statsManager(mockInstance, Stub(ArtifactStatsResolver))
+        injectField(manager, 'run', [uid: 'R456', id: 99] as Map<String, Object>)
+        def metadata = Stub(WorkflowMetadata) {
+            getStart() >> OffsetDateTime.now()
+            getComplete() >> OffsetDateTime.now()
+        }
+        injectField(manager, 'session', Stub(Session) {
+            getWorkflowMetadata() >> metadata
+            isSuccess() >> true
+            getConfig() >> { config.call() }
+        })
+        return manager
+    }
+
+    def 'finalizeRun writes the run status before registering the report'() {
+        given:
+        def events = []
+        def mockInstance = Mock(Instance)
+        def manager = finishedManager(mockInstance) { events << 'report'; [:] }
+        mockInstance.updateRecord(_) >> { events << 'status'; [uid: 'R456'] }
+
+        when:
+        manager.finalizeRun()
+
+        then:
+        events.first() == 'status'
+        events.contains('report')
+    }
+
+    def 'finalizeRun links a registered report in a separate update'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = finishedManager(mockInstance) { [report: [enabled: true, file: 'https://example.com/report.html']] }
+
+        when:
+        manager.finalizeRun()
+
+        then:
+        1 * mockInstance.updateRecord({ Map args ->
+            args.data._status_code == RunStatus.COMPLETED.code && !args.data.containsKey('report_id')
+        }) >> [uid: 'R456']
+
+        then:
+        1 * mockInstance.createArtifact(_) >> [uid: 'A9', id: 9]
+
+        then:
+        1 * mockInstance.updateRecord({ Map args -> args.data == [report_id: 9] }) >> [uid: 'R456']
+    }
+
+    def 'counts a report that could not be linked to the run'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = finishedManager(mockInstance) { [report: [enabled: true, file: 'https://example.com/report.html']] }
+        mockInstance.createArtifact(_) >> [uid: 'A9', id: 9]
+        mockInstance.updateRecord(_) >> { Map args ->
+            if (args.data.containsKey('report_id')) {
+                throw new RuntimeException('hub down')
+            }
+            [uid: 'R456']
+        }
+
+        when:
+        manager.finalizeRun()
+
+        then:
+        noExceptionThrown()
+        manager.trackingFailures == 1
+    }
+
     private LaminRunManager trackingManager(Instance mockInstance) {
         def manager = LaminRunManager.instance
         manager.setCurrentInstance(mockInstance)

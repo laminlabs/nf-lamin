@@ -695,29 +695,31 @@ final class LaminRunManager {
         log.info "Run '${run.get('uid')}' ${status.description}"
         WorkflowMetadata wfMetadata = session.getWorkflowMetadata()
 
-        // Update run with finish time, status, and report artifact
+        // The status goes first: a slow report or a SIGKILL must not cost us the status
         Map<String, Object> updateData = [
             finished_at: wfMetadata.complete,
             _status_code: status.code
         ]
+        updateData.putAll(runReferenceFields())
+        updateRunRecord(updateData)
 
         // Handle report artifact
         try {
             Integer reportArtifactId = createReportArtifact()
             if (reportArtifactId != null) {
-                updateData.put('report_id', reportArtifactId)
+                updateRunRecord([report_id: reportArtifactId] as Map<String, Object>)
             }
         } catch (Exception e) {
             logArtifactFailure('Failed to register the run report', e)
         }
+    }
 
-        updateData.putAll(runReferenceFields())
-
+    private void updateRunRecord(Map<String, Object> data) {
         Map<String, Object> updatedRun = laminInstance.updateRecord(
             moduleName: 'core',
             modelName: 'run',
             uid: run.get('uid') as String,
-            data: updateData
+            data: data
         )
         if (run.uid != updatedRun.uid) {
             log.warn "Run UID changed from ${run.uid} to ${updatedRun.uid} on final update!"
