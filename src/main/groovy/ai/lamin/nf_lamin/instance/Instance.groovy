@@ -1233,7 +1233,7 @@ class Instance {
     private String autoStorageKeyFromArtifactUid(
         String uid, String suffix, Boolean overwriteVersions
     ) {
-        assert suffix // Suffix cannot be null.
+        assert suffix != null // Suffix cannot be null.
         String uidStorage
         if (overwriteVersions) {
             uidStorage = uid.substring(0, 16)  // 16 chars, leave 4 chars for versioning

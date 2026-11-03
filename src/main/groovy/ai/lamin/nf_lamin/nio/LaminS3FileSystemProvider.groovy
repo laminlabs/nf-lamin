@@ -199,16 +199,22 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
     @Override
     InputStream newInputStream(Path path, OpenOption... options) throws IOException {
         LaminS3Path s3Path = toLaminS3Path(path)
+        return openObject((LaminS3FileSystem) s3Path.fileSystem, s3Path.key)
+    }
+
+    /** Open an object by its literal key, which {@link LaminS3Path} would normalize. */
+    private static InputStream openObject(LaminS3FileSystem fs, String key) throws IOException {
+        String uri = "${SCHEME}://${fs.bucketName}/${key}"
         try {
             GetObjectRequest request = GetObjectRequest.builder()
-                .bucket(s3Path.bucket)
-                .key(s3Path.key)
+                .bucket(fs.bucketName)
+                .key(key)
                 .build()
-            return ((LaminS3FileSystem) s3Path.fileSystem).s3Client.getObject(request)
+            return fs.s3Client.getObject(request)
         } catch (NoSuchKeyException e) {
-            throw new NoSuchFileException(path.toString())
+            throw new NoSuchFileException(uri)
         } catch (Exception e) {
-            throw new IOException("Failed to open input stream for ${path}", e)
+            throw new IOException("Failed to open input stream for ${uri}", e)
         }
     }
 
@@ -486,10 +492,16 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
     void download(Path remoteFile, Path localDestination, CopyOption... options) throws IOException {
         log.debug "download: ${remoteFile} -> ${localDestination}"
         LaminS3Path s3Path = toLaminS3Path(remoteFile)
+        boolean isDirectory = readAttributes(s3Path, BasicFileAttributes).isDirectory()
 
         CopyOptions opts = CopyOptions.parse(options)
         if (opts.replaceExisting()) {
-            Files.deleteIfExists(localDestination)
+            FileHelper.deletePath(localDestination)
+        }
+
+        if (isDirectory) {
+            downloadDirectory(s3Path, localDestination)
+            return
         }
 
         newInputStream(s3Path).withCloseable { InputStream input ->
@@ -583,6 +595,56 @@ class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystem
     private void downloadTo(LaminS3Path s3Path, Path local) throws IOException {
         newInputStream(s3Path).withCloseable { InputStream input ->
             Files.copy(input, local, StandardCopyOption.REPLACE_EXISTING)
+        }
+    }
+
+    /**
+     * Download every object under a prefix, skipping zero-byte folder markers since they aren't files.
+     */
+    private void downloadDirectory(LaminS3Path dir, Path localDir) throws IOException {
+        if (Files.exists(localDir)) {
+            throw new FileAlreadyExistsException(localDir.toString())
+        }
+        Files.createDirectories(localDir)
+
+        LaminS3FileSystem fs = (LaminS3FileSystem) dir.fileSystem
+        String prefix = dir.key ? "${dir.key}/" : ''
+        Path root = localDir.toAbsolutePath().normalize()
+        String continuationToken = null
+        while (true) {
+            ListObjectsV2Response response
+            try {
+                ListObjectsV2Request request = ListObjectsV2Request.builder()
+                    .bucket(dir.bucket)
+                    .prefix(prefix)
+                    .continuationToken(continuationToken)
+                    .build()
+                response = fs.s3Client.listObjectsV2(request)
+            } catch (Exception e) {
+                throw new IOException("Failed to list ${dir}", e)
+            }
+            for (S3Object object : response.contents()) {
+                if (object.key().endsWith('/')) {
+                    if (object.size() == 0L) {
+                        continue
+                    }
+                    throw new IOException("Cannot download '${object.key()}': a key ending in a slash can't be a local file")
+                }
+                // S3 keys may contain "..", which must not write outside the destination
+                Path target = root.resolve(object.key().substring(prefix.length())).normalize()
+                if (!target.startsWith(root)) {
+                    throw new IOException("Cannot download '${object.key()}': it resolves outside ${localDir}")
+                }
+                Files.createDirectories(target.parent)
+                // not replacing: the destination started out empty, so an existing file means two keys collide
+                openObject(fs, object.key()).withCloseable { InputStream input ->
+                    Files.copy(input, target)
+                }
+            }
+            if (!response.isTruncated()) {
+                break
+            }
+            continuationToken = response.nextContinuationToken()
         }
     }
 
