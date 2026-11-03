@@ -172,29 +172,16 @@ class LaminObserver implements TraceObserverV2 {
     }
 
     /**
-     * Called when the workflow finishes successfully.
+     * Called when the workflow ends, whether it succeeded, failed or was cancelled.
      *
      * Delegates to {@link #finalizeRunOnce()} which processes any explicitly configured output
-     * artifact paths and then updates the Run record in LaminDB with the finish time and
-     * {@code COMPLETED} status.
+     * artifact paths and then updates the Run record in LaminDB with the finish time and status.
+     * {@code onFlowError} doesn't finalize the run: with {@code errorStrategy 'finish'} it fires at
+     * the first failure, while other tasks keep running and publishing.
      */
     @Override
     void onFlowComplete() {
         log.debug "LaminObserver.onFlowComplete"
-        finalizeRunOnce()
-    }
-
-    /**
-     * Called when the workflow terminates due to a task failure or other error.
-     *
-     * Delegates to {@link #finalizeRunOnce()} which updates the Run record in LaminDB with
-     * an {@code ERRORED} or {@code ABORTED} status. The guard in {@code finalizeRunOnce}
-     * ensures that if both {@code onFlowError} and {@code onFlowComplete} fire (which can
-     * happen on cancellation), the Run is only finalised once.
-     */
-    @Override
-    void onFlowError(TaskEvent event) {
-        log.debug "LaminObserver.onFlowError"
         finalizeRunOnce()
     }
 
@@ -204,9 +191,19 @@ class LaminObserver implements TraceObserverV2 {
             return
         }
         runFinalized = true
-        state.processConfigPathsAsync('output')
-        state.awaitArtifactTasks()
-        state.warnUnmatchedAnnotations()
-        state.finalizeRun()
+        finalizationStep('register the configured output paths') { state.processConfigPathsAsync('output') }
+        finalizationStep('wait for the artifacts to be registered') { state.awaitArtifactTasks() }
+        finalizationStep('check the artifact annotations') { state.warnUnmatchedAnnotations() }
+        finalizationStep('update the run status') { state.finalizeRun() }
+        finalizationStep('report tracking failures') { state.warnTrackingFailures() }
+    }
+
+    /** Nextflow only logs what an observer throws at debug level, and the next steps must still run. */
+    private static void finalizationStep(String description, Runnable step) {
+        try {
+            step.run()
+        } catch (Throwable t) {
+            log.error "Could not ${description}: ${t.message}", t
+        }
     }
 }

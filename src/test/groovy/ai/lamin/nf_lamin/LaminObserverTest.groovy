@@ -18,13 +18,17 @@ package ai.lamin.nf_lamin
 
 import java.lang.reflect.Field
 import java.nio.file.Path
+import java.time.OffsetDateTime
 
 import nextflow.Session
+import nextflow.script.WorkflowMetadata
 import nextflow.trace.event.FilePublishEvent
+import nextflow.trace.event.TaskEvent
 import nextflow.trace.event.WorkflowOutputEvent
 import spock.lang.Specification
 
 import ai.lamin.nf_lamin.instance.Instance
+import ai.lamin.nf_lamin.model.RunStatus
 
 class LaminObserverTest extends Specification {
 
@@ -85,5 +89,64 @@ class LaminObserverTest extends Specification {
         1 * mockInstance.createArtifact({ Map args ->
             args.path == 's3://bucket/results/reports/index.csv' && (args.description as String).contains("'reports'")
         }) >> [uid: 'A1', id: 11, run: 1]
+    }
+
+    private LaminObserver trackingObserver(Instance mockInstance, Map configOpts = [:]) {
+        def manager = LaminRunManager.instance
+        manager.setCurrentInstance(mockInstance)
+        injectField(manager, 'config', new LaminConfig([instance: 'org/inst', api_key: 'key'] + configOpts))
+        injectField(manager, 'run', [uid: 'R1', id: 1])
+        def metadata = Stub(WorkflowMetadata) {
+            getStart() >> OffsetDateTime.now()
+            getComplete() >> OffsetDateTime.now()
+        }
+        injectField(manager, 'session', Stub(Session) {
+            getWorkflowMetadata() >> metadata
+            isSuccess() >> true
+            getConfig() >> [:]
+        })
+        def observer = new LaminObserver()
+        injectField(observer, 'trackingEnabled', true)
+        return observer
+    }
+
+    def 'still writes the run status when a configured output path fails to evaluate'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def observer = trackingObserver(mockInstance, [output_artifacts: [include_paths: failure]])
+
+        when:
+        observer.onFlowComplete()
+
+        then:
+        1 * mockInstance.updateRecord({ Map args -> args.data._status_code == RunStatus.COMPLETED.code }) >> [uid: 'R1']
+
+        where:
+        failure << [
+            { throw new RuntimeException('boom') },
+            { assert false },
+        ]
+    }
+
+    def 'does not finalize the run on a task failure, so running tasks can still publish'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def observer = trackingObserver(mockInstance)
+        mockInstance.getArtifactByPath(_) >> null
+        def published = remotePath('s3://bucket/results/slow.txt')
+
+        when: 'with errorStrategy finish, a task failed while another one keeps running'
+        observer.onFlowError(new TaskEvent(null, null))
+
+        then:
+        0 * mockInstance.updateRecord(_)
+
+        when: 'the other task then publishes, and the workflow ends'
+        observer.onFilePublish(new FilePublishEvent(null, published, []))
+        observer.onFlowComplete()
+
+        then:
+        1 * mockInstance.createArtifact({ Map args -> args.path == 's3://bucket/results/slow.txt' }) >> [uid: 'A1', id: 11, run: 1]
+        1 * mockInstance.updateRecord(_) >> [uid: 'R1']
     }
 }

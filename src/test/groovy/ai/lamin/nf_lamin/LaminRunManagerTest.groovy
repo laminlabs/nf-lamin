@@ -22,6 +22,7 @@ import java.net.URI
 import java.nio.file.Path
 import java.time.OffsetDateTime
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import sun.misc.Signal
 
@@ -344,7 +345,7 @@ class LaminRunManagerTest extends Specification {
         where:
         scenario                       | success | cancelled | error                                          || expected
         'successful run'               | true    | false     | null                                           || RunStatus.COMPLETED
-        'graceful cancel flag'         | false   | true      | null                                           || RunStatus.ABORTED
+        'errorStrategy finish failure' | false   | true      | null                                           || RunStatus.ERRORED
         'SIGTERM from Seqera cancel'   | false   | false     | new AbortSignalException(new Signal('TERM'))   || RunStatus.ABORTED
         'SIGINT from local Ctrl+C'     | false   | false     | new AbortSignalException(new Signal('INT'))    || RunStatus.ABORTED
         'task failure'                 | false   | false     | new RuntimeException('task failed')            || RunStatus.ERRORED
@@ -767,5 +768,189 @@ class LaminRunManagerTest extends Specification {
 
         then:
         resolver.events == ['updateRecord', 'close']
+    }
+
+    def 'finalizeRun still writes the run status when the report artifact fails'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = statsManager(mockInstance, Stub(ArtifactStatsResolver))
+        injectField(manager, 'run', [uid: 'R456', id: 99] as Map<String, Object>)
+        def metadata = Stub(WorkflowMetadata) {
+            getStart() >> OffsetDateTime.now()
+            getComplete() >> OffsetDateTime.now()
+        }
+        injectField(manager, 'session', Stub(Session) {
+            getWorkflowMetadata() >> metadata
+            isSuccess() >> true
+            getConfig() >> { throw new RuntimeException('bad report config') }
+        })
+
+        when:
+        manager.finalizeRun()
+
+        then:
+        1 * mockInstance.updateRecord({ Map args -> args.data._status_code == RunStatus.COMPLETED.code }) >> [uid: 'R456']
+        manager.trackingFailures == 1
+    }
+
+    private LaminRunManager trackingManager(Instance mockInstance) {
+        def manager = LaminRunManager.instance
+        manager.setCurrentInstance(mockInstance)
+        injectField(manager, 'config', new LaminConfig([instance: 'org/inst', api_key: 'key']))
+        injectField(manager, 'run', [uid: 'R1', id: 1])
+        mockInstance.getOwner() >> 'org'
+        mockInstance.getName() >> 'inst'
+        return manager
+    }
+
+    private Path s3MockPath(String uri = 's3://bucket/file.txt') {
+        def path = Mock(Path)
+        path.toUri() >> new URI(uri)
+        return path
+    }
+
+    def 'counts no tracking failures when everything is registered'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = trackingManager(mockInstance)
+        mockInstance.createArtifact(_) >> [uid: 'A1', id: 11, run: 1]
+
+        when:
+        manager.createInputArtifactsAsync('task', [s3MockPath()])
+        manager.awaitArtifactTasks()
+
+        then:
+        manager.trackingFailures == 0
+    }
+
+    def 'counts an artifact that could not be created'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = trackingManager(mockInstance)
+        mockInstance.createArtifact(_) >> { throw new RuntimeException('hub down') }
+
+        when:
+        manager.createInputArtifactsAsync('task', [s3MockPath()])
+        manager.awaitArtifactTasks()
+
+        then:
+        manager.trackingFailures == 1
+    }
+
+    def 'counts an Error thrown inside an artifact task'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = trackingManager(mockInstance)
+        mockInstance.createArtifact(_) >> { throw new AssertionError('unexpected') }
+
+        when:
+        manager.createInputArtifactsAsync('task', [s3MockPath()])
+        manager.awaitArtifactTasks()
+
+        then:
+        manager.trackingFailures == 1
+    }
+
+    def 'counts an input link that could not be written'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = trackingManager(mockInstance)
+        mockInstance.createArtifact(_) >> [uid: 'A1', id: 11, run: 7]
+        mockInstance.upsertRecord(_) >> { throw new RuntimeException('hub down') }
+
+        when:
+        manager.createInputArtifactsAsync('task', [s3MockPath()])
+        manager.awaitArtifactTasks()
+
+        then:
+        manager.trackingFailures == 1
+    }
+
+    def 'counts work that arrives after the artifact executor shut down'() {
+        given:
+        def manager = trackingManager(Mock(Instance))
+        manager.awaitArtifactTasks()
+
+        when:
+        manager.createInputArtifactsAsync('task', [s3MockPath()])
+
+        then:
+        manager.trackingFailures == 1
+    }
+
+    def 'counts a configured path closure that fails, without throwing'() {
+        given:
+        def manager = trackingManager(Mock(Instance))
+        injectField(manager, 'config', new LaminConfig([
+            instance: 'org/inst', api_key: 'key', input_artifacts: [include_paths: { throw new RuntimeException('boom') }]
+        ]))
+        injectField(manager, 'session', Stub(Session))
+
+        when:
+        manager.processConfigPathsAsync('input')
+
+        then:
+        noExceptionThrown()
+        manager.trackingFailures == 1
+    }
+
+    def 'reset clears the tracking failures'() {
+        given:
+        def manager = trackingManager(Mock(Instance))
+        manager.awaitArtifactTasks()
+        manager.createInputArtifactsAsync('task', [s3MockPath()])
+
+        when:
+        manager.reset()
+
+        then:
+        manager.trackingFailures == 0
+    }
+
+    def 'awaitArtifactTasks gives up after its timeout and counts the work it abandoned'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = trackingManager(mockInstance)
+        injectField(manager, 'artifactExecutor', Executors.newFixedThreadPool(1))
+        def release = new CountDownLatch(1)
+        mockInstance.createArtifact(_) >> {
+            release.await(30, TimeUnit.SECONDS)
+            [uid: 'A1', id: 11, run: 1]
+        }
+        manager.createInputArtifactsAsync('blocked', [s3MockPath()])
+        manager.createInputArtifactsAsync('queued', [s3MockPath('s3://bucket/other.txt')])
+
+        when:
+        long before = System.nanoTime()
+        manager.awaitArtifactTasks(1)
+        long elapsedSeconds = (System.nanoTime() - before) / 1_000_000_000L
+
+        then:
+        elapsedSeconds < 10
+        manager.trackingFailures >= 1
+
+        cleanup:
+        release.countDown()
+    }
+
+    def 'waits for artifact tasks depending on how the session ended'() {
+        given:
+        injectField(LaminRunManager.instance, 'session', Stub(Session) {
+            getError() >> error
+        })
+
+        expect:
+        LaminRunManager.instance.artifactDrainTimeoutSeconds() == expected
+
+        where:
+        scenario           | error                                         || expected
+        'normal end'       | null                                          || 3600
+        'cancel by signal' | new AbortSignalException(new Signal('TERM'))  || 20
+        'task failure'     | new RuntimeException('task failed')           || 3600
+    }
+
+    def 'waits the normal time for artifact tasks when there is no session'() {
+        expect:
+        LaminRunManager.instance.artifactDrainTimeoutSeconds() == 3600
     }
 }
