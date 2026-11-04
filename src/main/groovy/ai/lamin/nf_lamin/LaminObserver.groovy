@@ -161,11 +161,24 @@ class LaminObserver implements TraceObserverV2 {
      */
     @Override
     void onTaskComplete(TaskEvent event) {
+        trackTaskInputs(event)
+    }
+
+    /**
+     * Called instead of {@link #onTaskComplete} when a task's result is reused, e.g. with
+     * {@code -resume}. Its inputs are still inputs of this run.
+     */
+    @Override
+    void onTaskCached(TaskEvent event) {
+        trackTaskInputs(event)
+    }
+
+    private void trackTaskInputs(TaskEvent event) {
         if (!trackingEnabled) return
         TaskRun task = event.handler.task
         List<FileHolder> inputFiles = task.getInputFiles()
 
-        log.debug "LaminObserver.onTaskComplete: ${task.name} with inputFiles: ${inputFiles}"
+        log.debug "LaminObserver.trackTaskInputs: ${task.name} with inputFiles: ${inputFiles}"
 
         List<Path> sources = inputFiles.collect { it.getSourcePath() }
         state.createInputArtifactsAsync(task.name, sources)

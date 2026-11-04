@@ -22,6 +22,9 @@ import java.nio.file.Path
 import nextflow.Session
 import nextflow.trace.event.FilePublishEvent
 import nextflow.trace.event.WorkflowOutputEvent
+import nextflow.file.FileHolder
+import nextflow.processor.TaskHandler
+import nextflow.processor.TaskRun
 import spock.lang.Specification
 
 import ai.lamin.nf_lamin.instance.Instance
@@ -56,6 +59,31 @@ class LaminObserverTest extends Specification {
         then:
         result.size() == 1
         result.first() instanceof LaminObserver
+    }
+
+    def 'links the inputs of a cached task to the run'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = LaminRunManager.instance
+        manager.setCurrentInstance(mockInstance)
+        injectField(manager, 'config', new LaminConfig([instance: 'org/inst', api_key: 'key']))
+        injectField(manager, 'run', [uid: 'R1', id: 1])
+        def observer = new LaminObserver()
+        injectField(observer, 'trackingEnabled', true)
+        def holder = Stub(FileHolder) { getSourcePath() >> remotePath('s3://bucket/input.txt') }
+        def task = Stub(TaskRun) {
+            getName() >> 'cached task'
+            getInputFiles() >> [holder]
+        }
+        def handler = Stub(TaskHandler) { getTask() >> task }
+
+        when:
+        observer.onTaskCached(new nextflow.trace.event.TaskEvent(handler, null))
+        manager.awaitArtifactTasks()
+
+        then:
+        1 * mockInstance.createArtifact({ Map args -> args.path == 's3://bucket/input.txt' }) >> [uid: 'A1', id: 11, run: 7]
+        1 * mockInstance.upsertRecord({ Map args -> args.modelName == 'artifact_input_of_runs' })
     }
 
     def 'registers the index file of an output block once it is published'() {
