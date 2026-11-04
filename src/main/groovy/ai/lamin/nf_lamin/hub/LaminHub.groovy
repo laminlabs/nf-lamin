@@ -78,12 +78,14 @@ class LaminHub {
 
         String responseJson = makePostRequest(url, payload, this.anonKey, false, currentMethod)
 
+        Map<String, Object> responseMap
         try {
-            Map<String, Object> responseMap = parseJson(responseJson, currentMethod) as Map<String, Object>
-            return new AccessTokenResponse(responseMap)
-        } catch (Exception e) {
-            throw new IllegalStateException("Error parsing JWT response from ${url}. Response: ${responseJson}", e)
+            responseMap = parseJson(responseJson, currentMethod) as Map<String, Object>
+        } catch (Exception ignored) {
+            // the response holds the token, and the parser's error message can quote it
+            throw new IllegalStateException("Could not parse the access token response from ${url}")
         }
+        return new AccessTokenResponse(responseMap)
     }
 
     /**
