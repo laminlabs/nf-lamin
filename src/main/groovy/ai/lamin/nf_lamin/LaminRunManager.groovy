@@ -26,11 +26,13 @@ import java.time.format.DateTimeFormatter
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
+import java.util.function.LongSupplier
 
 import groovy.transform.CompileStatic
 import groovy.util.logging.Slf4j
@@ -123,6 +125,12 @@ final class LaminRunManager {
     // Annotation keys that matched at least one artifact
     private final Set<String> matchedAnnotationKeys = ConcurrentHashMap.newKeySet()
 
+    // Whether the final status of the run has been written to LaminDB
+    private volatile boolean runStatusWritten = false
+
+    // Artifact and link operations that failed, reported at the end of the run
+    private final AtomicInteger trackingFailures = new AtomicInteger()
+
     // Tracks whether the one-time local file warning has been shown this session
     private volatile boolean localFileWarningShown = false
 
@@ -158,6 +166,8 @@ final class LaminRunManager {
         pendingAnnotations.clear()
         artifactsByAnnotationKey.clear()
         matchedAnnotationKeys.clear()
+        trackingFailures.set(0)
+        runStatusWritten = false
         artifactExecutor = createArtifactExecutor(ApiConfig.DEFAULT_MAX_WORKERS)
         statsResolver?.close()
         statsResolver = new ArtifactStatsResolver()
@@ -662,11 +672,9 @@ final class LaminRunManager {
     RunStatus determineRunStatus() {
         if (session.isSuccess()) {
             return RunStatus.COMPLETED
-        } else if (session.isCancelled()) {
-            return RunStatus.ABORTED
         } else if (session.getError() instanceof AbortSignalException) {
-            // Sometimes a Ctrl+C or a cancellation from Seqera Platform might reach
-            // Nextflow as an AbortSignalException rather than setting the cancelled flag.
+            // A Ctrl+C or a cancellation from Seqera Platform. Session.isCancelled() doesn't mean
+            // this: it's only set when a task fails with errorStrategy 'finish'.
             log.info "Run was cancelled by a termination signal (${session.getError().message}); marking run as aborted"
             return RunStatus.ABORTED
         } else {
@@ -683,8 +691,18 @@ final class LaminRunManager {
         }
     }
 
-    private void finalizeRunImpl() {
-        if (run == null || laminInstance == null || session == null || config.dryRun) {
+    /**
+     * An aborted run's outcome is already known, and a SIGKILL may come before its artifacts are
+     * registered, so its status doesn't wait for them.
+     */
+    void writeRunStatusIfAborted() {
+        if (session?.isAborted()) {
+            writeRunStatus()
+        }
+    }
+
+    private void writeRunStatus() {
+        if (runStatusWritten || run == null || laminInstance == null || session == null || config.dryRun) {
             return
         }
         RunStatus status = determineRunStatus()
@@ -692,25 +710,40 @@ final class LaminRunManager {
         log.info "Run '${run.get('uid')}' ${status.description}"
         WorkflowMetadata wfMetadata = session.getWorkflowMetadata()
 
-        // Update run with finish time, status, and report artifact
         Map<String, Object> updateData = [
             finished_at: wfMetadata.complete,
             _status_code: status.code
         ]
+        updateData.putAll(runReferenceFields())
+        updateRunRecord(updateData)
+        runStatusWritten = true
+    }
 
-        // Handle report artifact
-        Integer reportArtifactId = createReportArtifact()
-        if (reportArtifactId != null) {
-            updateData.put('report_id', reportArtifactId)
+    private void finalizeRunImpl() {
+        if (run == null || laminInstance == null || session == null || config.dryRun) {
+            return
         }
 
-        updateData.putAll(runReferenceFields())
+        // The status goes first: a slow report or a SIGKILL must not cost us the status
+        writeRunStatus()
 
+        // Handle report artifact
+        try {
+            Integer reportArtifactId = createReportArtifact()
+            if (reportArtifactId != null) {
+                updateRunRecord([report_id: reportArtifactId] as Map<String, Object>)
+            }
+        } catch (Exception e) {
+            logArtifactFailure('Failed to register the run report', e)
+        }
+    }
+
+    private void updateRunRecord(Map<String, Object> data) {
         Map<String, Object> updatedRun = laminInstance.updateRecord(
             moduleName: 'core',
             modelName: 'run',
             uid: run.get('uid') as String,
-            data: updateData
+            data: data
         )
         if (run.uid != updatedRun.uid) {
             log.warn "Run UID changed from ${run.uid} to ${updatedRun.uid} on final update!"
@@ -740,7 +773,13 @@ final class LaminRunManager {
 
         ArtifactConfig ac = resolveArtifactConfig(direction)
         if (ac != null) {
-            pathEntries.addAll(ac.collectPaths(direction, workflowParams))
+            try {
+                pathEntries.addAll(ac.collectPaths(direction, workflowParams))
+            } catch (Throwable t) {
+                // these paths come from closures in the user's config, which can throw anything
+                logArtifactFailure("Failed to evaluate the configured ${direction} paths", t)
+                return
+            }
         }
 
         if (pathEntries.isEmpty()) {
@@ -763,6 +802,7 @@ final class LaminRunManager {
                         createOutputArtifactFromConfigPaths(resolvedPath, prebuiltEvaluation)
                     }
                 } catch (Exception e) {
+                    trackingFailures.incrementAndGet()
                     log.warn "Failed to process configured ${direction} path '${pathStr}': ${e.message}"
                 }
             }
@@ -939,6 +979,7 @@ final class LaminRunManager {
                 )
                 log.debug "Updated artifact ${artifactUid} with ${updates}"
             } catch (Exception e) {
+                trackingFailures.incrementAndGet()
                 log.warn "Could not update artifact ${artifactUid} with ${updates}: ${e.getMessage()}"
             }
         }
@@ -965,7 +1006,8 @@ final class LaminRunManager {
      * (a 403 from the API) is rendered with the connected account handle so the
      * message is actionable; anything else is logged as-is.
      */
-    private void logArtifactFailure(String context, Exception e) {
+    private void logArtifactFailure(String context, Throwable e) {
+        trackingFailures.incrementAndGet()
         PermissionDeniedException pde = findPermissionDeniedException(e)
         if (pde != null) {
             log.error "${context}: ${pde.describe(accountHandle)}"
@@ -984,25 +1026,70 @@ final class LaminRunManager {
     }
 
     private void submitToExecutor(String description, Runnable task) {
-        if (artifactExecutor.isShutdown()) {
+        Runnable guarded = {
+            try {
+                task.run()
+            } catch (Throwable t) {
+                logArtifactFailure("Failed to process ${description}", t)
+            }
+        } as Runnable
+        try {
+            artifactExecutor.submit(guarded)
+        } catch (RejectedExecutionException e) {
+            trackingFailures.incrementAndGet()
             log.warn "Artifact executor is shut down; skipping: ${description}"
-            return
         }
-        artifactExecutor.submit(task)
     }
 
     void awaitArtifactTasks() {
+        awaitArtifactTasks({ artifactDrainTimeoutSeconds() } as LongSupplier)
+    }
+
+    /** @param timeoutSeconds re-read during the wait, since a cancel can arrive while it's under way */
+    void awaitArtifactTasks(LongSupplier timeoutSeconds) {
         artifactExecutor.shutdown()
+        long start = System.nanoTime()
         try {
-            if (!artifactExecutor.awaitTermination(1, TimeUnit.HOURS)) {
-                log.warn "Lamin artifact tasks did not complete within timeout; some artifacts may not have been registered"
+            while (!artifactExecutor.awaitTermination(1, TimeUnit.SECONDS)) {
+                long elapsedSeconds = TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - start)
+                if (elapsedSeconds >= timeoutSeconds.getAsLong()) {
+                    int abandoned = artifactExecutor.shutdownNow().size()
+                    trackingFailures.addAndGet(abandoned)
+                    log.warn "Lamin artifact tasks did not complete within ${elapsedSeconds}s; abandoned ${abandoned} queued task(s), so some artifacts may not have been registered"
+                    // let the interrupted tasks stop, so they are counted and don't race the final run update
+                    artifactExecutor.awaitTermination(5, TimeUnit.SECONDS)
+                    break
+                }
             }
         } catch (InterruptedException e) {
+            trackingFailures.incrementAndGet()
             log.warn "Interrupted while waiting for artifact tasks to complete"
             Thread.currentThread().interrupt()
         } finally {
             artifactLocks.clear()
         }
+    }
+
+    /**
+     * How long {@link #awaitArtifactTasks()} waits for queued artifact tasks, in seconds.
+     *
+     * Whatever is still queued when the wait ends isn't registered, and the run status is only
+     * written after it. A cancel has a SIGKILL behind it, usually after 30 s, so it can't wait long.
+     */
+    long artifactDrainTimeoutSeconds() {
+        return session?.getError() instanceof AbortSignalException ? 20 : 3600
+    }
+
+    /** Warn when the run in LaminDB ended up without some of its artifacts or links. */
+    void warnTrackingFailures() {
+        int failures = trackingFailures.get()
+        if (failures > 0) {
+            log.warn "${failures} artifact or link operation(s) failed, so the lineage of run '${run?.get('uid')}' is incomplete in LaminDB. See the messages above or .nextflow.log for details."
+        }
+    }
+
+    int getTrackingFailures() {
+        return trackingFailures.get()
     }
 
     /**
@@ -1300,6 +1387,7 @@ final class LaminRunManager {
             )
             log.debug "Linked ${description}"
         } catch (Exception e) {
+            trackingFailures.incrementAndGet()
             log.warn "Could not link ${description}: ${e.getMessage()}"
         }
     }
@@ -1340,6 +1428,7 @@ final class LaminRunManager {
                     "artifact ${artifactUid} to project ${projectUid}"
                 )
             } catch (Exception e) {
+                trackingFailures.incrementAndGet()
                 log.warn "Could not link artifact ${artifactUid} to project ${projectUid}: ${e.getMessage()}"
             }
         }
@@ -1381,6 +1470,7 @@ final class LaminRunManager {
                     "artifact ${artifactUid} to ulabel ${ulabelUid}"
                 )
             } catch (Exception e) {
+                trackingFailures.incrementAndGet()
                 log.warn "Could not link artifact ${artifactUid} to ulabel ${ulabelUid}: ${e.getMessage()}"
             }
         }
@@ -1870,6 +1960,7 @@ final class LaminRunManager {
                 log.debug "Server hash ${artifact.get('hash')} differs from client hash ${stats.hash} for ${pathStr}"
             }
         } catch (Exception e) {
+            trackingFailures.incrementAndGet()
             log.error "Failed to create artifact ${logContext} at ${path.toUri()}"
             log.debug "Exception: ${e.getMessage()}", e
             return null
