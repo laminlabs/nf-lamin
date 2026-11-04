@@ -114,6 +114,9 @@ final class LaminRunManager {
         return laminFileSystemProvider
     }
 
+    // Inputs registered in this run: a shared reference can be the input of thousands of tasks
+    private final Set<String> registeredInputs = ConcurrentHashMap.newKeySet()
+
     // Annotations requested from the workflow via annotateArtifact(), keyed by annotation key
     private final Map<String, List<ArtifactAnnotation>> pendingAnnotations = new ConcurrentHashMap<String, List<ArtifactAnnotation>>()
 
@@ -155,6 +158,7 @@ final class LaminRunManager {
         recordResolutionCache.clear()
         publishedArtifactsByPath.clear()
         pendingOutputNames.clear()
+        registeredInputs.clear()
         pendingAnnotations.clear()
         artifactsByAnnotationKey.clear()
         matchedAnnotationKeys.clear()
@@ -793,8 +797,15 @@ final class LaminRunManager {
         submitToExecutor("input artifacts for task '${taskName}'") {
             try {
                 for (Path source : sources) {
-                    log.debug "LaminRunManager.createInputArtifactsAsync ${taskName}: '${source.toUri()}'"
-                    createInputArtifact(source)
+                    String uri = source.toUri().toString()
+                    log.debug "LaminRunManager.createInputArtifactsAsync ${taskName}: '${uri}'"
+                    if (!registeredInputs.add(uri)) {
+                        continue
+                    }
+                    // not registered, so a later task using this input can try again
+                    if (createInputArtifact(source) == null) {
+                        registeredInputs.remove(uri)
+                    }
                 }
             } catch (Exception e) {
                 logArtifactFailure("Failed to create input artifacts for ${taskName}", e)

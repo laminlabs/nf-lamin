@@ -328,6 +328,51 @@ class LaminRunManagerTest extends Specification {
         releaseWorker.countDown()
     }
 
+    private LaminRunManager inputTrackingManager(Instance mockInstance) {
+        def manager = LaminRunManager.instance
+        manager.setCurrentInstance(mockInstance)
+        injectField(manager, 'config', new LaminConfig([instance: 'org/inst', api_key: 'key']))
+        injectField(manager, 'run', [uid: 'R1', id: 1])
+        return manager
+    }
+
+    private Path sharedInput() {
+        def path = Mock(Path)
+        path.toUri() >> new URI('s3://bucket/file.txt')
+        return path
+    }
+
+    def 'registers an input used by several tasks once'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = inputTrackingManager(mockInstance)
+
+        when:
+        manager.createInputArtifactsAsync('first', [sharedInput()])
+        manager.createInputArtifactsAsync('second', [sharedInput()])
+        manager.awaitArtifactTasks()
+
+        then:
+        1 * mockInstance.createArtifact(_) >> [uid: 'A1', id: 11, run: 7]
+        1 * mockInstance.upsertRecord(_)
+    }
+
+    def 'tries an input again when a later task uses it after it failed'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = inputTrackingManager(mockInstance)
+        injectField(manager, 'artifactExecutor', java.util.concurrent.Executors.newFixedThreadPool(1))
+
+        when:
+        manager.createInputArtifactsAsync('first', [sharedInput()])
+        manager.createInputArtifactsAsync('second', [sharedInput()])
+        manager.awaitArtifactTasks()
+
+        then:
+        1 * mockInstance.createArtifact(_) >> { throw new RuntimeException('hub down') }
+        1 * mockInstance.createArtifact(_) >> [uid: 'A1', id: 11, run: 7]
+    }
+
     def 'determineRunStatus maps session state to run status'() {
         given:
         def manager = LaminRunManager.instance
