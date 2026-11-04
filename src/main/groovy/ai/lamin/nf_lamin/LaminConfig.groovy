@@ -128,7 +128,6 @@ class LaminConfig implements ConfigScope {
     ''')
     final String env
 
-    @ConfigOption
     @Description('''
         (Advanced) API connection settings including Supabase URL/key and retry configuration.
     ''')
@@ -167,19 +166,16 @@ class LaminConfig implements ConfigScope {
     ''')
     final ArtifactConfig output_artifacts
 
-    @ConfigOption
     @Description('''
         Configuration for run-specific metadata linking. Allows specifying project and ulabel UIDs to link to runs.
     ''')
     final RunConfig run
 
-    @ConfigOption
     @Description('''
         Configuration for transform-specific metadata linking. Allows specifying project and ulabel UIDs to link to transforms.
     ''')
     final TransformConfig transform
 
-    @ConfigOption
     @Description('''
         (Advanced) Feature flags for enabling or disabling optional plugin features.
     ''')
@@ -414,16 +410,16 @@ class LaminConfig implements ConfigScope {
      * Get the API configuration
      * @return the API configuration
      */
+    ApiConfig getApiConfig() {
+        return this.api ?: new ApiConfig()
+    }
+
     /** Only a clearly false value turns dry run off, so that a typo doesn't write to the instance. */
     static boolean parseDryRun(Object value) {
         if (value instanceof CharSequence) {
             return !(value.toString().trim().toLowerCase() in ['', 'false', '0', 'no', 'n', 'off'])
         }
         return value as boolean
-    }
-
-    ApiConfig getApiConfig() {
-        return this.api ?: new ApiConfig()
     }
 
     /**

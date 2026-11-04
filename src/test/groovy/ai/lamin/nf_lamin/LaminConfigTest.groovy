@@ -16,6 +16,7 @@
 
 package ai.lamin.nf_lamin
 
+import nextflow.config.spec.SpecNode
 import spock.lang.Specification
 import spock.lang.Unroll
 
@@ -615,5 +616,31 @@ class LaminConfigTest extends Specification {
     def "an unset dry run environment variable means no dry run"() {
         expect:
         !LaminConfig.parseDryRun(null)
+    }
+
+    def "Nextflow's config validator recognizes lamin.#option"() {
+        expect:
+        SpecNode.Scope.of(LaminConfig, '').getOption(option.tokenize('.')) != null
+
+        where:
+        option << [
+            'instance',
+            'dry_run',
+            'api.supabase_api_url',
+            'api.supabase_anon_key',
+            'api.max_retries',
+            'api.retry_delay',
+            'api.max_retry_delay',
+            'api.web_url',
+            'api.max_workers',
+            'features.manage_s3_credentials',
+            'features.use_output_labels',
+            'features.enable_artifact_hashing',
+            'run.ulabel_uids',
+            'transform.ulabel_uids',
+            'artifacts.kind',
+            'input_artifacts.kind',
+            'output_artifacts.kind',
+        ]
     }
 }

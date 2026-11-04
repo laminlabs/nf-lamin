@@ -19,6 +19,7 @@ package ai.lamin.nf_lamin.config
 import ai.lamin.nf_lamin.util.MaskingUtils
 import groovy.transform.CompileStatic
 import nextflow.config.spec.ConfigOption
+import nextflow.config.spec.ConfigScope
 import nextflow.script.dsl.Description
 
 /**
@@ -42,7 +43,7 @@ import nextflow.script.dsl.Description
  * </pre>
  */
 @CompileStatic
-class ApiConfig {
+class ApiConfig implements ConfigScope {
 
     static final int DEFAULT_MAX_RETRIES     = 3
     static final int DEFAULT_RETRY_DELAY     = 100
