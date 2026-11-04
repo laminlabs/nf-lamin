@@ -226,7 +226,7 @@ class LaminConfig implements ConfigScope {
 
         this.transform_uid = opts.containsKey('transform_uid') ? opts.transform_uid : System.getenv('LAMIN_TRANSFORM_UID')
         this.run_uid = opts.containsKey('run_uid') ? opts.run_uid : System.getenv('LAMIN_RUN_UID')
-        this.dry_run = opts.containsKey('dry_run') ? (opts.dry_run as Boolean) : ((System.getenv('LAMIN_DRY_RUN') as Boolean) ?: false)
+        this.dry_run = parseDryRun(opts.containsKey('dry_run') ? opts.dry_run : System.getenv('LAMIN_DRY_RUN'))
 
         // Parse artifact configurations
         this.artifacts = opts.containsKey('artifacts') ? new ArtifactConfig(opts.artifacts as Map, 'both') : null
@@ -414,6 +414,14 @@ class LaminConfig implements ConfigScope {
      * Get the API configuration
      * @return the API configuration
      */
+    /** Only a clearly false value turns dry run off, so that a typo doesn't write to the instance. */
+    static boolean parseDryRun(Object value) {
+        if (value instanceof CharSequence) {
+            return !(value.toString().trim().toLowerCase() in ['', 'false', '0', 'no', 'n', 'off'])
+        }
+        return value as boolean
+    }
+
     ApiConfig getApiConfig() {
         return this.api ?: new ApiConfig()
     }

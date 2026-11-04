@@ -586,4 +586,34 @@ class LaminConfigTest extends Specification {
         expect:
         LaminConfig.parseConfigForResolution(session).instance == 'laminlabs/lamindata'
     }
+
+    def "dry_run '#value' is #expected"() {
+        given:
+        def config = new LaminConfig([instance: 'org/inst', api_key: 'key', dry_run: value])
+
+        expect:
+        config.dryRun == expected
+
+        where:
+        value     || expected
+        true      || true
+        false     || false
+        null      || false
+        ''        || false
+        'false'   || false
+        'FALSE'   || false
+        ' false ' || false
+        '0'       || false
+        'no'      || false
+        'off'     || false
+        'true'    || true
+        '1'       || true
+        'yes'     || true
+        'ture'    || true
+    }
+
+    def "an unset dry run environment variable means no dry run"() {
+        expect:
+        !LaminConfig.parseDryRun(null)
+    }
 }
