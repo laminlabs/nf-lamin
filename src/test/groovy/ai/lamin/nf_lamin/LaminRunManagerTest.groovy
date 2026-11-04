@@ -865,6 +865,51 @@ class LaminRunManagerTest extends Specification {
         manager.trackingFailures == 1
     }
 
+    def 'finalizeRun retries the status when the early write of an aborted run failed'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = finishedManager(mockInstance) { [:] }
+        def metadata = Stub(WorkflowMetadata) {
+            getStart() >> OffsetDateTime.now()
+            getComplete() >> OffsetDateTime.now()
+        }
+        injectField(manager, 'session', Stub(Session) {
+            getWorkflowMetadata() >> metadata
+            isAborted() >> true
+            getError() >> new RuntimeException('task failed')
+            getConfig() >> [:]
+        })
+        int attempts = 0
+        mockInstance.updateRecord(_) >> {
+            if (++attempts == 1) {
+                throw new RuntimeException('hub down')
+            }
+            [uid: 'R456']
+        }
+
+        when:
+        try {
+            manager.writeRunStatusIfAborted()
+        } catch (RuntimeException ignored) {
+        }
+        manager.finalizeRun()
+
+        then:
+        attempts == 2
+    }
+
+    def 'writeRunStatusIfAborted leaves a run that is still going alone'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = finishedManager(mockInstance) { [:] }
+
+        when:
+        manager.writeRunStatusIfAborted()
+
+        then:
+        0 * mockInstance.updateRecord(_)
+    }
+
     private LaminRunManager trackingManager(Instance mockInstance) {
         def manager = LaminRunManager.instance
         manager.setCurrentInstance(mockInstance)

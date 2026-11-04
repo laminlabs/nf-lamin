@@ -125,6 +125,9 @@ final class LaminRunManager {
     // Annotation keys that matched at least one artifact
     private final Set<String> matchedAnnotationKeys = ConcurrentHashMap.newKeySet()
 
+    // Whether the final status of the run has been written to LaminDB
+    private volatile boolean runStatusWritten = false
+
     // Artifact and link operations that failed, reported at the end of the run
     private final AtomicInteger trackingFailures = new AtomicInteger()
 
@@ -164,6 +167,7 @@ final class LaminRunManager {
         artifactsByAnnotationKey.clear()
         matchedAnnotationKeys.clear()
         trackingFailures.set(0)
+        runStatusWritten = false
         artifactExecutor = createArtifactExecutor(ApiConfig.DEFAULT_MAX_WORKERS)
         statsResolver?.close()
         statsResolver = new ArtifactStatsResolver()
@@ -687,8 +691,18 @@ final class LaminRunManager {
         }
     }
 
-    private void finalizeRunImpl() {
-        if (run == null || laminInstance == null || session == null || config.dryRun) {
+    /**
+     * An aborted run's outcome is already known, and a SIGKILL may come before its artifacts are
+     * registered, so its status doesn't wait for them.
+     */
+    void writeRunStatusIfAborted() {
+        if (session?.isAborted()) {
+            writeRunStatus()
+        }
+    }
+
+    private void writeRunStatus() {
+        if (runStatusWritten || run == null || laminInstance == null || session == null || config.dryRun) {
             return
         }
         RunStatus status = determineRunStatus()
@@ -696,13 +710,22 @@ final class LaminRunManager {
         log.info "Run '${run.get('uid')}' ${status.description}"
         WorkflowMetadata wfMetadata = session.getWorkflowMetadata()
 
-        // The status goes first: a slow report or a SIGKILL must not cost us the status
         Map<String, Object> updateData = [
             finished_at: wfMetadata.complete,
             _status_code: status.code
         ]
         updateData.putAll(runReferenceFields())
         updateRunRecord(updateData)
+        runStatusWritten = true
+    }
+
+    private void finalizeRunImpl() {
+        if (run == null || laminInstance == null || session == null || config.dryRun) {
+            return
+        }
+
+        // The status goes first: a slow report or a SIGKILL must not cost us the status
+        writeRunStatus()
 
         // Handle report artifact
         try {

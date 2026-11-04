@@ -19,6 +19,8 @@ package ai.lamin.nf_lamin
 import java.lang.reflect.Field
 import java.nio.file.Path
 import java.time.OffsetDateTime
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 import nextflow.Session
 import nextflow.script.WorkflowMetadata
@@ -148,5 +150,58 @@ class LaminObserverTest extends Specification {
         then:
         1 * mockInstance.createArtifact({ Map args -> args.path == 's3://bucket/results/slow.txt' }) >> [uid: 'A1', id: 11, run: 1]
         1 * mockInstance.updateRecord(_) >> [uid: 'R1']
+    }
+
+    def 'writes the status of an aborted run before waiting for its artifacts'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def observer = trackingObserver(mockInstance)
+        def metadata = Stub(WorkflowMetadata) {
+            getStart() >> OffsetDateTime.now()
+            getComplete() >> OffsetDateTime.now()
+        }
+        injectField(LaminRunManager.instance, 'session', Stub(Session) {
+            getWorkflowMetadata() >> metadata
+            isAborted() >> true
+            getError() >> new RuntimeException('task failed')
+            getConfig() >> [:]
+        })
+        def statusWritten = new CountDownLatch(1)
+        boolean artifactSawStatus = false
+        int statusUpdates = 0
+        mockInstance.createArtifact(_) >> {
+            artifactSawStatus = statusWritten.await(3, TimeUnit.SECONDS)
+            [uid: 'A1', id: 11, run: 1]
+        }
+        mockInstance.updateRecord(_) >> { Map args ->
+            assert args.data._status_code == RunStatus.ERRORED.code
+            statusUpdates++
+            statusWritten.countDown()
+            [uid: 'R1']
+        }
+        LaminRunManager.instance.createInputArtifactsAsync('task', [remotePath('s3://bucket/input.txt')])
+
+        when:
+        observer.onFlowComplete()
+
+        then:
+        artifactSawStatus
+        statusUpdates == 1
+    }
+
+    def 'writes the status of a normal run after its artifacts'() {
+        given:
+        def events = Collections.synchronizedList([])
+        def mockInstance = Mock(Instance)
+        def observer = trackingObserver(mockInstance)
+        mockInstance.createArtifact(_) >> { events << 'artifact'; [uid: 'A1', id: 11, run: 1] }
+        mockInstance.updateRecord(_) >> { events << 'status'; [uid: 'R1'] }
+        LaminRunManager.instance.createInputArtifactsAsync('task', [remotePath('s3://bucket/input.txt')])
+
+        when:
+        observer.onFlowComplete()
+
+        then:
+        events == ['artifact', 'status']
     }
 }

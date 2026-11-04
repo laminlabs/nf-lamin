@@ -191,6 +191,7 @@ class LaminObserver implements TraceObserverV2 {
             return
         }
         runFinalized = true
+        finalizationStep('update the status of the aborted run') { state.writeRunStatusIfAborted() }
         finalizationStep('register the configured output paths') { state.processConfigPathsAsync('output') }
         finalizationStep('wait for the artifacts to be registered') { state.awaitArtifactTasks() }
         finalizationStep('check the artifact annotations') { state.warnUnmatchedAnnotations() }
