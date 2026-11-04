@@ -926,6 +926,96 @@ class LaminRunManagerTest extends Specification {
         return path
     }
 
+    def 'registers an input used by several tasks once'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = trackingManager(mockInstance)
+
+        when:
+        manager.createInputArtifactsAsync('first', [s3MockPath()])
+        manager.createInputArtifactsAsync('second', [s3MockPath()])
+        manager.awaitArtifactTasks()
+
+        then:
+        1 * mockInstance.createArtifact(_) >> [uid: 'A1', id: 11, run: 7]
+        1 * mockInstance.upsertRecord(_)
+    }
+
+    def 'tries an input again when a later task uses it after it failed'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = trackingManager(mockInstance)
+        injectField(manager, 'artifactExecutor', Executors.newFixedThreadPool(1))
+
+        when:
+        manager.createInputArtifactsAsync('first', [s3MockPath()])
+        manager.createInputArtifactsAsync('second', [s3MockPath()])
+        manager.awaitArtifactTasks()
+
+        then:
+        1 * mockInstance.createArtifact(_) >> { throw new RuntimeException('hub down') }
+        1 * mockInstance.createArtifact(_) >> [uid: 'A1', id: 11, run: 7]
+    }
+
+    def 'a task sharing an input tries again when the registration it waited for fails'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = trackingManager(mockInstance)
+        injectField(manager, 'artifactExecutor', Executors.newFixedThreadPool(2))
+        def firstStarted = new CountDownLatch(1)
+        def release = new CountDownLatch(1)
+        def attempts = new AtomicLong()
+        mockInstance.createArtifact(_) >> {
+            if (attempts.incrementAndGet() == 1) {
+                firstStarted.countDown()
+                release.await(10, TimeUnit.SECONDS)
+                throw new RuntimeException('hub down')
+            }
+            [uid: 'A1', id: 11, run: 7]
+        }
+
+        // a real path: Spock serializes mock calls, which would hide the race
+        def input = publishedPath('shared.txt')
+
+        when:
+        manager.createInputArtifactsAsync('first', [input])
+        firstStarted.await(5, TimeUnit.SECONDS)
+        manager.createInputArtifactsAsync('second', [input])
+        sleep(300)
+        release.countDown()
+        manager.awaitArtifactTasks()
+
+        then:
+        attempts.get() == 2
+    }
+
+    def 'tries an input again after registering it threw outside artifact creation'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def manager = trackingManager(mockInstance)
+        injectField(manager, 'artifactExecutor', Executors.newFixedThreadPool(1))
+        injectField(manager, 'session', Stub(Session))
+        int evaluations = 0
+        injectField(manager, 'config', new LaminConfig([
+            instance: 'org/inst',
+            api_key: 'key',
+            input_artifacts: [description: {
+                if (++evaluations == 1) {
+                    throw new RuntimeException('boom')
+                }
+                'input'
+            }]
+        ]))
+
+        when:
+        manager.createInputArtifactsAsync('first', [s3MockPath()])
+        manager.createInputArtifactsAsync('second', [s3MockPath()])
+        manager.awaitArtifactTasks()
+
+        then:
+        1 * mockInstance.createArtifact(_) >> [uid: 'A1', id: 11, run: 7]
+    }
+
     def 'counts no tracking failures when everything is registered'() {
         given:
         def mockInstance = Mock(Instance)

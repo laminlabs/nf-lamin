@@ -18,6 +18,7 @@ package ai.lamin.nf_lamin.config
 
 import groovy.transform.CompileStatic
 import nextflow.config.spec.ConfigOption
+import nextflow.config.spec.ConfigScope
 import nextflow.script.dsl.Description
 
 /**
@@ -35,7 +36,7 @@ import nextflow.script.dsl.Description
  * </pre>
  */
 @CompileStatic
-class FeaturesConfig {
+class FeaturesConfig implements ConfigScope {
 
     @ConfigOption
     @Description('''

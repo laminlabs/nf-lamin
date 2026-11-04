@@ -15,6 +15,8 @@
  */
 package ai.lamin.nf_lamin.hub
 
+import com.sun.net.httpserver.HttpExchange
+import com.sun.net.httpserver.HttpServer
 import spock.lang.IgnoreIf
 import spock.lang.Specification
 import spock.lang.Shared
@@ -254,5 +256,37 @@ class LaminHubTest extends Specification {
         str.contains('name:')
         str.contains('schemaId:')
         str.contains('apiUrl')
+    }
+
+    def "fetchAccessToken does not put the token in an error message when it can't parse the response"() {
+        given:
+        def server = HttpServer.create(new InetSocketAddress('localhost', 0), 0)
+        server.createContext('/functions/v1/get-jwt-v1') { HttpExchange exchange ->
+            byte[] body = response.bytes
+            exchange.sendResponseHeaders(200, body.length)
+            exchange.responseBody.withCloseable { it.write(body) }
+        }
+        server.start()
+        def hub = new LaminHub("http://localhost:${server.address.port}", 'anon-key', 'api-key')
+
+        when:
+        hub.fetchAccessToken()
+
+        then:
+        def e = thrown(Exception)
+        List<String> messages = []
+        for (Throwable t = e; t != null; t = t.cause) {
+            messages << t.message
+        }
+        !messages.any { it?.contains('SECRET-TOKEN') }
+
+        cleanup:
+        server?.stop(0)
+
+        where:
+        response << [
+            '{"accessToken": "SECRET-TOKEN"',
+            '["SECRET-TOKEN"]',
+        ]
     }
 }

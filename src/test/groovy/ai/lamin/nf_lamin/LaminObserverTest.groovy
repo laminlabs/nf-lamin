@@ -23,6 +23,9 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 import nextflow.Session
+import nextflow.file.FileHolder
+import nextflow.processor.TaskHandler
+import nextflow.processor.TaskRun
 import nextflow.script.WorkflowMetadata
 import nextflow.trace.event.FilePublishEvent
 import nextflow.trace.event.TaskEvent
@@ -203,5 +206,25 @@ class LaminObserverTest extends Specification {
 
         then:
         events == ['artifact', 'status']
+    }
+
+    def 'links the inputs of a cached task to the run'() {
+        given:
+        def mockInstance = Mock(Instance)
+        def observer = trackingObserver(mockInstance)
+        def holder = Stub(FileHolder) { getSourcePath() >> remotePath('s3://bucket/input.txt') }
+        def task = Stub(TaskRun) {
+            getName() >> 'cached task'
+            getInputFiles() >> [holder]
+        }
+        def handler = Stub(TaskHandler) { getTask() >> task }
+
+        when:
+        observer.onTaskCached(new TaskEvent(handler, null))
+        LaminRunManager.instance.awaitArtifactTasks()
+
+        then:
+        1 * mockInstance.createArtifact({ Map args -> args.path == 's3://bucket/input.txt' }) >> [uid: 'A1', id: 11, run: 7]
+        1 * mockInstance.upsertRecord({ Map args -> args.modelName == 'artifact_input_of_runs' })
     }
 }
