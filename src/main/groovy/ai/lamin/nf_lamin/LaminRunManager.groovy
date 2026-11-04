@@ -837,19 +837,29 @@ final class LaminRunManager {
         submitToExecutor("input artifacts for task '${taskName}'") {
             try {
                 for (Path source : sources) {
-                    String uri = source.toUri().toString()
-                    log.debug "LaminRunManager.createInputArtifactsAsync ${taskName}: '${uri}'"
-                    if (!registeredInputs.add(uri)) {
-                        continue
-                    }
-                    // not registered, so a later task using this input can try again
-                    if (createInputArtifact(source) == null) {
-                        registeredInputs.remove(uri)
-                    }
+                    log.debug "LaminRunManager.createInputArtifactsAsync ${taskName}: '${source.toUri()}'"
+                    registerInputOnce(source)
                 }
             } catch (Exception e) {
                 logArtifactFailure("Failed to create input artifacts for ${taskName}", e)
             }
+        }
+    }
+
+    /**
+     * A task using an input that another task is registering waits for the outcome, and tries
+     * itself if that failed.
+     */
+    private void registerInputOnce(Path source) {
+        String uri = source.toUri().toString()
+        ReentrantLock lock = artifactLocks.computeIfAbsent(uri) { new ReentrantLock() }
+        lock.lock()
+        try {
+            if (!registeredInputs.contains(uri) && createInputArtifact(source) != null) {
+                registeredInputs.add(uri)
+            }
+        } finally {
+            lock.unlock()
         }
     }
 
