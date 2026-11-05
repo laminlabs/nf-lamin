@@ -70,7 +70,7 @@ class LaminObserver implements TraceObserverV2 {
             trackingEnabled = true
             runFinalized = false
         } catch (Exception e) {
-            log.error "Could not initialize Lamin run: ${e.message}"
+            log.warn "Could not initialize Lamin run, so this run isn't tracked: ${e.message}"
             throw e
         }
     }
@@ -217,7 +217,8 @@ class LaminObserver implements TraceObserverV2 {
         try {
             step.run()
         } catch (Throwable t) {
-            log.error "Could not ${description}: ${t.message}", t
+            log.warn "Could not ${description}: ${t.message}"
+            log.debug "Could not ${description}", t
         }
     }
 }

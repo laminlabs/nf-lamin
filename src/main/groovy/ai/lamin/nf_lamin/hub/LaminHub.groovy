@@ -157,7 +157,6 @@ class LaminHub {
         }
 
         if (!instanceSettingsMap) {
-            log.error "LaminDB instance ${owner}/${name} could not be found."
             throw new IllegalStateException("LaminDB instance ${owner}/${name} could not be found.")
         }
 
@@ -250,14 +249,14 @@ class LaminHub {
                 }
                 if (!responseBody?.trim()) {
                     // Handle cases where API returns 200 OK but empty body unexpectedly
-                    log.warn "Warning: Received HTTP 200 but empty response body from ${requestUrl}"
+                    log.warn "Received HTTP 200 but empty response body from ${requestUrl}"
                     return ''
                 }
                 log.trace "Received response from ${requestUrl} for ${callingMethod}: ${redactSensitiveFields(responseBody)}"
                 return responseBody
             } else if (allowRetry && (responseCode == HttpURLConnection.HTTP_UNAUTHORIZED || responseCode == HttpURLConnection.HTTP_FORBIDDEN)) {
                 // --- Authorization Error & Retry Allowed ---
-                log.warn "Received HTTP ${responseCode} (${connection.getResponseMessage()}) from ${requestUrl} for ${callingMethod}. Attempting to refresh access token..."
+                log.debug "Received HTTP ${responseCode} (${connection.getResponseMessage()}) from ${requestUrl} for ${callingMethod}. Attempting to refresh access token..."
 
                 // Disconnect the failed connection before attempting refresh/retry
                 if (connection != null) { connection.disconnect(); connection = null }
@@ -335,8 +334,8 @@ class LaminHub {
             this.accessToken = fetchAccessToken().accessToken
             log.debug('Access token refreshed successfully.')
         } catch (Exception e) {
-            log.error("Failed to refresh access token: ${e.message}", e)
-            throw new RuntimeException('Failed to refresh access token.', e)
+            log.debug('Failed to refresh access token', e)
+            throw new RuntimeException("Failed to refresh access token: ${e.message}", e)
         }
     }
 
