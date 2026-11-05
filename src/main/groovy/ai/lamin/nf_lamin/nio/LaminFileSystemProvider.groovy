@@ -63,7 +63,7 @@ import ai.lamin.nf_lamin.util.PathUtils
  * otherwise builds an anonymous-capable connection so that lamin:// URIs can be resolved
  * with nothing more than {@code -plugins nf-lamin}.
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.nio.LaminFileSystemProvider')
 @CompileStatic
 class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTransferAware {
 
@@ -76,6 +76,9 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
     // Avoids calling getCloudAccess() on every artifact resolution.
     private final Map<String, CloudAccessResponse> cloudAccessCache = new ConcurrentHashMap<String, CloudAccessResponse>()
     private final Map<String, ReentrantLock> cloudAccessLocks = new ConcurrentHashMap<String, ReentrantLock>()
+
+    // Storage locations already reported as lacking credentials, which is otherwise repeated per file
+    private final Set<String> credentialFailures = ConcurrentHashMap.newKeySet()
 
     // Resolves and caches the storage location of publish targets
     private final LaminStorageResolver storageResolver = new LaminStorageResolver()
@@ -514,7 +517,12 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
             log.debug "Resolved ${laminPath.toUri()} to lamin-s3://${managed.fileSystem.bucketName}/${fullKey} (Lamin-managed credentials)"
             return new LaminS3Path(managed.fileSystem, fullKey)
         } catch (Exception e) {
-            log.warn "Could not obtain cloud credentials for ${storageRoot}, falling back to standard S3 path: ${e.message}"
+            String message = "Could not obtain cloud credentials for ${storageRoot}, falling back to standard S3 path: ${e.message}"
+            if (credentialFailures.add(storageRoot)) {
+                log.warn message
+            } else {
+                log.debug message
+            }
             log.debug "getCloudAccess failure detail", e
             return null
         }
@@ -622,7 +630,8 @@ class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTr
             Path underlying = resolveToUnderlyingPath(laminPath)
             return Files.getFileAttributeView(underlying, type, options)
         } catch (IOException e) {
-            log.error "Error getting file attribute view for ${path}", e
+            log.warn "Could not get the file attribute view of ${path}: ${e.message}"
+            log.debug "File attribute view failure detail", e
             return null
         }
     }

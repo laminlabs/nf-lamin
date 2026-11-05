@@ -54,7 +54,7 @@ import ai.lamin.nf_lamin.util.PathUtils
  * }
  * </pre>
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.config.ArtifactConfig')
 @CompileStatic
 class ArtifactConfig implements ConfigScope {
 

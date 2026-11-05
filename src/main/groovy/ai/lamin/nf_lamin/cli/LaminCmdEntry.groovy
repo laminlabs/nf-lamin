@@ -55,7 +55,7 @@ import ai.lamin.nf_lamin.instance.Instance
  *
  * Set {@code CALL_API_ENABLED = false} before releasing to disable this command.
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.cli.LaminCmdEntry')
 @CompileStatic
 class LaminCmdEntry implements PluginAbstractExec {
 

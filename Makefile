@@ -36,7 +36,7 @@ validate-legacy:
 	BRANCH=$${BRANCH:-$$(git symbolic-ref --short HEAD 2>/dev/null || echo "main")}; \
 	VERSION=$${VERSION:-$$(awk -F"'" '/^version =/{print $$2}' build.gradle)}; \
 	echo "Running legacy validation workflow with branch: $$BRANCH, version: $$VERSION"; \
-	nextflow -trace ai.lamin \
+	nextflow -trace nextflow.lamin \
 		run laminlabs/nf-lamin \
 		-r $$BRANCH \
 		-latest \
@@ -54,7 +54,7 @@ validate-run:
 	BRANCH=$${BRANCH:-$$(git symbolic-ref --short HEAD 2>/dev/null || echo "main")}; \
 	VERSION=$${VERSION:-$$(awk -F"'" '/^version =/{print $$2}' build.gradle)}; \
 	echo "Running validation workflow with branch: $$BRANCH, version: $$VERSION"; \
-	nextflow -trace ai.lamin \
+	nextflow -trace nextflow.lamin \
 		run laminlabs/nf-lamin \
 		-r $$BRANCH \
 		-latest \
@@ -74,7 +74,7 @@ validate-publish-run:
 	BRANCH=$${BRANCH:-$$(git symbolic-ref --short HEAD 2>/dev/null || echo "main")}; \
 	VERSION=$${VERSION:-$$(awk -F"'" '/^version =/{print $$2}' build.gradle)}; \
 	echo "Publishing to lamin://$(INSTANCE)?prefix=$(PREFIX) with branch: $$BRANCH, version: $$VERSION"; \
-	nextflow -trace ai.lamin \
+	nextflow -trace nextflow.lamin \
 		run laminlabs/nf-lamin \
 		-r $$BRANCH \
 		-latest \
@@ -84,13 +84,19 @@ validate-publish-run:
 		-output-dir "lamin://$(INSTANCE)?prefix=$(PREFIX)" \
 		$(ARGS)
 
+# Check what the plugin prints on the console, without -trace
+# Usage: make validate-console [VERSION=x.y.z]
+validate-console:
+	VERSION=$${VERSION:-$$(awk -F"'" '/^version =/{print $$2}' build.gradle)}; \
+	validation/console/check.sh "$$VERSION"
+
 # Publish workflow outputs via publishDir (Nextflow < 26.04)
 # Usage: make validate-publish-legacy [INSTANCE=owner/instance] [PREFIX=key-prefix] [ARGS="extra args"]
 validate-publish-legacy:
 	BRANCH=$${BRANCH:-$$(git symbolic-ref --short HEAD 2>/dev/null || echo "main")}; \
 	VERSION=$${VERSION:-$$(awk -F"'" '/^version =/{print $$2}' build.gradle)}; \
 	echo "Publishing to lamin://$(INSTANCE)?prefix=$(PREFIX) with branch: $$BRANCH, version: $$VERSION"; \
-	nextflow -trace ai.lamin \
+	nextflow -trace nextflow.lamin \
 		run laminlabs/nf-lamin \
 		-r $$BRANCH \
 		-latest \

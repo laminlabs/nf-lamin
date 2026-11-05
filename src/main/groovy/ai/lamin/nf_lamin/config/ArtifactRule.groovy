@@ -42,7 +42,7 @@ import nextflow.script.dsl.Description
  * }
  * </pre>
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.config.ArtifactRule')
 @CompileStatic
 class ArtifactRule {
 

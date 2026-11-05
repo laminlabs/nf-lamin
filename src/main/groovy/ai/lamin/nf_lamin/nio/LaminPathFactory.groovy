@@ -33,7 +33,7 @@ import org.pf4j.Extension
  * LaminPath objects, and convert LaminPath objects back to URI strings. It also parses
  * lamin-s3:// URIs, which address a storage path read with Lamin-managed credentials.
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.nio.LaminPathFactory')
 @Extension
 @CompileStatic
 class LaminPathFactory extends FileSystemPathFactory {

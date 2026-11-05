@@ -141,7 +141,7 @@ lamin {
 ```bash
 export NXF_VER=25.10.4
 nextflow \
-  -trace ai.lamin \
+  -trace nextflow.lamin \
   run bigbio/quantms \
   -r 1.7.0 \
   -profile docker,test_lfq \

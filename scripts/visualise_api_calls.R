@@ -1,8 +1,8 @@
 #!/usr/bin/env Rscript
 #
-# Visualise nf-lamin API calls recorded in a Nextflow log (`-trace ai.lamin`).
+# Visualise nf-lamin API calls recorded in a Nextflow log (`-trace nextflow.lamin`).
 #
-# Parses the ai.lamin TRACE/DEBUG lines, pairs each request with its response,
+# Parses the nextflow.lamin TRACE/DEBUG lines, pairs each request with its response,
 # and writes a parquet table, the list of artifact S3 paths, a summary table,
 # and three plots (response-time beeswarm, response-time-over-time, and
 # response-count histogram) to the output directory.
@@ -39,13 +39,13 @@ lines <- read_lines(log_file)
 
 api_lines <-
   tibble(line = lines) |>
-  # filter ai.lamin api calls with request id in square brackets
-  filter(str_detect(line, "ai\\.lamin.*\\[[0-9a-f]{8}\\]")) |>
+  # filter nextflow.lamin api calls with request id in square brackets (ai.lamin in older logs)
+  filter(str_detect(line, "(nextflow|ai)\\.lamin.*\\[[0-9a-f]{8}\\]")) |>
   mutate(
     timestamp = str_extract(line, "^\\S+ \\S+") |>
       paste(log_year) |>
       parse_datetime(format = "%b-%d %H:%M:%OS %Y"),
-    log_level = str_extract(line, "(?<=\\] )\\w+(?= ai\\.lamin)"),
+    log_level = str_extract(line, "(?<=\\] )\\w+(?= (nextflow|ai)\\.lamin)"),
     req_id = str_extract(line, "(?<=\\[)[0-9a-f]{8}(?=\\])"),
     method = str_extract(line, "(?<=\\] )(GET|POST|PUT|PATCH|DELETE)"),
     endpoint = str_extract(line, "(?<=(GET|POST|PUT|PATCH|DELETE) )\\w+"),
@@ -127,7 +127,7 @@ if (nrow(lines_join) == 0) {
     ""
   }
   stop(
-    "No ai.lamin API calls found in ", log_file, ".\n",
+    "No nextflow.lamin API calls found in ", log_file, ".\n",
     "  The pipeline did not make any API calls (did the Lamin run initialise? ",
     "was the lamin config / instance + api_key passed at launch?).", hint,
     call. = FALSE

@@ -70,7 +70,7 @@ import ai.lamin.nf_lamin.config.ApiConfig
  * The observer updates this singleton as the workflow lifecycle progresses,
  * while extension functions expose the captured metadata to Nextflow scripts.
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.LaminRunManager')
 @CompileStatic
 final class LaminRunManager {
 
@@ -118,6 +118,9 @@ final class LaminRunManager {
 
     // Inputs registered in this run: a shared reference can be the input of thousands of tasks
     private final Set<String> registeredInputs = ConcurrentHashMap.newKeySet()
+
+    // Kinds of failure already shown on the console: a hub outage would otherwise print one per file
+    private final Set<String> shownFailures = ConcurrentHashMap.newKeySet()
 
     // Annotations requested from the workflow via annotateArtifact(), keyed by annotation key
     private final Map<String, List<ArtifactAnnotation>> pendingAnnotations = new ConcurrentHashMap<String, List<ArtifactAnnotation>>()
@@ -167,6 +170,7 @@ final class LaminRunManager {
         publishedArtifactsByPath.clear()
         pendingOutputNames.clear()
         registeredInputs.clear()
+        shownFailures.clear()
         pendingAnnotations.clear()
         artifactsByAnnotationKey.clear()
         matchedAnnotationKeys.clear()
@@ -311,7 +315,7 @@ final class LaminRunManager {
             fetchOrCreateTransform()
             fetchOrCreateRun()
         } catch (Exception e) {
-            log.error 'Failed to initialize run', e
+            log.debug 'Failed to initialize run', e
             throw e
         }
     }
@@ -376,8 +380,7 @@ final class LaminRunManager {
             this.accountHandle = account.getHandle()
             log.info "→ connected lamindb: '${instanceString}' as '${account.getHandle()}'"
         } catch (ApiException e) {
-            log.error "✗ Could not connect lamindb: '${instanceString}'!"
-            log.error 'API call failed: ' + e.getMessage()
+            log.warn "✗ Could not connect lamindb: '${instanceString}': ${e.getMessage()}"
         }
     }
 
@@ -427,7 +430,7 @@ final class LaminRunManager {
                         )
                     } else {
                         // '?' mode – warn and skip
-                        log.warn "Optional ${moduleName}.${modelName} with name '${name}' not found – skipping"
+                        warnOncePerKind("optional ${cacheKey}", "Optional ${moduleName}.${modelName} with name '${name}' not found – skipping")
                     }
                 }
             }
@@ -485,7 +488,7 @@ final class LaminRunManager {
             } catch (IllegalStateException e) {
                 throw e
             } catch (Exception e) {
-                log.error "Failed to resolve space '${config.spaceUid}': ${e.getMessage()}"
+                log.warn "Failed to resolve space '${config.spaceUid}': ${e.getMessage()}"
             }
         }
 
@@ -502,7 +505,7 @@ final class LaminRunManager {
             } catch (IllegalStateException e) {
                 throw e
             } catch (Exception e) {
-                log.error "Failed to resolve branch '${config.branchUid}': ${e.getMessage()}"
+                log.warn "Failed to resolve branch '${config.branchUid}': ${e.getMessage()}"
             }
         }
     }
@@ -518,8 +521,7 @@ final class LaminRunManager {
                 printTransformMessage(transformRecord, "Received transform ${transformRecord.get('uid')} from config")
                 return transformRecord
             } catch (Exception e) {
-                log.error "Failed to fetch transform with UID ${config.transformUid}: ${e.getMessage()}"
-                log.warn 'Falling back to normal transform lookup/creation process'
+                log.warn "Failed to fetch transform with UID ${config.transformUid}, falling back to the normal lookup: ${e.getMessage()}"
             }
         }
 
@@ -625,8 +627,7 @@ final class LaminRunManager {
                     return runRecord
                 }
             } catch (Exception e) {
-                log.error "Failed to fetch run with UID ${config.runUid}: ${e.getMessage()}"
-                log.warn 'Creating a new run instead'
+                log.warn "Failed to fetch run with UID ${config.runUid}, creating a new run instead: ${e.getMessage()}"
             }
         }
 
@@ -791,7 +792,7 @@ final class LaminRunManager {
             return
         }
 
-        log.info "Processing ${pathEntries.size()} configured ${direction} artifact path(s)"
+        log.debug "Processing ${pathEntries.size()} configured ${direction} artifact path(s)"
 
         for (Map<String, Object> entry : pathEntries) {
             String pathStr = entry.path as String
@@ -885,7 +886,7 @@ final class LaminRunManager {
             return
         }
         if (config?.dryRun) {
-            log.info "Dry-run mode: would annotate ${path.toUri()} with ${annotation}"
+            log.debug "Dry-run mode: would annotate ${path.toUri()} with ${annotation}"
             return
         }
 
@@ -979,7 +980,7 @@ final class LaminRunManager {
         }
         String artifactUid = artifact.get('uid') as String
         if (!artifactUid) {
-            log.warn "Cannot annotate artifact without a uid: ${artifact}"
+            warnOncePerKind('annotate', "Cannot annotate artifact without a uid: ${artifact}")
             return
         }
 
@@ -1001,7 +1002,7 @@ final class LaminRunManager {
                 log.debug "Updated artifact ${artifactUid} with ${updates}"
             } catch (Exception e) {
                 trackingFailures.incrementAndGet()
-                log.warn "Could not update artifact ${artifactUid} with ${updates}: ${e.getMessage()}"
+                warnOncePerKind('annotate', "Could not update artifact ${artifactUid} with ${updates}: ${e.getMessage()}")
             }
         }
 
@@ -1029,11 +1030,25 @@ final class LaminRunManager {
      */
     private void logArtifactFailure(String context, Throwable e) {
         trackingFailures.incrementAndGet()
+        boolean denied = findPermissionDeniedException(e) != null
+        warnOncePerKind(denied ? 'permission denied' : 'artifact', "${context}: ${describeFailure(e)}")
+        log.debug "${context}", e
+    }
+
+    private String describeFailure(Throwable e) {
         PermissionDeniedException pde = findPermissionDeniedException(e)
-        if (pde != null) {
-            log.error "${context}: ${pde.describe(accountHandle)}"
+        return pde != null ? pde.describe(accountHandle) : e.message
+    }
+
+    /**
+     * Show the first failure of a kind on the console and log the rest at debug level, since
+     * {@link #warnTrackingFailures()} reports the total.
+     */
+    private void warnOncePerKind(String kind, String message) {
+        if (shownFailures.add(kind)) {
+            log.warn message
         } else {
-            log.error "${context}: ${e.message}", e
+            log.debug message
         }
     }
 
@@ -1058,7 +1073,7 @@ final class LaminRunManager {
             artifactExecutor.submit(guarded)
         } catch (RejectedExecutionException e) {
             trackingFailures.incrementAndGet()
-            log.warn "Artifact executor is shut down; skipping: ${description}"
+            warnOncePerKind('executor', "Artifact executor is shut down; skipping: ${description}")
         }
     }
 
@@ -1105,7 +1120,7 @@ final class LaminRunManager {
     void warnTrackingFailures() {
         int failures = trackingFailures.get()
         if (failures > 0) {
-            log.warn "${failures} artifact or link operation(s) failed, so the lineage of run '${run?.get('uid')}' is incomplete in LaminDB. See the messages above or .nextflow.log for details."
+            log.warn "${failures} artifact or link operation(s) failed, so the lineage of run '${run?.get('uid')}' is incomplete in LaminDB. The first failure of each kind is shown above, and .nextflow.log has all of them."
         }
     }
 
@@ -1191,7 +1206,7 @@ final class LaminRunManager {
         Map<String, Object> artifact = fetchOrCreateArtifact(params)
 
         if (artifact == null) {
-            log.warn "Failed to fetch or create input artifact for path ${path.toUri()}"
+            log.debug "Failed to fetch or create input artifact for path ${path.toUri()}"
             return null
         }
 
@@ -1329,7 +1344,7 @@ final class LaminRunManager {
         Map<String, Object> artifact = fetchOrCreateArtifact(params)
 
         if (artifact == null) {
-            log.warn "Failed to create output artifact for path ${path.toUri()}"
+            log.debug "Failed to create output artifact for path ${path.toUri()}"
             return null
         }
 
@@ -1369,12 +1384,12 @@ final class LaminRunManager {
         Integer runId = (run?.get('id') as Number)?.intValue()
 
         if (artifactId == null) {
-            log.warn "Artifact ID is null for artifact ${artifactUid}"
+            warnOncePerKind('missing id', "Artifact ID is null for artifact ${artifactUid}")
             return
         }
 
         if (runId == null) {
-            log.warn "Run ID is null; cannot link artifact ${artifactUid} to run"
+            warnOncePerKind('missing id', "Run ID is null; cannot link artifact ${artifactUid} to run")
             return
         }
 
@@ -1409,7 +1424,7 @@ final class LaminRunManager {
             log.debug "Linked ${description}"
         } catch (Exception e) {
             trackingFailures.incrementAndGet()
-            log.warn "Could not link ${description}: ${e.getMessage()}"
+            warnOncePerKind('link', "Could not link ${description}: ${e.getMessage()}")
         }
     }
 
@@ -1428,7 +1443,7 @@ final class LaminRunManager {
         String artifactUid = artifact.get('uid') as String
 
         if (artifactId == null) {
-            log.warn "Artifact ID is null for artifact ${artifactUid}"
+            warnOncePerKind('missing id', "Artifact ID is null for artifact ${artifactUid}")
             return
         }
 
@@ -1438,7 +1453,7 @@ final class LaminRunManager {
                 Map<String, Object> project = resolveRecord('core', 'project', projectUid)
                 Integer projectId = (project?.get('id') as Number)?.intValue()
                 if (projectId == null) {
-                    log.warn "Could not find project '${projectUid}'"
+                    warnOncePerKind("project ${projectUid}", "Could not find project '${projectUid}'")
                     continue
                 }
 
@@ -1450,7 +1465,7 @@ final class LaminRunManager {
                 )
             } catch (Exception e) {
                 trackingFailures.incrementAndGet()
-                log.warn "Could not link artifact ${artifactUid} to project ${projectUid}: ${e.getMessage()}"
+                warnOncePerKind('link', "Could not link artifact ${artifactUid} to project ${projectUid}: ${e.getMessage()}")
             }
         }
     }
@@ -1470,7 +1485,7 @@ final class LaminRunManager {
         String artifactUid = artifact.get('uid') as String
 
         if (artifactId == null) {
-            log.warn "Artifact ID is null for artifact ${artifactUid}"
+            warnOncePerKind('missing id', "Artifact ID is null for artifact ${artifactUid}")
             return
         }
 
@@ -1480,7 +1495,7 @@ final class LaminRunManager {
                 Map<String, Object> ulabel = resolveRecord('core', 'ulabel', ulabelUid)
                 Integer ulabelId = (ulabel?.get('id') as Number)?.intValue()
                 if (ulabelId == null) {
-                    log.warn "Could not find ulabel '${ulabelUid}'"
+                    warnOncePerKind("ulabel ${ulabelUid}", "Could not find ulabel '${ulabelUid}'")
                     continue
                 }
 
@@ -1492,7 +1507,7 @@ final class LaminRunManager {
                 )
             } catch (Exception e) {
                 trackingFailures.incrementAndGet()
-                log.warn "Could not link artifact ${artifactUid} to ulabel ${ulabelUid}: ${e.getMessage()}"
+                warnOncePerKind('link', "Could not link artifact ${artifactUid} to ulabel ${ulabelUid}: ${e.getMessage()}")
             }
         }
     }
@@ -1688,7 +1703,7 @@ final class LaminRunManager {
                 Map<String, Object> project = resolveRecord('core', 'project', projectUid)
                 Integer projectId = (project?.get('id') as Number)?.intValue()
                 if (projectId == null) {
-                    log.warn "Could not find project '${projectUid}'"
+                    warnOncePerKind("project ${projectUid}", "Could not find project '${projectUid}'")
                     continue
                 }
 
@@ -1729,7 +1744,7 @@ final class LaminRunManager {
                 Map<String, Object> ulabel = resolveRecord('core', 'ulabel', ulabelUid)
                 Integer ulabelId = (ulabel?.get('id') as Number)?.intValue()
                 if (ulabelId == null) {
-                    log.warn "Could not find ulabel '${ulabelUid}'"
+                    warnOncePerKind("ulabel ${ulabelUid}", "Could not find ulabel '${ulabelUid}'")
                     continue
                 }
 
@@ -1770,7 +1785,7 @@ final class LaminRunManager {
                 Map<String, Object> project = resolveRecord('core', 'project', projectUid)
                 Integer projectId = (project?.get('id') as Number)?.intValue()
                 if (projectId == null) {
-                    log.warn "Could not find project '${projectUid}'"
+                    warnOncePerKind("project ${projectUid}", "Could not find project '${projectUid}'")
                     continue
                 }
 
@@ -1811,7 +1826,7 @@ final class LaminRunManager {
                 Map<String, Object> ulabel = resolveRecord('core', 'ulabel', ulabelUid)
                 Integer ulabelId = (ulabel?.get('id') as Number)?.intValue()
                 if (ulabelId == null) {
-                    log.warn "Could not find ulabel '${ulabelUid}'"
+                    warnOncePerKind("ulabel ${ulabelUid}", "Could not find ulabel '${ulabelUid}'")
                     continue
                 }
 
@@ -1982,7 +1997,7 @@ final class LaminRunManager {
             }
         } catch (Exception e) {
             trackingFailures.incrementAndGet()
-            log.error "Failed to create artifact ${logContext} at ${path.toUri()}"
+            warnOncePerKind('create artifact', "Failed to create artifact ${logContext} at ${pathStr}: ${describeFailure(e)}")
             log.debug "Exception: ${e.getMessage()}", e
             return null
         } finally {

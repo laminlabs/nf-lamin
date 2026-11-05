@@ -51,7 +51,7 @@ import software.amazon.awssdk.services.s3.model.S3Object
  * are hashed from their content. Anything else, and any failure, yields {@code null}, which
  * means "let the server compute the stats".
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.util.ArtifactStatsResolver')
 @CompileStatic
 class ArtifactStatsResolver implements Closeable {
 

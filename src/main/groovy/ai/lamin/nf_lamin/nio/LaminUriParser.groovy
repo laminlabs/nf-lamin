@@ -38,7 +38,7 @@ import groovy.util.logging.Slf4j
  * - lamin://laminlabs/lamindata/artifact/s3rtK8wIzJNKvg5Q/subdir/file.txt
  * - lamin://laminlabs/lamindata?storage=JwMEKs04D9WJ&amp;prefix=results
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.nio.LaminUriParser')
 @CompileStatic
 class LaminUriParser {
 

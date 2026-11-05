@@ -41,7 +41,7 @@ import software.amazon.awssdk.services.s3.model.UploadPartRequest
  * re-read a part. The part size grows with the file so that the upload stays under S3's limit
  * of 10 000 parts.
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.nio.LaminS3Uploader')
 @CompileStatic
 class LaminS3Uploader {
 

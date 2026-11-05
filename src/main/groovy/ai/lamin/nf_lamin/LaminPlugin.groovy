@@ -33,7 +33,7 @@ import ai.lamin.nf_lamin.nio.LaminFileSystemProvider
  *
  * Registers the lamin:// FileSystemProvider when the plugin starts.
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.LaminPlugin')
 @CompileStatic
 class LaminPlugin extends BasePlugin implements PluginExecAware {
 

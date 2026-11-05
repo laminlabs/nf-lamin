@@ -85,7 +85,7 @@ make && make install
 
 # Run validation workflow with trace logging
 NXF_VER=25.10.0 nextflow \
-  -trace ai.lamin \
+  -trace nextflow.lamin \
   run laminlabs/nf-lamin \
   -main-script validation/main.nf \
   -latest \
@@ -93,7 +93,7 @@ NXF_VER=25.10.0 nextflow \
 
 # Test with external workflow (successful run)
 NXF_VER=25.10.0 nextflow \
-  -trace ai.lamin \
+  -trace nextflow.lamin \
   run https://packages.viash-hub.com/vsh/toolbox \
   -r v0.1.1 \
   -main-script target/nextflow/bgzip/main.nf \
@@ -106,7 +106,7 @@ NXF_VER=25.10.0 nextflow \
 
 # Test error handling (workflow that fails)
 NXF_VER=25.10.0 nextflow \
-  -trace ai.lamin \
+  -trace nextflow.lamin \
   run https://packages.viash-hub.com/vsh/toolbox \
   -r v0.1.1 \
   -main-script target/nextflow/yq/main.nf \
@@ -117,7 +117,8 @@ NXF_VER=25.10.0 nextflow \
 
 **Tips:**
 
-- Always use `-trace ai.lamin` to capture debug logs without re-running
+- Debug logs are in `.nextflow.log` by default; use `-trace nextflow.lamin` to also capture the API calls
+- Check what users see outside agent mode (`env -u CLAUDECODE -u AGENT -u NXF_AGENT_MODE`), which changes the output
 - Use unreleased version number in `build.gradle` during development
 
 ### Integration Tests
