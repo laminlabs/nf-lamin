@@ -29,7 +29,7 @@ import java.lang.reflect.Field
  * observer. Both are read reflectively, and anything unexpected yields no reference rather than
  * an error.
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.util.SeqeraPlatformHelper')
 @CompileStatic
 class SeqeraPlatformHelper {
 

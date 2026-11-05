@@ -70,7 +70,7 @@ import ai.lamin.nf_lamin.config.ApiConfig
  * The observer updates this singleton as the workflow lifecycle progresses,
  * while extension functions expose the captured metadata to Nextflow scripts.
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.LaminRunManager')
 @CompileStatic
 final class LaminRunManager {
 

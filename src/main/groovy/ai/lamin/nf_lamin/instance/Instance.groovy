@@ -30,7 +30,7 @@ import java.util.concurrent.ThreadLocalRandom
  * @param name The name of the instance.
  * @throws IllegalStateException if any of the parameters are null or invalid.
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.instance.Instance')
 @CompileStatic
 class Instance {
 

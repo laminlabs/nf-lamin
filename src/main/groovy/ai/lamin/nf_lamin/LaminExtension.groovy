@@ -32,7 +32,7 @@ import ai.lamin.nf_lamin.util.PathUtils
  * Implements a custom function which can be imported by
  * Nextflow scripts.
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.LaminExtension')
 @CompileStatic
 class LaminExtension extends PluginExtensionPoint {
 

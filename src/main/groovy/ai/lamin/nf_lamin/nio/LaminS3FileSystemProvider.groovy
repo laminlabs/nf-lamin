@@ -87,7 +87,7 @@ import software.amazon.awssdk.services.s3.model.S3Object
  * 3. It calls LaminS3FileSystemProvider.getOrCreateFileSystem(bucket, creds...)
  * 4. Nextflow stages the file via lamin-s3://bucket/key using those credentials
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.nio.LaminS3FileSystemProvider')
 @CompileStatic
 class LaminS3FileSystemProvider extends FileSystemProvider implements FileSystemTransferAware {
 

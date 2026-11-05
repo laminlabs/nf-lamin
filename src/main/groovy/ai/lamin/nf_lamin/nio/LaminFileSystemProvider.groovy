@@ -63,7 +63,7 @@ import ai.lamin.nf_lamin.util.PathUtils
  * otherwise builds an anonymous-capable connection so that lamin:// URIs can be resolved
  * with nothing more than {@code -plugins nf-lamin}.
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.nio.LaminFileSystemProvider')
 @CompileStatic
 class LaminFileSystemProvider extends FileSystemProvider implements FileSystemTransferAware {
 

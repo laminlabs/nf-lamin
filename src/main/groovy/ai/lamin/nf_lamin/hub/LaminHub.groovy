@@ -13,7 +13,7 @@ import ai.lamin.nf_lamin.util.MaskingUtils
  * Groovy client for interacting with specific LaminHub API endpoints.
  * Handles fetching JWT and instance settings.
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.hub.LaminHub')
 @CompileStatic
 class LaminHub {
     // --- Constants ---

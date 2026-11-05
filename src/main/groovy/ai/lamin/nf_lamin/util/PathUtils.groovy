@@ -26,7 +26,7 @@ import ai.lamin.nf_lamin.nio.LaminS3Path
 /**
  * Utility methods for resolving paths handed to the plugin by a workflow.
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.util.PathUtils')
 @CompileStatic
 class PathUtils {
 

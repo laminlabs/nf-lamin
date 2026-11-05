@@ -35,7 +35,7 @@ import java.nio.file.WatchService
  *
  * This path is always absolute (it always has a bucket and key).
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.nio.LaminS3Path')
 @CompileStatic
 final class LaminS3Path implements Path {
 

@@ -37,7 +37,7 @@ import nextflow.script.WorkflowMetadata
  * - Pinned transforms (TAG/COMMIT): use "commit:" for immutable code references
  * - Sliding transforms (BRANCH): use "branch:" for mutable code references
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.util.TransformInfoHelper')
 @CompileStatic
 class TransformInfoHelper {
 

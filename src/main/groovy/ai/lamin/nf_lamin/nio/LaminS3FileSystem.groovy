@@ -40,7 +40,7 @@ import ai.lamin.nf_lamin.hub.CloudAccessResponse
  * artifacts stored in Lamin-managed S3 buckets without sharing credentials with
  * the global Nextflow AWS configuration.
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.nio.LaminS3FileSystem')
 @CompileStatic
 final class LaminS3FileSystem extends FileSystem {
 

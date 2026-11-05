@@ -35,7 +35,7 @@ import ai.lamin.nf_lamin.model.RunStatus
  * This observer tracks workflow execution events and creates corresponding
  * records in Lamin for provenance and metadata management.
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.LaminObserver')
 @CompileStatic
 class LaminObserver implements TraceObserverV2 {
 
