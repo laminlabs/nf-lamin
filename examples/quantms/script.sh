@@ -13,7 +13,7 @@ CONFIG=configs/env-staging.config
 OUTDIR="${LAMIN_TEST_BUCKET}-staging/scrnaseq/run_$(date +%Y%m%d_%H%M%S)"
 
 nextflow \
-  -trace ai.lamin \
+  -trace nextflow.lamin \
   run bigbio/quantms \
   -r 1.7.0 \
   -profile docker,test_lfq \

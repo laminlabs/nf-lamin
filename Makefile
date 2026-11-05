@@ -36,7 +36,7 @@ validate-legacy:
 	BRANCH=$${BRANCH:-$$(git symbolic-ref --short HEAD 2>/dev/null || echo "main")}; \
 	VERSION=$${VERSION:-$$(awk -F"'" '/^version =/{print $$2}' build.gradle)}; \
 	echo "Running legacy validation workflow with branch: $$BRANCH, version: $$VERSION"; \
-	nextflow -trace ai.lamin \
+	nextflow -trace nextflow.lamin \
 		run laminlabs/nf-lamin \
 		-r $$BRANCH \
 		-latest \
@@ -54,7 +54,7 @@ validate-run:
 	BRANCH=$${BRANCH:-$$(git symbolic-ref --short HEAD 2>/dev/null || echo "main")}; \
 	VERSION=$${VERSION:-$$(awk -F"'" '/^version =/{print $$2}' build.gradle)}; \
 	echo "Running validation workflow with branch: $$BRANCH, version: $$VERSION"; \
-	nextflow -trace ai.lamin \
+	nextflow -trace nextflow.lamin \
 		run laminlabs/nf-lamin \
 		-r $$BRANCH \
 		-latest \
@@ -74,7 +74,7 @@ validate-publish-run:
 	BRANCH=$${BRANCH:-$$(git symbolic-ref --short HEAD 2>/dev/null || echo "main")}; \
 	VERSION=$${VERSION:-$$(awk -F"'" '/^version =/{print $$2}' build.gradle)}; \
 	echo "Publishing to lamin://$(INSTANCE)?prefix=$(PREFIX) with branch: $$BRANCH, version: $$VERSION"; \
-	nextflow -trace ai.lamin \
+	nextflow -trace nextflow.lamin \
 		run laminlabs/nf-lamin \
 		-r $$BRANCH \
 		-latest \
@@ -90,7 +90,7 @@ validate-publish-legacy:
 	BRANCH=$${BRANCH:-$$(git symbolic-ref --short HEAD 2>/dev/null || echo "main")}; \
 	VERSION=$${VERSION:-$$(awk -F"'" '/^version =/{print $$2}' build.gradle)}; \
 	echo "Publishing to lamin://$(INSTANCE)?prefix=$(PREFIX) with branch: $$BRANCH, version: $$VERSION"; \
-	nextflow -trace ai.lamin \
+	nextflow -trace nextflow.lamin \
 		run laminlabs/nf-lamin \
 		-r $$BRANCH \
 		-latest \

@@ -10,7 +10,7 @@ fi
 make && make install
 
 nextflow \
-  -trace ai.lamin \
+  -trace nextflow.lamin \
   run nf-core/scrnaseq \
   -latest \
   -r "2.7.1" \

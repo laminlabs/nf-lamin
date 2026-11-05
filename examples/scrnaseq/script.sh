@@ -13,7 +13,7 @@ CONFIG=configs/env-staging.config
 OUTDIR="${LAMIN_TEST_BUCKET}-staging/scrnaseq/run_$(date +%Y%m%d_%H%M%S)"
 
 nextflow \
-  -trace ai.lamin \
+  -trace nextflow.lamin \
   run nf-core/scrnaseq \
   -r 4.1.0 \
   -profile docker,test \
