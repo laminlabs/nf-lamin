@@ -84,6 +84,12 @@ validate-publish-run:
 		-output-dir "lamin://$(INSTANCE)?prefix=$(PREFIX)" \
 		$(ARGS)
 
+# Check what the plugin prints on the console, without -trace
+# Usage: make validate-console [VERSION=x.y.z]
+validate-console:
+	VERSION=$${VERSION:-$$(awk -F"'" '/^version =/{print $$2}' build.gradle)}; \
+	validation/console/check.sh "$$VERSION"
+
 # Publish workflow outputs via publishDir (Nextflow < 26.04)
 # Usage: make validate-publish-legacy [INSTANCE=owner/instance] [PREFIX=key-prefix] [ARGS="extra args"]
 validate-publish-legacy:

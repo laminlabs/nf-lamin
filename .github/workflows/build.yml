@@ -136,6 +136,7 @@ jobs:
           nextflow secrets set LAMIN_API_KEY "$LAMIN_API_KEY"
           BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
           make ${{ matrix.validation_target }} BRANCH="$BRANCH" ARGS="${{ matrix.validation_args }}"
+          make validate-console
 
       - name: Print Nextflow log
         if: always()
