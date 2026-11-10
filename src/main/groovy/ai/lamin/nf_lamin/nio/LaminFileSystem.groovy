@@ -40,7 +40,7 @@ import ai.lamin.nf_lamin.instance.Instance
  * This class delegates to LaminRunManager for hub and instance access,
  * sharing connections with the rest of the nf-lamin plugin.
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.nio.LaminFileSystem')
 @CompileStatic
 final class LaminFileSystem extends FileSystem implements Closeable {
 

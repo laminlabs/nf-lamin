@@ -31,7 +31,7 @@ import ai.lamin.nf_lamin.instance.Instance
  * space, a space without storage gets the instance's lowest-id storage location in that space,
  * and the two must agree. Results are cached, because Nextflow parses the target once per task.
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.nio.LaminStorageResolver')
 @CompileStatic
 class LaminStorageResolver {
 

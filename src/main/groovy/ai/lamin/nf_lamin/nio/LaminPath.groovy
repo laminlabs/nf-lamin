@@ -36,7 +36,7 @@ import java.nio.file.WatchService
  * is stored in underlying cloud storage (S3, GCS, etc.). The actual
  * file operations are delegated to the underlying storage provider.
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.nio.LaminPath')
 @CompileStatic
 final class LaminPath implements Path {
 

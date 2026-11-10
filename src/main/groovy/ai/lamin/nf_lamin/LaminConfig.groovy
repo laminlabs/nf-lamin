@@ -78,7 +78,7 @@ import ai.lamin.nf_lamin.nio.LaminUriParser
 @Description('''
     The `lamin` scope allows you to configure the `nf-lamin` plugin.
 ''')
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.LaminConfig')
 @CompileStatic
 class LaminConfig implements ConfigScope {
 

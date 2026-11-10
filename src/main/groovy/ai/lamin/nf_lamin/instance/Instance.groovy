@@ -30,7 +30,7 @@ import java.util.concurrent.ThreadLocalRandom
  * @param name The name of the instance.
  * @throws IllegalStateException if any of the parameters are null or invalid.
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.instance.Instance')
 @CompileStatic
 class Instance {
 
@@ -873,7 +873,12 @@ class Instance {
             ) as Map<String, Object>
         }
 
-        Map<String, Object> responseBody = response?.body as Map<String, Object>
+        // callApi returns null for a 404, after logging the response at debug level
+        if (response == null) {
+            throw new IllegalStateException('The hub answered 404 Not Found, its response is in .nextflow.log')
+        }
+
+        Map<String, Object> responseBody = response.body as Map<String, Object>
         if (!responseBody?.artifact) {
             throw new IllegalStateException("Failed to create artifact. Response: ${response}")
         }
@@ -994,7 +999,7 @@ class Instance {
         // resolve full path using FileHelper to properly handle cloud URIs (s3://, gs://, etc.)
         Path storagePath = FileHelper.asPath(storageRoot)
         Path artifactPath = storagePath.resolve(artifactKey)
-        log.info "Artifact ${uid} resolved to path: '${artifactPath.toUri()}'"
+        log.debug "Artifact ${uid} resolved to path: '${artifactPath.toUri()}'"
 
         return artifactPath
     }
@@ -1141,7 +1146,7 @@ class Instance {
                     // concurrent workers hitting the same 502 don't all retry in
                     // lockstep and re-saturate the backend.
                     long backoff = computeBackoffMillis(retries)
-                    log.warn "${errorDesc} - Retrying (${retries + 1}/${this.maxRetries}) in ${backoff}ms... Response: ${e.responseBody}"
+                    log.debug "${errorDesc} - Retrying (${retries + 1}/${this.maxRetries}) in ${backoff}ms... Response: ${e.responseBody}"
                     Thread.sleep(backoff)
                     retries++
                 } else {

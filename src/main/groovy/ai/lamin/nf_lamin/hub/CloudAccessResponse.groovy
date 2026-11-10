@@ -47,7 +47,7 @@ import java.time.Instant
  * credentials. {@link #isUsable()} returns true only when all three credential
  * fields are present.
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.hub.CloudAccessResponse')
 @CompileStatic
 class CloudAccessResponse {
 

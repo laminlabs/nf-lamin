@@ -24,7 +24,7 @@ OUTDIR="${LAMIN_TEST_BUCKET}-staging/stress/${RUN}"
 REPORTDIR="out/stress-report/staging-${RUN}"
 
 nextflow \
-  -trace ai.lamin \
+  -trace nextflow.lamin \
   run laminlabs/nf-lamin \
   -r main \
   -latest \

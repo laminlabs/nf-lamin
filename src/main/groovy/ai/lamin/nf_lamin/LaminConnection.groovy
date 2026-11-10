@@ -37,7 +37,7 @@ import ai.lamin.nf_lamin.instance.Instance
  * is built lazily from the session config / env, falling back to anonymous access for
  * public instances (e.g. {@code laminlabs/lamindata}).
  */
-@Slf4j
+@Slf4j(category = 'nextflow.lamin.LaminConnection')
 @CompileStatic
 final class LaminConnection {
 
