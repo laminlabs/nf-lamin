@@ -103,7 +103,7 @@ Registering the published files as artifacts needs run tracking to be configured
 
 First, a LaminHub API key, which is also what authorises the writes: set `lamin.api_key` in `nextflow.config`, or the `LAMIN_API_KEY` environment variable.
 
-Second, the LaminDB instance to track the run in. A `lamin://` output directory names it already, so for pipelines that use workflow outputs, `-output-dir 'lamin://<owner>/<instance>?prefix=results'` is all it takes. Pipelines that publish with `publishDir` need `lamin.instance` in `nextflow.config` or the `LAMIN_CURRENT_INSTANCE` environment variable instead, since their targets are only known once a task publishes. When several of these are set and disagree, the output directory wins over `lamin.instance`, which wins over the environment variable, and the plugin logs a warning (see {doc}`/reference/config`).
+Second, the LaminDB instance to track the run in. A `lamin://` output directory names it already, so for pipelines that use workflow outputs, `-output-dir 'lamin://<owner>/<instance>?prefix=results'` is all it takes. Pipelines that publish with `publishDir` need `lamin.instance` in `nextflow.config` or the `LAMIN_CURRENT_INSTANCE` environment variable instead, since their targets are only known once a task publishes. When several of these are set and disagree, the output directory wins over `lamin.instance`, which wins over the environment variable, and the plugin logs a warning (see {doc}`config`).
 
 Publishing over existing files follows Nextflow's `overwrite` rules, as it does for `s3://` targets.
 

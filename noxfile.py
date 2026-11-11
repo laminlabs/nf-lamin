@@ -1,4 +1,5 @@
 import os
+import re
 import shutil
 from pathlib import Path
 
@@ -16,6 +17,20 @@ nox.options.default_venv_backend = "none" if IS_CI else "uv"
 
 GROUPS = {}
 GROUPS["guide"] = ["guide.ipynb"]
+
+
+def check_relative_reference_links() -> None:
+    # lamin-docs moves docs/reference/*.md to docs/nf-lamin/ without rewriting
+    # their links, so absolute links between them only resolve here
+    pattern = re.compile(r"\{doc\}`(?:[^`<]*<)?/|\]\(/")
+    offenders = [
+        f"{path}:{lineno}: {line.strip()}"
+        for path in sorted(Path("docs/reference").glob("*.md"))
+        for lineno, line in enumerate(path.read_text().splitlines(), start=1)
+        if pattern.search(line)
+    ]
+    if offenders:
+        raise SystemExit("Use relative links between docs/reference/ pages:\n" + "\n".join(offenders))
 
 
 @nox.session
@@ -62,5 +77,6 @@ def docs(session):
             if md_path.exists():
                 md_path.unlink()
             path.rename(Path("docs") / path.name)
+    check_relative_reference_links()
     build_docs(session, strict=True)
     upload_docs_artifact()
