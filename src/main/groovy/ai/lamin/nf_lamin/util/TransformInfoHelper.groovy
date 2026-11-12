@@ -84,6 +84,9 @@ class TransformInfoHelper {
 
         /** Type of git revision (tag, branch, or commit) - null if not a git repo */
         RevisionType revisionType
+
+        /** Path of the nextflow_schema.json next to the main script, relative to projectDir (null if absent) */
+        String schemaPath
     }
 
     /**
@@ -102,6 +105,7 @@ class TransformInfoHelper {
         metadata.mainScript = wfMetadata.scriptFile.toString().replaceFirst("${wfMetadata.projectDir}/", '')
         metadata.commitId = wfMetadata.commitId
         metadata.projectDir = wfMetadata.projectDir
+        metadata.schemaPath = detectSchemaPath(wfMetadata.projectDir, wfMetadata.scriptFile)
 
         // Revision: can be a branch name, tag name, or null
         // Nextflow only populates revision for branches/tags, NOT when running with a commit SHA directly
@@ -122,6 +126,55 @@ class TransformInfoHelper {
         }
 
         return metadata
+    }
+
+    /**
+     * Find the nextflow_schema.json next to the main script, where nf-schema looks for it.
+     *
+     * Viash keeps one schema per workflow next to a nested main.nf, while Seqera Platform
+     * only looks at the repository root unless it gets an explicit schema path.
+     *
+     * @param projectDir The project directory (the repository root for pulled pipelines)
+     * @param scriptFile The main script
+     * @return The schema path relative to projectDir, or null if there is no schema next to the script
+     */
+    static String detectSchemaPath(Path projectDir, Path scriptFile) {
+        if (projectDir == null || scriptFile == null) {
+            return null
+        }
+        Path root = projectDir.toAbsolutePath().normalize()
+        Path schema = scriptFile.toAbsolutePath().normalize().resolveSibling('nextflow_schema.json')
+        if (!schema.startsWith(root) || !Files.isRegularFile(schema)) {
+            return null
+        }
+        return root.relativize(schema).toString()
+    }
+
+    /**
+     * Store a schema path in a transform's _aux as nextflow.launch.schemaName, the launch
+     * setting LaminHub passes on to Seqera Platform. A schema path that is already set wins.
+     *
+     * @param aux The transform's current _aux (may be null)
+     * @param schemaPath The schema path relative to the repository root (may be null)
+     * @return A new _aux map, or null if there is nothing to update
+     */
+    static Map<String, Object> withSchemaName(Map aux, String schemaPath) {
+        if (!schemaPath) {
+            return null
+        }
+        Map nextflow = aux?.get('nextflow') instanceof Map ? aux.get('nextflow') as Map : [:]
+        Map launch = nextflow.get('launch') instanceof Map ? nextflow.get('launch') as Map : [:]
+        if (launch.get('schemaName')) {
+            return null
+        }
+
+        Map<String, Object> newLaunch = new LinkedHashMap<String, Object>(launch as Map<String, Object>)
+        newLaunch.put('schemaName', schemaPath)
+        Map<String, Object> newNextflow = new LinkedHashMap<String, Object>(nextflow as Map<String, Object>)
+        newNextflow.put('launch', newLaunch)
+        Map<String, Object> newAux = new LinkedHashMap<String, Object>((aux ?: [:]) as Map<String, Object>)
+        newAux.put('nextflow', newNextflow)
+        return newAux
     }
 
     /**
