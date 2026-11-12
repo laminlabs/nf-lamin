@@ -58,7 +58,7 @@ ln.Run.get("your-run-uid")
 Runs executed with `-with-tower` or launched from Seqera Platform additionally get `run.reference` set
 to the Platform watch URL, with `run.reference_type` set to `"Seqera"`.
 
-When the main script has a `nextflow_schema.json` next to it, a new transform stores that path in `transform._aux["nextflow"]["launch"]["schemaName"]`, so LaminHub can load the launch form of nested workflows, such as the ones Viash generates. `Transform.from_git(schema_path=...)` sets the same field.
+When the main script has a `nextflow_schema.json` next to it, a new transform stores that path in `transform._aux["nextflow"]["launch"]["schemaName"]`, so LaminHub can load the launch form of nested workflows, such as the ones Viash generates. `Transform.from_git(nextflow_schema=...)` sets the same field.
 
 ### Publishing outputs to Lamin storage
 
