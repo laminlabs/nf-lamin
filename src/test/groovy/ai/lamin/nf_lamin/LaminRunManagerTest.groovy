@@ -13,12 +13,14 @@ import ai.lamin.nf_lamin.nio.LaminS3Path
 import ai.lamin.nf_lamin.nio.LaminStorageTarget
 import software.amazon.awssdk.services.s3.S3Client as AwsS3Client
 import nextflow.Session
+import nextflow.config.Manifest
 import nextflow.exception.AbortSignalException
 import nextflow.script.WorkflowMetadata
 import spock.lang.Specification
 
 import java.lang.reflect.Field
 import java.net.URI
+import java.nio.file.Files
 import java.nio.file.Path
 import java.time.OffsetDateTime
 import java.util.concurrent.CountDownLatch
@@ -294,6 +296,102 @@ class LaminRunManagerTest extends Specification {
 
         Object workflowUrl
 
+    }
+
+    private LaminRunManager transformManager(Instance mockInstance, Path projectDir, Path scriptFile) {
+        def manager = LaminRunManager.instance
+        manager.setCurrentInstance(mockInstance)
+        injectField(manager, 'config', new LaminConfig([instance: 'testorg/testinst', api_key: 'test-key']))
+        def metadata = Stub(WorkflowMetadata) {
+            getRepository() >> 'https://github.com/org/repo'
+            getScriptFile() >> scriptFile
+            getProjectDir() >> projectDir
+            getCommitId() >> null
+            getRevision() >> 'v1.0.0'
+            getManifest() >> new Manifest([:])
+        }
+        injectField(manager, 'session', Stub(Session) {
+            getWorkflowMetadata() >> metadata
+            getBinding() >> null
+        })
+        return manager
+    }
+
+    private static Path nestedWorkflow(Path projectDir, boolean withSchema) {
+        Path scriptDir = Files.createDirectories(projectDir.resolve('target/nextflow/workflows/qc'))
+        if (withSchema) {
+            Files.writeString(scriptDir.resolve('nextflow_schema.json'), '{}')
+        }
+        return Files.createFile(scriptDir.resolve('main.nf'))
+    }
+
+    def 'fetchOrCreateTransform stores the schema next to the main script on a new transform'() {
+        given:
+        def mockInstance = Mock(Instance)
+        Path projectDir = Files.createTempDirectory('nf-lamin-project')
+        def manager = transformManager(mockInstance, projectDir, nestedWorkflow(projectDir, true))
+
+        when:
+        manager.fetchOrCreateTransform()
+
+        then:
+        1 * mockInstance.findTransforms(_) >> []
+        1 * mockInstance.createTransform({ Map args -> !args.containsKey('_aux') }) >> [uid: 'T1', id: 1, _aux: null]
+        1 * mockInstance.updateRecord({ Map args ->
+            args.uid == 'T1' &&
+            args.data == [_aux: [nextflow: [launch: [schemaName: 'target/nextflow/workflows/qc/nextflow_schema.json']]]]
+        }) >> [uid: 'T1', id: 1]
+    }
+
+    def 'fetchOrCreateTransform keeps the launch settings of a transform matched by source code'() {
+        given:
+        def mockInstance = Mock(Instance)
+        Path projectDir = Files.createTempDirectory('nf-lamin-project')
+        def manager = transformManager(mockInstance, projectDir, nestedWorkflow(projectDir, true))
+        Map existingAux = [nextflow: [launch: [configProfiles: ['docker']]]]
+
+        when:
+        manager.fetchOrCreateTransform()
+
+        then:
+        1 * mockInstance.findTransforms(_) >> []
+        1 * mockInstance.createTransform(_) >> [uid: 'T1', id: 1, _aux: existingAux]
+        1 * mockInstance.updateRecord({ Map args ->
+            args.data == [_aux: [nextflow: [launch: [
+                configProfiles: ['docker'],
+                schemaName: 'target/nextflow/workflows/qc/nextflow_schema.json'
+            ]]]]
+        }) >> [uid: 'T1', id: 1]
+    }
+
+    def 'fetchOrCreateTransform does not update a new transform without a schema next to the main script'() {
+        given:
+        def mockInstance = Mock(Instance)
+        Path projectDir = Files.createTempDirectory('nf-lamin-project')
+        def manager = transformManager(mockInstance, projectDir, nestedWorkflow(projectDir, false))
+
+        when:
+        manager.fetchOrCreateTransform()
+
+        then:
+        1 * mockInstance.findTransforms(_) >> []
+        1 * mockInstance.createTransform(_) >> [uid: 'T1', id: 1, _aux: null]
+        0 * mockInstance.updateRecord(_)
+    }
+
+    def 'fetchOrCreateTransform leaves an existing transform found by key alone'() {
+        given:
+        def mockInstance = Mock(Instance)
+        Path projectDir = Files.createTempDirectory('nf-lamin-project')
+        def manager = transformManager(mockInstance, projectDir, nestedWorkflow(projectDir, true))
+
+        when:
+        manager.fetchOrCreateTransform()
+
+        then:
+        1 * mockInstance.findTransforms(_) >> [[uid: 'T1', id: 1, _aux: null]]
+        0 * mockInstance.createTransform(_)
+        0 * mockInstance.updateRecord(_)
     }
 
     def 'createInputArtifactsAsync returns before worker finishes (non-blocking)'() {
