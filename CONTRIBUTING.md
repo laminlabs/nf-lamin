@@ -68,10 +68,10 @@ Test the plugin with real Nextflow workflows:
 
 ```bash
 # Test with a simple pipeline
-nextflow run hello -plugins nf-lamin@0.3.0
+nextflow run hello -plugins nf-lamin@1.0.0
 
 # Test with nf-core pipeline
-nextflow run nf-core/hello -plugins nf-lamin@0.3.0
+nextflow run nf-core/hello -plugins nf-lamin@1.0.0
 ```
 
 #### Lamin Observer Integration Tests
@@ -114,7 +114,7 @@ Create a `nextflow.config` file for testing:
 
 ```groovy
 plugins {
-    id 'nf-lamin@0.3.0'
+    id 'nf-lamin@1.0.0'
 }
 
 lamin {
@@ -134,7 +134,7 @@ export NXF_PLUGINS_MODE=dev
 export NXF_PLUGINS_DEV=$PWD
 
 # Use specific Nextflow version
-export NXF_VER=25.04.6
+export NXF_VER=25.10.4
 
 # Enable debug logging
 export NXF_DEBUG=2

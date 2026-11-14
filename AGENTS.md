@@ -87,7 +87,7 @@ make && make install
 NXF_VER=25.10.0 nextflow \
   -trace nextflow.lamin \
   run laminlabs/nf-lamin \
-  -main-script validation/main.nf \
+  -main-script validation/run/main.nf \
   -latest \
   -resume
 
@@ -159,7 +159,7 @@ def "should create run with correct metadata"() {
 
 ```gradle
 nextflowPlugin {
-    nextflowVersion = '25.04.0'  // Minimum version (TraceObserverV2)
+    nextflowVersion = '25.10.0'  // Minimum version (TraceObserverV2)
     className = 'ai.lamin.nf_lamin.LaminPlugin'
     extensionPoints = [
         'ai.lamin.nf_lamin.LaminExtension',
@@ -211,7 +211,7 @@ Search `github_repo` with "laminlabs/lamindb":
 
 ### Java API Client
 
-The plugin uses `ai.lamin:lamin-api-client:0.0.3` (generated from OpenAPI spec in `lamin-api-client-java/`). Update client by regenerating from `api/openapi.yaml`.
+The plugin uses `ai.lamin:lamin-api-client:0.1.0` (generated from OpenAPI spec in `lamin-api-client-java/`). Update client by regenerating from `api/openapi.yaml`.
 
 ## Quick Reference
 

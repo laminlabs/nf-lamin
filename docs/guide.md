@@ -15,7 +15,7 @@ The [`nf-lamin`](https://github.com/laminlabs/nf-lamin) Nextflow plugin works wi
 ```bash tags=["skip-execution"]
 export LAMIN_CURRENT_INSTANCE="your-org/your-instance"
 export LAMIN_API_KEY="<your-lamin-api-key>"
-nextflow run -plugins nf-lamin <your-pipeline>
+nextflow run -plugins nf-lamin@~1.0.0 <your-pipeline>
 ```
 
 **Option B: Nextflow secrets + config file**:
@@ -30,7 +30,7 @@ Create a `lamin.config`:
 
 ```groovy tags=["skip-execution"]
 plugins {
-  id 'nf-lamin'
+  id 'nf-lamin@~1.0.0'
 }
 
 lamin {

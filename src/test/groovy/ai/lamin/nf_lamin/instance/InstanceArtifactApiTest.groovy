@@ -967,8 +967,12 @@ class InstanceArtifactApiTest extends Specification {
     //  client-side stats (nf-lamin#189)
     // ===================================================================
 
-    static final String TEST_S3_BUCKET = 'openproblems-data'
-    static final String TEST_S3_KEY = 'resources/datasets/10x_xenium/2023_10x_human_brain_xenium/dataset.zarr'
+    // Public example data in Lamin's own bucket. The hub reuses a record with the same path,
+    // so a record found at the path is compared against but never deleted: only what this
+    // test created is cleaned up.
+    static final String PUBLIC_S3_BUCKET = 'lamindata'
+    static final String PUBLIC_S3_PREFIX = 'iris_studies/study0_raw_images'
+    static final String PUBLIC_S3_OBJECT = PUBLIC_S3_PREFIX + '/iris-0337d20a3b7273aa0ddaa7d6afb57a37a759b060e4401871db3cefaa6adc068d.jpg'
 
     private Map<String, Object> createAndFetch(Map<String, Object> inputArgs) {
         Map<String, Object> artifact = instance.createArtifact(inputArgs)
@@ -980,14 +984,32 @@ class InstanceArtifactApiTest extends Specification {
         return record
     }
 
+    /** Returns the record at the path, creating it when there is none; `__created` says whether cleanup may delete it. */
+    private Map<String, Object> fetchOrCreateAtPath(String path) {
+        Map<String, Object> existing = instance.getArtifactByPath(path)
+        if (existing?.uid) {
+            Map<String, Object> record = instance.getRecord(moduleName: 'core', modelName: 'artifact', idOrUid: existing.uid as String)
+            assert record : "getRecord returned null for ${existing.uid}"
+            record.put('__uid', existing.uid)
+            record.put('__created', false)
+            return record
+        }
+        Map<String, Object> record = createAndFetch([path: path, branch_id: testBranchId])
+        record.put('__created', true)
+        return record
+    }
+
+    private void cleanupIfCreated(Map<String, Object> record) {
+        if (record?.__created) cleanupArtifacts(record.__uid as String)
+    }
+
     @IgnoreIf({ !env.LAMIN_API_KEY })
     def "client-side stats of an S3 prefix match what the server computes"() {
         given:
-        deleteArtifactIfExists(TEST_S3_PATH)
-        Map<String, Object> record = createAndFetch([path: TEST_S3_PATH, branch_id: testBranchId])
+        Map<String, Object> record = fetchOrCreateAtPath("s3://${PUBLIC_S3_BUCKET}/${PUBLIC_S3_PREFIX}")
 
         when:
-        ArtifactStats stats = new ArtifactStatsResolver().resolveS3(TEST_S3_BUCKET, TEST_S3_KEY)
+        ArtifactStats stats = new ArtifactStatsResolver().resolveS3(PUBLIC_S3_BUCKET, PUBLIC_S3_PREFIX)
 
         then:
         stats != null
@@ -998,18 +1020,16 @@ class InstanceArtifactApiTest extends Specification {
         stats.nFiles == (record.n_files as Long)
 
         cleanup:
-        cleanupArtifacts(record?.__uid as String)
+        cleanupIfCreated(record)
     }
 
     @IgnoreIf({ !env.LAMIN_API_KEY })
     def "client-side stats of an S3 object match what the server computes"() {
         given:
-        String objectPath = TEST_S3_PATH + '/.zgroup'
-        deleteArtifactIfExists(objectPath)
-        Map<String, Object> record = createAndFetch([path: objectPath, branch_id: testBranchId])
+        Map<String, Object> record = fetchOrCreateAtPath("s3://${PUBLIC_S3_BUCKET}/${PUBLIC_S3_OBJECT}")
 
         when:
-        ArtifactStats stats = new ArtifactStatsResolver().resolveS3(TEST_S3_BUCKET, TEST_S3_KEY + '/.zgroup')
+        ArtifactStats stats = new ArtifactStatsResolver().resolveS3(PUBLIC_S3_BUCKET, PUBLIC_S3_OBJECT)
 
         then:
         stats != null
@@ -1021,7 +1041,7 @@ class InstanceArtifactApiTest extends Specification {
         record.n_files == null
 
         cleanup:
-        cleanupArtifacts(record?.__uid as String)
+        cleanupIfCreated(record)
     }
 
     /**

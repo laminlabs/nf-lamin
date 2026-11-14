@@ -78,6 +78,8 @@ The sections below document each setting in detail.
 
 If they name different instances, the plugin logs a warning and uses the one highest in this list.
 
+**Dry run**: `LAMIN_DRY_RUN` is off when it is unset, empty, or one of `false`, `0`, `no`, `n` and `off`. Any other value turns dry run on, so a typo such as `ture` never writes to the instance.
+
 **Experimental**: UID fields (`project_uids`, `ulabel_uids`, `space_uid`, `branch_uid`) also accept named references: `'?name'` (lookup by name, omit if missing), `'!name'` (lookup, error if missing), `'+name'` (create if missing). This is an experimental feature and may be removed in a future release.
 
 ---
@@ -228,6 +230,7 @@ Optional toggles for plugin features.
 | Setting                   | Type    | Default | Description                                                                                              |
 | ------------------------- | ------- | ------- | -------------------------------------------------------------------------------------------------------- |
 | `manage_s3_credentials`   | Boolean | `true`  | Enable automatic credential federation for S3 (see [`lamin://` URIs](lamin-uri.md))                      |
+| `use_output_labels`       | Boolean | `true`  | Link the labels of a `publishDir` directive to its published artifacts as ULabels                        |
 | `enable_artifact_hashing` | Boolean | `true`  | Compute the size and hash of `s3://` artifacts in the plugin (see [Artifact hashing](#artifact-hashing)) |
 
 **Example** — disable credential federation if it causes issues in your environment:
@@ -275,16 +278,17 @@ lamin {
 
 ## `lamin.api` - API connection (Advanced settings)
 
-| Setting             | Type    | Default | Env variable        |
-| ------------------- | ------- | ------- | ------------------- |
-| `supabase_api_url`  | String  | `null`  | `SUPABASE_API_URL`  |
-| `supabase_anon_key` | String  | `null`  | `SUPABASE_ANON_KEY` |
-| `max_retries`       | Integer | `3`     | `LAMIN_MAX_RETRIES` |
-| `retry_delay`       | Integer | `100`   | `LAMIN_RETRY_DELAY` |
-| `max_workers`       | Integer | `8`     | `LAMIN_MAX_WORKERS` |
+| Setting             | Type    | Default | Env variable        | Description                                                       |
+| ------------------- | ------- | ------- | ------------------- | ----------------------------------------------------------------- |
+| `supabase_api_url`  | String  | `null`  | `SUPABASE_API_URL`  | Supabase API URL of a custom LaminHub deployment                  |
+| `supabase_anon_key` | String  | `null`  | `SUPABASE_ANON_KEY` | Supabase anon key of a custom LaminHub deployment                 |
+| `web_url`           | String  | `null`  |                     | Web URL of a custom LaminHub deployment, e.g. `https://lamin.ai`  |
+| `max_retries`       | Integer | `3`     |                     | Retries per API request                                           |
+| `retry_delay`       | Integer | `100`   |                     | Base delay in ms; retries back off exponentially with full jitter |
+| `max_retry_delay`   | Integer | `30000` |                     | Cap on the backoff delay in ms                                    |
+| `max_workers`       | Integer | `8`     |                     | Size of the thread pool that creates artifacts in parallel        |
 
-Only needed for custom LaminHub deployments or to tune retry and parallelism behavior.
-`max_workers` controls the size of the thread pool used to create artifacts in parallel.
+Only needed for custom LaminHub deployments or to tune retries and parallelism. `SUPABASE_API_URL` and `SUPABASE_ANON_KEY` are only read when `nextflow.config` has a `lamin.api {}` block, even an empty one.
 
 ---
 
