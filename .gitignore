@@ -44,7 +44,7 @@ flowchart*
 report*
 timeline*
 trace*
-repo_nextflow
+repo_*
 nf-*-reports.tsv
 
 # Ignore Gradle build output directory
