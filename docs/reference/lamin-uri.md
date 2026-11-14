@@ -24,7 +24,7 @@ Use `lamin://` URIs with the `file()` function:
 ```groovy
 workflow {
   // Reference a LaminDB artifact directly by URI
-  def input_file = file('lamin://laminlabs/lamindata/artifact/PnNjE93TdZGJ')
+  def input_file = file('lamin://laminlabs/lamindata/artifact/MuQYeT2MhLqOZTHA')
 
   log.info "Using artifact: ${input_file}"
 
@@ -52,7 +52,7 @@ workflow {
 Use `lamin://` URIs as workflow parameters:
 
 ```groovy
-params.input = 'lamin://laminlabs/lamindata/artifact/PnNjE93TdZGJ'
+params.input = 'lamin://laminlabs/lamindata/artifact/MuQYeT2MhLqOZTHA'
 
 workflow {
   Channel.fromPath(params.input)
@@ -63,7 +63,7 @@ workflow {
 Or pass them on the command line:
 
 ```bash
-nextflow run my-pipeline.nf --input 'lamin://laminlabs/lamindata/artifact/PnNjE93TdZGJ'
+nextflow run my-pipeline.nf --input 'lamin://laminlabs/lamindata/artifact/MuQYeT2MhLqOZTHA'
 ```
 
 ## Publishing to a storage location
@@ -130,9 +130,9 @@ For LaminHub-managed **S3** storage, the plugin automatically obtains temporary 
 The plugin resolves the `lamin://` URI to its storage location (`storageRoot` and key), then calls LaminHub's cloud-access API to get short-lived `AccessKeyId` / `SecretAccessKey` / `SessionToken` credentials scoped to that storage root. Nextflow accesses the files through an internal `lamin-s3://` virtual filesystem backed by those credentials. The credentials are refreshed as needed, so a long-running transfer is not cut short by their expiry.
 
 :::{note}
-**Advanced: addressing a storage path directly**
+**Advanced and experimental: addressing a storage path directly**
 
-Inputs should normally be referenced as `lamin://` artifact URIs.
+Inputs should normally be referenced as `lamin://` artifact URIs. The `lamin-s3://` form below is experimental and can change in a minor release.
 
 For example, a pipeline published its STARsolo output folder `Sample_X.Solo.out` as a folder artifact. The filtered count matrix sits in the subdirectory `Gene/filtered` of that folder. With the artifact uid at hand, you reference it like any other sub-path:
 
