@@ -292,6 +292,32 @@ class LaminUriParserTest extends Specification {
         parsed.prefix == 'results'
     }
 
+    def "should accept '#' in place of '?' in a storage URI"() {
+        when:
+        def parsed = LaminUriParser.parse('lamin://laminlabs/lamindata#space=Sp4ceUid00001&storage=JwMEKs04D9WJ&prefix=results/run1')
+
+        then:
+        parsed.isStorage()
+        parsed.spaceUid == 'Sp4ceUid00001'
+        parsed.storageUid == 'JwMEKs04D9WJ'
+        parsed.prefix == 'results/run1'
+        parsed == LaminUriParser.parse('lamin://laminlabs/lamindata?space=Sp4ceUid00001&storage=JwMEKs04D9WJ&prefix=results/run1')
+    }
+
+    def "should accept '#' in place of '?' in a URI object"() {
+        when:
+        def parsed = LaminUriParser.parse(new URI('lamin://laminlabs/lamindata#storage=JwMEKs04D9WJ&prefix=results'))
+
+        then:
+        parsed.storageUid == 'JwMEKs04D9WJ'
+        parsed.prefix == 'results'
+    }
+
+    def "should keep a '#' after the '?' as part of the query"() {
+        expect:
+        LaminUriParser.parse('lamin://o/i?prefix=a#b').prefix == 'a#b'
+    }
+
     @Unroll
     def "should normalise prefix '#raw' to '#expected'"() {
         when:

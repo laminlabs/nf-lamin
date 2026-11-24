@@ -95,6 +95,16 @@ process myProcess {
 }
 ```
 
+### Workaround: `#` instead of `?`
+
+Nextflow's `file()` reads the `?` of a target as a glob wildcard. That breaks pipelines that pass their output directory through `file()`, including nf-core pipelines: nf-schema validates `--outdir` that way and fails with `Cannot resolve lamin://<owner>/`. Since nf-lamin 1.0.1, `#` can be used in place of `?`:
+
+```bash
+nextflow run nf-core/demo -profile docker,test --outdir 'lamin://laminlabs/lamindata#prefix=results'
+```
+
+On nf-lamin 1.0.0, skip the validation of that parameter instead, with `validation.ignoreParams = ['outdir']` in your config.
+
 ### What happens
 
 When Nextflow parses the target, the plugin looks up the space and storage in the instance and resolves the target to a path in that storage location. Everything Nextflow publishes there is written through the federated credentials LaminHub grants for the location, and each published file is registered as an Artifact **in place**: its `key` is the path relative to the storage root, LaminDB does not copy it, and it is addressed as `lamin://<owner>/<instance>/artifact/<uid>` from then on.

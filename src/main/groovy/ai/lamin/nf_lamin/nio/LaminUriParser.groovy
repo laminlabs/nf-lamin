@@ -146,9 +146,13 @@ class LaminUriParser {
             rest = rest.substring(2)
         }
 
-        // split off the query
+        // split off the query; '#' works too, since Nextflow's file() reads '?' as a glob wildcard
         String query = null
         int qmark = rest.indexOf('?')
+        int hash = rest.indexOf('#')
+        if (hash >= 0 && (qmark < 0 || hash < qmark)) {
+            qmark = hash
+        }
         if (qmark >= 0) {
             query = rest.substring(qmark + 1)
             rest = rest.substring(0, qmark)
