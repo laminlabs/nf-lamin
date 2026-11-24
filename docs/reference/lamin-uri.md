@@ -95,6 +95,16 @@ process myProcess {
 }
 ```
 
+### Pipelines that validate `--outdir`
+
+nf-core pipelines validate `--outdir` with nf-schema, which passes it to Nextflow's `file()`. From nf-lamin 1.0.1 on, `file()` takes a target on S3 storage with credential federation literally, so `--outdir 'lamin://laminlabs/lamindata?prefix=results'` passes validation.
+
+In nf-lamin 1.0.0, and for targets without credential federation (non-S3 storage, or `lamin.features.manage_s3_credentials = false`), `file()` reads the `?` as a glob wildcard and validation fails with `Cannot resolve lamin://<owner>/`. Skip the check for that parameter in your config:
+
+```groovy
+validation.ignoreParams = ['outdir']
+```
+
 ### What happens
 
 When Nextflow parses the target, the plugin looks up the space and storage in the instance and resolves the target to a path in that storage location. Everything Nextflow publishes there is written through the federated credentials LaminHub grants for the location, and each published file is registered as an Artifact **in place**: its `key` is the path relative to the storage root, LaminDB does not copy it, and it is addressed as `lamin://<owner>/<instance>/artifact/<uid>` from then on.
@@ -116,6 +126,7 @@ The storage location a target resolves to decides the space of the artifacts pub
 - When the run is tracked, you can only publish to the instance the run is tracked in, since that is where the published files are registered.
 - A space and a storage location that belong to different spaces cannot be combined; LaminDB requires them to match.
 - `.lamindb/` is reserved by LaminDB for the artifacts it manages itself and cannot be used as a prefix.
+- Glob patterns under a target, e.g. `files('lamin://laminlabs/lamindata?prefix=results/*.txt')`, are not supported.
 - Artifact URIs are read-only.
 
 ## Requirements
