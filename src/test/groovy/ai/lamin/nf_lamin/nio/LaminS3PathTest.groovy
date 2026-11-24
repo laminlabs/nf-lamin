@@ -98,7 +98,7 @@ class LaminS3PathTest extends Specification {
 
     // ==================== isAbsolute ====================
 
-    def "isAbsolute() always returns true"() {
+    def "isAbsolute() is true for a path with a bucket"() {
         expect:
         path('any/key').isAbsolute()
         path('').isAbsolute()
@@ -130,6 +130,24 @@ class LaminS3PathTest extends Specification {
     def "getFileName() returns single-segment key"() {
         expect:
         (path('file.txt').fileName as LaminS3Path).key == 'file.txt'
+    }
+
+    def "getFileName() is a relative path that prints as the name only"() {
+        when:
+        def name = path('dir/sub/file.txt').fileName
+
+        then:
+        !name.isAbsolute()
+        name.toString() == 'file.txt'
+    }
+
+    def "a staged copy is named after the file, as in Nextflow's FilePorter"() {
+        given:
+        def stageDir = java.nio.file.Paths.get('/work/stage-1/ce/3b5585')
+
+        expect:
+        // FilePorter.getCachePathFor: stageDir.resolve(sourcePath.getName())
+        stageDir.resolve(path('pipeline_info/hello.txt').getName()) == stageDir.resolve('hello.txt')
     }
 
     // ==================== getParent ====================
@@ -268,8 +286,20 @@ class LaminS3PathTest extends Specification {
 
     def "endsWith(Path) returns true for matching suffix on same storageRoot"() {
         expect:
-        path('a/b/c').endsWith(path('b/c'))
-        path('a/b/c').endsWith(path('c'))
+        path('a/b/c').endsWith(path('a/b/c').subpath(1, 3))
+        path('a/b/c').endsWith(path('a/b/c').fileName)
+    }
+
+    def "endsWith(Path) with an absolute path requires the same path"() {
+        expect:
+        path('a/b/c').endsWith(path('a/b/c'))
+        !path('a/b/c').endsWith(path('b/c'))
+    }
+
+    def "startsWith(Path) is false when only one of the paths is relative"() {
+        expect:
+        !path('a/b/c').startsWith(path('a/b/c').getName(0))
+        !path('a/b/c').getName(0).startsWith(path('a'))
     }
 
     def "endsWith(Path) returns false for different storageRoot"() {
@@ -403,6 +433,105 @@ class LaminS3PathTest extends Specification {
 
         then:
         thrown(ProviderMismatchException)
+    }
+
+    // ==================== relative paths ====================
+
+    def "getName(), subpath() and iterator() return relative paths"() {
+        given:
+        def p = path('a/b/c')
+
+        expect:
+        !p.getName(1).isAbsolute()
+        p.getName(1).toString() == 'b'
+        !p.subpath(1, 3).isAbsolute()
+        p.subpath(1, 3).toString() == 'b/c'
+        p.collect { it.isAbsolute() } == [false, false, false]
+        p.collect { it.toString() } == ['a', 'b', 'c']
+    }
+
+    def "relativize() returns a relative path"() {
+        when:
+        def result = path('a/b').relativize(path('a/b/c/d'))
+
+        then:
+        !result.isAbsolute()
+        result.toString() == 'c/d'
+    }
+
+    def "relativize() of a path against itself is the empty relative path"() {
+        when:
+        def result = path('a/b').relativize(path('a/b'))
+
+        then:
+        !result.isAbsolute()
+        result.toString() == ''
+    }
+
+    def "relativize() between an absolute and a relative path throws IllegalArgumentException"() {
+        when:
+        path('a/b').relativize(path('a/b/c').subpath(0, 3))
+
+        then:
+        thrown(IllegalArgumentException)
+    }
+
+    def "resolve(Path) appends a relative path"() {
+        given:
+        def dir = path('a/b')
+        def file = path('a/b/c/d.txt')
+
+        expect:
+        dir.resolve(path('x/y.txt').fileName) == path('a/b/y.txt')
+        dir.resolve(dir.relativize(file)) == file
+        dir.resolve(dir.relativize(dir)) == dir
+    }
+
+    def "resolve() on a relative path stays relative"() {
+        given:
+        def rel = path('a/b/c').subpath(0, 2)
+
+        expect:
+        !rel.resolve('c.txt').isAbsolute()
+        rel.resolve('c.txt').toString() == 'a/b/c.txt'
+        rel.resolve(path('x/y.txt').fileName).toString() == 'a/b/y.txt'
+        rel.resolveSibling('z').toString() == 'a/z'
+        rel.getName(0).resolveSibling('z').toString() == 'z'
+    }
+
+    def "a relative path has no root, and its first name has no parent"() {
+        given:
+        def rel = path('a/b/c').subpath(1, 3)
+
+        expect:
+        rel.root == null
+        rel.parent.toString() == 'b'
+        !rel.parent.isAbsolute()
+        rel.parent.parent == null
+        rel.fileName.toString() == 'c'
+        rel.nameCount == 2
+    }
+
+    def "a relative path does not equal the absolute path with the same key"() {
+        given:
+        def abs = path('file.txt')
+        def rel = path('dir/file.txt').fileName
+
+        expect:
+        rel != abs
+        abs != rel
+        rel == path('other/file.txt').fileName
+        rel.hashCode() == path('other/file.txt').fileName.hashCode()
+    }
+
+    def "toAbsolutePath() resolves a relative path against the bucket root"() {
+        given:
+        def rel = path('a/b/c').subpath(1, 3)
+
+        expect:
+        !rel.isAbsolute()
+        rel.toAbsolutePath() == path('b/c')
+        rel.toUri() == path('b/c').toUri()
     }
 
     // ==================== toUri ====================

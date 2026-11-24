@@ -33,7 +33,8 @@ import java.nio.file.WatchService
  * Represents an object in an S3 bucket using temporary credentials from LaminHub.
  * URIs are of the form: lamin-s3://bucket-name/path/to/object.csv
  *
- * This path is always absolute (it always has a bucket and key).
+ * A path to an object is absolute. Its parts, such as {@link #getFileName()} or the result of
+ * {@link #relativize(Path)}, are relative paths that print as the bare key.
  */
 @Slf4j(category = 'nextflow.lamin.nio.LaminS3Path')
 @CompileStatic
@@ -44,14 +45,24 @@ final class LaminS3Path implements Path {
 
     private final LaminS3FileSystem fs
     private final String key  // object key, no leading slash
+    private final boolean absolute
 
     LaminS3Path(LaminS3FileSystem fs, String key) {
+        this(fs, key, true)
+    }
+
+    private LaminS3Path(LaminS3FileSystem fs, String key, boolean absolute) {
         if (fs == null) throw new IllegalArgumentException("FileSystem cannot be null")
         this.fs = fs
         // normalize key: no leading, trailing or doubled slashes. Nextflow resolves publish
         // destinations from strings like "reports/${id}/", which would otherwise leave a "//"
         // in the object key.
         this.key = key?.replaceAll('/+', '/')?.replaceFirst('^/', '')?.replaceFirst('/$', '') ?: ''
+        this.absolute = absolute
+    }
+
+    private LaminS3Path relative(String key) {
+        return new LaminS3Path(fs, key, false)
     }
 
     String getBucket() { return fs.bucketName }
@@ -64,12 +75,12 @@ final class LaminS3Path implements Path {
 
     @Override
     boolean isAbsolute() {
-        return true
+        return absolute
     }
 
     @Override
     Path getRoot() {
-        return new LaminS3Path(fs, '')
+        return absolute ? new LaminS3Path(fs, '') : null
     }
 
     @Override
@@ -77,7 +88,7 @@ final class LaminS3Path implements Path {
         if (!key) return null
         String[] parts = key.split(SEP)
         String name = parts[parts.length - 1]
-        return new LaminS3Path(fs, name)
+        return relative(name)
     }
 
     @Override
@@ -85,7 +96,7 @@ final class LaminS3Path implements Path {
         if (!key) return null
         int lastSep = key.lastIndexOf(SEP)
         if (lastSep <= 0) return getRoot()
-        return new LaminS3Path(fs, key.substring(0, lastSep))
+        return new LaminS3Path(fs, key.substring(0, lastSep), absolute)
     }
 
     @Override
@@ -101,7 +112,7 @@ final class LaminS3Path implements Path {
         if (index < 0 || index >= parts.length) {
             throw new IllegalArgumentException("Index ${index} out of range [0, ${parts.length})")
         }
-        return new LaminS3Path(fs, parts[index])
+        return relative(parts[index])
     }
 
     @Override
@@ -111,14 +122,14 @@ final class LaminS3Path implements Path {
         if (beginIndex < 0 || endIndex > parts.length || beginIndex >= endIndex) {
             throw new IllegalArgumentException("Invalid subpath range [${beginIndex}, ${endIndex})")
         }
-        return new LaminS3Path(fs, parts[beginIndex..<endIndex].join(SEP))
+        return relative(parts[beginIndex..<endIndex].join(SEP))
     }
 
     @Override
     boolean startsWith(Path other) {
         if (!(other instanceof LaminS3Path)) return false
         LaminS3Path o = (LaminS3Path) other
-        return fs.storageRoot == o.fs.storageRoot && key.startsWith(o.key)
+        return absolute == o.absolute && fs.storageRoot == o.fs.storageRoot && key.startsWith(o.key)
     }
 
     @Override
@@ -130,7 +141,8 @@ final class LaminS3Path implements Path {
     boolean endsWith(Path other) {
         if (!(other instanceof LaminS3Path)) return false
         LaminS3Path o = (LaminS3Path) other
-        return fs.storageRoot == o.fs.storageRoot && key.endsWith(o.key)
+        if (fs.storageRoot != o.fs.storageRoot) return false
+        return o.absolute ? absolute && key == o.key : key.endsWith(o.key)
     }
 
     @Override
@@ -147,15 +159,10 @@ final class LaminS3Path implements Path {
     Path resolve(Path other) {
         if (other instanceof LaminS3Path) {
             LaminS3Path o = (LaminS3Path) other
-            if (o.isAbsolute()) return o
-            String newKey = key ? "${key}/${o.key}" : o.key
-            return new LaminS3Path(fs, newKey)
+            return o.absolute ? o : resolve(o.key)
         }
         if (other instanceof Path) {
-            String otherStr = other.toString()
-            if (!otherStr) return this
-            String newKey = key ? "${key}/${otherStr}" : otherStr
-            return new LaminS3Path(fs, newKey)
+            return resolve(other.toString())
         }
         throw new ProviderMismatchException("Cannot resolve ${other?.class?.name}")
     }
@@ -164,7 +171,7 @@ final class LaminS3Path implements Path {
     Path resolve(String other) {
         if (!other) return this
         String newKey = key ? "${key}/${other}" : other
-        return new LaminS3Path(fs, newKey)
+        return new LaminS3Path(fs, newKey, absolute)
     }
 
     @Override
@@ -176,7 +183,7 @@ final class LaminS3Path implements Path {
     @Override
     Path resolveSibling(String other) {
         Path parent = getParent()
-        return parent != null ? parent.resolve(other) : new LaminS3Path(fs, other)
+        return parent != null ? parent.resolve(other) : new LaminS3Path(fs, other, absolute)
     }
 
     @Override
@@ -184,9 +191,8 @@ final class LaminS3Path implements Path {
         if (!(other instanceof LaminS3Path)) throw new ProviderMismatchException()
         LaminS3Path o = (LaminS3Path) other
         if (fs.storageRoot != o.fs.storageRoot) throw new IllegalArgumentException("Cannot relativize across different storage roots")
-        if (!o.key.startsWith(key)) throw new IllegalArgumentException("Cannot relativize ${o} against ${this}")
-        String relative = o.key.substring(key.length()).replaceFirst('^/', '')
-        return new LaminS3Path(fs, relative)
+        if (absolute != o.absolute || !o.key.startsWith(key)) throw new IllegalArgumentException("Cannot relativize ${o} against ${this}")
+        return relative(o.key.substring(key.length()))
     }
 
     @Override
@@ -207,14 +213,15 @@ final class LaminS3Path implements Path {
         return "s3://${bucket}/${key}"
     }
 
+    /** A relative path is resolved against the bucket root, as S3 has no working directory. */
     @Override
     Path toAbsolutePath() {
-        return this
+        return absolute ? this : new LaminS3Path(fs, key)
     }
 
     @Override
     Path toRealPath(LinkOption... options) throws IOException {
-        return this
+        return toAbsolutePath()
     }
 
     @Override
@@ -232,7 +239,7 @@ final class LaminS3Path implements Path {
         List<Path> names = []
         if (key) {
             key.split(SEP).each { String part ->
-                names << new LaminS3Path(fs, part)
+                names << relative(part)
             }
         }
         return names.iterator()
@@ -247,16 +254,16 @@ final class LaminS3Path implements Path {
     boolean equals(Object obj) {
         if (!(obj instanceof LaminS3Path)) return false
         LaminS3Path o = (LaminS3Path) obj
-        return bucket == o.bucket && key == o.key
+        return bucket == o.bucket && key == o.key && absolute == o.absolute
     }
 
     @Override
     int hashCode() {
-        return Objects.hash(bucket, key)
+        return Objects.hash(bucket, key, absolute)
     }
 
     @Override
     String toString() {
-        return "${SCHEME}://${bucket}/${key}"
+        return absolute ? "${SCHEME}://${bucket}/${key}" : key
     }
 }
