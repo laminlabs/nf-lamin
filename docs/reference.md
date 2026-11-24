@@ -43,8 +43,9 @@ nextflow run <your-pipeline> -c lamin.config
 
 | nf-lamin  | LaminDB       | Nextflow   | Status         | Key Features                                                                    |
 | --------- | ------------- | ---------- | -------------- | ------------------------------------------------------------------------------- |
+| **1.0.1** | >= 2.0        | >= 25.10.0 | ✅ Supported   | `lamin://` output dirs in nf-core pipelines                                     |
 | **1.0.0** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Publish to `lamin://` storage, client-side artifact stats, reliable run status  |
-| **0.9.0** | >= 2.0        | >= 25.10.0 | ✅ Supported   | Annotate artifacts, Seqera Platform run url, anonymous `lamin://` resolution    |
+| 0.9.0     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Annotate artifacts, Seqera Platform run url, anonymous `lamin://` resolution    |
 | 0.8.3     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Make API interactions configurable and more robust, clearer permission errors   |
 | 0.8.2     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Parallellized artifact creation                                                 |
 | 0.8.1     | >= 2.0        | >= 25.10.0 | ❌ Unsupported | Improved trace logging                                                          |
