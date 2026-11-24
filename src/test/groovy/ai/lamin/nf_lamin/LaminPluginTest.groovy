@@ -15,8 +15,16 @@
  */
 package ai.lamin.nf_lamin
 
-import spock.lang.Specification
+import java.nio.file.Paths
+
+import nextflow.file.FileHelper
 import org.pf4j.PluginWrapper
+import software.amazon.awssdk.services.s3.S3Client
+import spock.lang.Specification
+
+import ai.lamin.nf_lamin.nio.LaminS3FileSystem
+import ai.lamin.nf_lamin.nio.LaminS3FileSystemProvider
+import ai.lamin.nf_lamin.nio.LaminS3Path
 
 /**
  * Unit tests for the LaminPlugin class
@@ -32,5 +40,27 @@ class LaminPluginTest extends Specification {
 
         then:
         plugin != null
+    }
+
+    def "turnOffGlobbing() keeps Nextflow from reading the query string of a lamin:// target as a glob"() {
+        given:
+        def fs = new LaminS3FileSystem(new LaminS3FileSystemProvider(), 's3://my-bucket/prefix', Stub(S3Client))
+        def target = new LaminS3Path(fs, 'prefix/results')
+
+        when:
+        LaminPlugin.turnOffGlobbing(LaminS3FileSystemProvider.SCHEME)
+
+        then:
+        !FileHelper.isGlobAllowed(target)
+        FileHelper.isGlobAllowed(Paths.get('/tmp/results'))
+    }
+
+    def "turnOffGlobbing() is idempotent"() {
+        when:
+        LaminPlugin.turnOffGlobbing('lamin-s3')
+        LaminPlugin.turnOffGlobbing('lamin-s3')
+
+        then:
+        noExceptionThrown()
     }
 }
