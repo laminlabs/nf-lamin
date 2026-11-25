@@ -586,6 +586,9 @@ final class LaminRunManager {
             updateData['branch_id'] = resolvedBranchId
             updateData['created_on_id'] = resolvedBranchId
         }
+        // the server can return an existing transform with the same source code, so merge into its _aux
+        Map<String, Object> aux = TransformInfoHelper.withSchemaName(transformRecord.get('_aux') as Map, metadata.schemaPath)
+        if (aux != null) updateData['_aux'] = aux
         if (updateData) {
             transformRecord = laminInstance.updateRecord(
                 moduleName: 'core',

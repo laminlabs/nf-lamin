@@ -3,6 +3,8 @@ package ai.lamin.nf_lamin.util
 import ai.lamin.nf_lamin.util.TransformInfoHelper
 
 import spock.lang.Specification
+import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.Paths
 
 class TransformInfoHelperTest extends Specification {
@@ -340,5 +342,99 @@ commit: def456abc789012345678901234567890abcdef'''
 
         then:
         description == 'nf-core/rnaseq: RNA sequencing analysis pipeline'
+    }
+
+    // ========== detectSchemaPath tests ==========
+
+    def 'detectSchemaPath finds the schema next to a nested main script'() {
+        given:
+        Path projectDir = Files.createTempDirectory('nf-lamin-schema')
+        Path scriptDir = Files.createDirectories(projectDir.resolve('target/nextflow/workflows/qc'))
+        Path scriptFile = Files.createFile(scriptDir.resolve('main.nf'))
+        Files.writeString(scriptDir.resolve('nextflow_schema.json'), '{}')
+        Files.writeString(projectDir.resolve('nextflow_schema.json'), '{}')
+
+        expect:
+        TransformInfoHelper.detectSchemaPath(projectDir, scriptFile) == 'target/nextflow/workflows/qc/nextflow_schema.json'
+    }
+
+    def 'detectSchemaPath finds the schema next to a root main script'() {
+        given:
+        Path projectDir = Files.createTempDirectory('nf-lamin-schema')
+        Path scriptFile = Files.createFile(projectDir.resolve('main.nf'))
+        Files.writeString(projectDir.resolve('nextflow_schema.json'), '{}')
+
+        expect:
+        TransformInfoHelper.detectSchemaPath(projectDir, scriptFile) == 'nextflow_schema.json'
+    }
+
+    def 'detectSchemaPath returns null without a schema next to the main script'() {
+        given:
+        Path projectDir = Files.createTempDirectory('nf-lamin-schema')
+        Path scriptDir = Files.createDirectories(projectDir.resolve('workflows/qc'))
+        Path scriptFile = Files.createFile(scriptDir.resolve('main.nf'))
+        Files.writeString(projectDir.resolve('nextflow_schema.json'), '{}')
+
+        expect:
+        TransformInfoHelper.detectSchemaPath(projectDir, scriptFile) == null
+    }
+
+    def 'detectSchemaPath returns null for a script outside the project dir'() {
+        given:
+        Path projectDir = Files.createTempDirectory('nf-lamin-schema')
+        Path otherDir = Files.createTempDirectory('nf-lamin-other')
+        Path scriptFile = Files.createFile(otherDir.resolve('main.nf'))
+        Files.writeString(otherDir.resolve('nextflow_schema.json'), '{}')
+
+        expect:
+        TransformInfoHelper.detectSchemaPath(projectDir, scriptFile) == null
+    }
+
+    def 'detectSchemaPath returns null without a project dir or script'() {
+        expect:
+        TransformInfoHelper.detectSchemaPath(null, Paths.get('/tmp/main.nf')) == null
+        TransformInfoHelper.detectSchemaPath(Paths.get('/tmp'), null) == null
+    }
+
+    // ========== withSchemaName tests ==========
+
+    def 'withSchemaName stores the schema path as nextflow launch setting'() {
+        expect:
+        TransformInfoHelper.withSchemaName(null, 'target/nextflow/qc/nextflow_schema.json') ==
+            [nextflow: [launch: [schemaName: 'target/nextflow/qc/nextflow_schema.json']]]
+    }
+
+    def 'withSchemaName keeps the other aux settings'() {
+        given:
+        Map existing = [
+            ei: 'x',
+            nextflow: [
+                launch: [configProfiles: ['docker']],
+                parameter_config: [input: [schema_uid: 'abc']]
+            ]
+        ]
+
+        when:
+        Map aux = TransformInfoHelper.withSchemaName(existing, 'nextflow_schema.json')
+
+        then:
+        aux == [
+            ei: 'x',
+            nextflow: [
+                launch: [configProfiles: ['docker'], schemaName: 'nextflow_schema.json'],
+                parameter_config: [input: [schema_uid: 'abc']]
+            ]
+        ]
+        existing.nextflow == [launch: [configProfiles: ['docker']], parameter_config: [input: [schema_uid: 'abc']]]
+    }
+
+    def 'withSchemaName leaves an existing schema path alone'() {
+        expect:
+        TransformInfoHelper.withSchemaName([nextflow: [launch: [schemaName: 'custom/schema.json']]], 'nextflow_schema.json') == null
+    }
+
+    def 'withSchemaName returns null without a schema path'() {
+        expect:
+        TransformInfoHelper.withSchemaName([ei: 'x'], null) == null
     }
 }
